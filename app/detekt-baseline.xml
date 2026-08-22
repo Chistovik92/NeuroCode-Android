@@ -7,25 +7,6 @@
     <ID>CyclomaticComplexMethod:GitScreen.kt$@Composable fun GitScreen(git: GitViewModel)</ID>
     <ID>CyclomaticComplexMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp(viewModel: AppViewModel)</ID>
     <ID>CyclomaticComplexMethod:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun executeStreaming( provider: ProviderConfig, apiKey: String, messages: List&lt;ApiMessage&gt;, tools: JsonArray, onChunk: (String) -&gt; Unit, ): AssistantTurn</ID>
-    <ID>FunctionNaming:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
-    <ID>FunctionNaming:ChatScreen.kt$@Composable private fun EmptyChatHint(local: Boolean)</ID>
-    <ID>FunctionNaming:ChatScreen.kt$@Composable private fun MessageBubble(message: ChatMessage)</ID>
-    <ID>FunctionNaming:CodeEditorView.kt$@Composable fun CodeEditorView( text: String, onTextChange: (String) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-    <ID>FunctionNaming:EditorScreen.kt$@Composable fun EditorScreen(editor: EditorViewModel)</ID>
-    <ID>FunctionNaming:EditorScreen.kt$@Composable private fun FileTreeNode( node: FileNode, depth: Int, onOpen: (String) -&gt; Unit, )</ID>
-    <ID>FunctionNaming:GitScreen.kt$@Composable fun GitScreen(git: GitViewModel)</ID>
-    <ID>FunctionNaming:GitScreen.kt$@Composable private fun CloneDialog( onDismiss: () -&gt; Unit, onClone: (String, String, String) -&gt; Unit, )</ID>
-    <ID>FunctionNaming:GitScreen.kt$@Composable private fun CommitDialog( onDismiss: () -&gt; Unit, onCommit: (String, String, String) -&gt; Unit, )</ID>
-    <ID>FunctionNaming:GitScreen.kt$@Composable private fun RemoteCard( git: GitViewModel, currentUrl: String?, savedUsername: String, busy: Boolean, gitReady: Boolean, )</ID>
-    <ID>FunctionNaming:GitScreen.kt$@Composable private fun StatusCard(status: GitStatus)</ID>
-    <ID>FunctionNaming:NeuroCodeApp.kt$@Composable fun TextInputDialog( title: String, label: String, initialValue: String, confirmLabel: String, onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, )</ID>
-    <ID>FunctionNaming:NeuroCodeApp.kt$@Composable private fun EmptyProjectScreen( padding: PaddingValues, onCreate: () -&gt; Unit, onImport: () -&gt; Unit, )</ID>
-    <ID>FunctionNaming:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp(viewModel: AppViewModel)</ID>
-    <ID>FunctionNaming:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
-    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun ProviderDialog( current: ProviderConfig?, onDismiss: () -&gt; Unit, onSave: (ProviderConfig, String) -&gt; Unit, )</ID>
-    <ID>FunctionNaming:SettingsScreen.kt$@Composable private fun SettingSwitch( title: String, description: String, checked: Boolean, enabled: Boolean = true, onChecked: (Boolean) -&gt; Unit, )</ID>
-    <ID>FunctionNaming:TerminalScreen.kt$@Composable fun TerminalScreen(terminal: TerminalViewModel)</ID>
-    <ID>FunctionNaming:Theme.kt$@Composable fun NeuroCodeTheme( darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -&gt; Unit, )</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$fun definitions(): JsonArray</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, ): String</ID>
     <ID>LongMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
@@ -34,10 +15,11 @@
     <ID>LongMethod:GitScreen.kt$@Composable private fun RemoteCard( git: GitViewModel, currentUrl: String?, savedUsername: String, busy: Boolean, gitReady: Boolean, )</ID>
     <ID>LongMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp(viewModel: AppViewModel)</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
-    <ID>LongMethod:SettingsScreen.kt$@Composable private fun ProviderDialog( current: ProviderConfig?, onDismiss: () -&gt; Unit, onSave: (ProviderConfig, String) -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingsScreen.kt$@Composable private fun ProviderDialog( current: ProviderConfig?, modelsState: ProviderModelsState, onLoadModels: (ProviderConfig) -&gt; Unit, onDismiss: () -&gt; Unit, onSave: (ProviderConfig, String) -&gt; Unit, )</ID>
     <ID>LongMethod:TerminalScreen.kt$@Composable fun TerminalScreen(terminal: TerminalViewModel)</ID>
     <ID>LongParameterList:AgentOrchestrator.kt$AgentOrchestrator$( projectId: String, projectName: String, provider: ProviderConfig, apiKey: String, history: List&lt;ChatMessage&gt;, maxSteps: Int, allowAgentShell: Boolean, onEvent: (AgentEvent) -&gt; Unit = {}, )</ID>
     <ID>LongParameterList:NeuroCodeApp.kt$( title: String, label: String, initialValue: String, confirmLabel: String, onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( model: String, onModelChange: (String) -&gt; Unit, modelsState: ProviderModelsState, expanded: Boolean, onExpandedChange: (Boolean) -&gt; Unit, onLoadModels: () -&gt; Boolean, )</ID>
     <ID>LoopWithTooManyJumpStatements:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$while</ID>
     <ID>MagicNumber:AgentOrchestrator.kt$AgentOrchestrator$20</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$100</ID>
@@ -49,32 +31,18 @@
     <ID>MagicNumber:AgentTools.kt$AgentTools$600</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$60_000L</ID>
     <ID>MagicNumber:ChatRepository.kt$ChatRepository$52</ID>
-    <ID>MagicNumber:ChatScreen.kt$0.88f</ID>
-    <ID>MagicNumber:ChatScreen.kt$0xFFFFB86C</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$20_000</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$4_000</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$50</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$500</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$800</ID>
-    <ID>MagicNumber:CodeEditorView.kt$14f</ID>
     <ID>MagicNumber:GitRepository.kt$GitRepository$8</ID>
-    <ID>MagicNumber:GitScreen.kt$0xFF080B10</ID>
-    <ID>MagicNumber:GitScreen.kt$0xFF67E8A5</ID>
-    <ID>MagicNumber:GitScreen.kt$0xFF9AA7B5</ID>
-    <ID>MagicNumber:GitScreen.kt$0xFFB9AFFF</ID>
-    <ID>MagicNumber:GitScreen.kt$0xFFD8DEE9</ID>
-    <ID>MagicNumber:GitScreen.kt$0xFFFF7B72</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$1024</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$256L</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$2_048</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$32</ID>
     <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$0.2</ID>
-    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$120</ID>
-    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$15</ID>
-    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$150</ID>
-    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$30</ID>
     <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$500</ID>
-    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$90</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$240</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$32</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$4096</ID>
@@ -85,49 +53,17 @@
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$12</ID>
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$128</ID>
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$16</ID>
-    <ID>MagicNumber:SettingsScreen.kt$1024</ID>
     <ID>MagicNumber:SettingsViewModel.kt$SettingsViewModel$20</ID>
     <ID>MagicNumber:ShellSession.kt$ShellSession$2_000</ID>
     <ID>MagicNumber:ShellSession.kt$ShellSession$5_000</ID>
-    <ID>MagicNumber:TerminalScreen.kt$0xFF05070A</ID>
-    <ID>MagicNumber:TerminalScreen.kt$0xFF65E5C4</ID>
-    <ID>MagicNumber:TerminalScreen.kt$0xFFB9C2CF</ID>
-    <ID>MagicNumber:TerminalScreen.kt$0xFFD8DEE9</ID>
-    <ID>MagicNumber:TerminalScreen.kt$0xFFFF6B6B</ID>
-    <ID>MagicNumber:Theme.kt$0xFF00382E</ID>
-    <ID>MagicNumber:Theme.kt$0xFF006B59</ID>
-    <ID>MagicNumber:Theme.kt$0xFF0B0E14</ID>
-    <ID>MagicNumber:Theme.kt$0xFF0B4F42</ID>
-    <ID>MagicNumber:Theme.kt$0xFF111722</ID>
-    <ID>MagicNumber:Theme.kt$0xFF1A2230</ID>
-    <ID>MagicNumber:Theme.kt$0xFF5D4FB0</ID>
-    <ID>MagicNumber:Theme.kt$0xFF65E5C4</ID>
-    <ID>MagicNumber:Theme.kt$0xFF8A4F00</ID>
-    <ID>MagicNumber:Theme.kt$0xFFB9AFFF</ID>
-    <ID>MagicNumber:Theme.kt$0xFFE6EDF7</ID>
-    <ID>MagicNumber:Theme.kt$0xFFF7FAFC</ID>
-    <ID>MagicNumber:Theme.kt$0xFFFFB86C</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Выполнить команду Android shell в корне проекта. Это ограниченная /system/bin оболочка, не полноценный Linux."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Заменить уникальный фрагмент текстового файла. Экономнее полной перезаписи. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Создать или полностью перезаписать текстовый файл проекта. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Удалить файл проекта (папки удалять нельзя). Копия сохраняется в .neurocode/history. Требует подтверждения пользователя."</ID>
-    <ID>MaxLineLength:ChatScreen.kt$"РћРЅ РјРѕР¶РµС‚ С‡РёС‚Р°С‚СЊ С„Р°Р№Р»С‹, РїСЂРµРґР»Р°РіР°С‚СЊ РёР·РјРµРЅРµРЅРёСЏ, Р·Р°РїСѓСЃРєР°С‚СЊ РєРѕРјР°РЅРґС‹ Рё РїСЂРѕРІРµСЂСЏС‚СЊ Git diff. РћРїР°СЃРЅС‹Рµ РґРµР№СЃС‚РІРёСЏ С‚СЂРµР±СѓСЋС‚ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ."</ID>
-    <ID>MaxLineLength:ChatScreen.kt$"РўРµРєСѓС‰РёР№ РѕС‚РєСЂС‹С‚С‹Р№ С„Р°Р№Р» Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РґРѕР±Р°РІР»СЏРµС‚СЃСЏ РІ РєРѕРЅС‚РµРєСЃС‚. Р›РѕРєР°Р»СЊРЅС‹Р№ СЂРµР¶РёРј РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚ РёРЅС‚РµСЂРЅРµС‚."</ID>
-    <ID>MaxLineLength:ChatScreen.kt$Text(if (showLog) "РЎРєСЂС‹С‚СЊ РґРµР№СЃС‚РІРёСЏ Р°РіРµРЅС‚Р°" else "РџРѕРєР°Р·Р°С‚СЊ РґРµР№СЃС‚РІРёСЏ Р°РіРµРЅС‚Р°")</ID>
-    <ID>MaxLineLength:ChatScreen.kt$if (local) "Р›РѕРєР°Р»СЊРЅР°СЏ РјРѕРґРµР»СЊ РіРѕС‚РѕРІР° Рє РґРёР°Р»РѕРіСѓ" else "РђРіРµРЅС‚ РіРѕС‚РѕРІ СЂР°Р±РѕС‚Р°С‚СЊ СЃ РїСЂРѕРµРєС‚РѕРј"</ID>
-    <ID>MaxLineLength:GitScreen.kt$"РЎРѕР·РґР°СЃС‚ РЅРѕРІС‹Р№ РїСЂРѕРµРєС‚ РІ РїРµСЃРѕС‡РЅРёС†Рµ NeuroCode. РўРѕРєРµРЅ СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ Р·Р°С€РёС„СЂРѕРІР°РЅРЅРѕРј С…СЂР°РЅРёР»РёС‰Рµ."</ID>
-    <ID>MaxLineLength:GitScreen.kt$Text("РЎРѕР·РґР°Р№С‚Рµ Р»РѕРєР°Р»СЊРЅС‹Р№ Git-СЂРµРїРѕР·РёС‚РѕСЂРёР№ РґР»СЏ РёСЃС‚РѕСЂРёРё РёР·РјРµРЅРµРЅРёР№ Рё diff.")</ID>
-    <ID>MaxLineLength:GitScreen.kt$label = { Text(if (currentUrl == null) "РўРѕРєРµРЅ РґРѕСЃС‚СѓРїР°" else "РќРѕРІС‹Р№ С‚РѕРєРµРЅ (РїСѓСЃС‚Рѕ вЂ” РЅРµ РјРµРЅСЏС‚СЊ)") }</ID>
-    <ID>MaxLineLength:NeuroCodeApp.kt$"Р¤Р°Р№Р»С‹ Р±СѓРґСѓС‚ С…СЂР°РЅРёС‚СЊСЃСЏ РІРЅСѓС‚СЂРё РїРµСЃРѕС‡РЅРёС†С‹ NeuroCode. РџР°РїРєСѓ СЃ С‚РµР»РµС„РѕРЅР° РјРѕР¶РЅРѕ РёРјРїРѕСЂС‚РёСЂРѕРІР°С‚СЊ РѕС‚РґРµР»СЊРЅРѕР№ РєРѕРїРёРµР№."</ID>
-    <ID>MaxLineLength:NeuroCodeApp.kt$Text("РџСЂРѕРµРєС‚ В«${currentProject.name}В» Рё РµРіРѕ РІРЅСѓС‚СЂРµРЅРЅСЏСЏ РєРѕРїРёСЏ С„Р°Р№Р»РѕРІ Р±СѓРґСѓС‚ СѓРґР°Р»РµРЅС‹.")</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$"Р РµРєРѕРјРµРЅРґСѓСЋС‚СЃСЏ РєРІР°РЅС‚РѕРІР°РЅРЅС‹Рµ РјРѕРґРµР»Рё 1вЂ“3B. GGUF РєРѕРїРёСЂСѓРµС‚СЃСЏ РІРѕ РІРЅСѓС‚СЂРµРЅРЅРµРµ С…СЂР°РЅРёР»РёС‰Рµ; РґР»СЏ РјРѕРґРµР»Рё 2 Р“Р‘ Р¶РµР»Р°С‚РµР»СЊРЅРѕ РЅРµ РјРµРЅРµРµ 6 Р“Р‘ RAM."</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$"РљР»СЋС‡Рё API С€РёС„СЂСѓСЋС‚СЃСЏ Android Keystore Рё РЅРµ Р·Р°РїРёСЃС‹РІР°СЋС‚СЃСЏ РІ РЅР°СЃС‚СЂРѕР№РєРё, Р»РѕРіРё РёР»Рё С„Р°Р№Р»С‹ РїСЂРѕРµРєС‚Р°. РЎРµС‚РµРІС‹Рµ Р°РґСЂРµСЃР° РґРѕР»Р¶РЅС‹ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ HTTPS."</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text("NeuroCode Android ${BuildConfig.VERSION_NAME} В· РјРёРЅРёРјР°Р»СЊРЅР°СЏ РІРµСЂСЃРёСЏ Android 13", style = MaterialTheme.typography.labelMedium)</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text(if (current == null) "API-РєР»СЋС‡" else "РќРѕРІС‹Р№ API-РєР»СЋС‡ (РЅРµРѕР±СЏР·Р°С‚РµР»СЊРЅРѕ)")</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$description = "Р Р°Р·СЂРµС€Р°РµС‚ РѕР±Р»Р°С‡РЅРѕР№ РјРѕРґРµР»Рё РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ С„Р°Р№Р»С‹, С‚РµСЂРјРёРЅР°Р» Рё Git"</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$description = "РћРїР°СЃРЅС‹Рµ РєРѕРјР°РЅРґС‹ РІСЃС‘ СЂР°РІРЅРѕ РїРѕС‚СЂРµР±СѓСЋС‚ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ"</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$text = { Text("РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ Рё СЃРѕС…СЂР°РЅС‘РЅРЅС‹Р№ API-РєР»СЋС‡ Р±СѓРґСѓС‚ СѓРґР°Р»РµРЅС‹.") }</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$title = { Text(if (current == null) "РќРѕРІС‹Р№ API-РїСЂРѕРІР°Р№РґРµСЂ" else "РР·РјРµРЅРёС‚СЊ РїСЂРѕРІР°Р№РґРµСЂР°") }</ID>
+    <ID>MaxLineLength:ChatScreen.kt$"Он может читать файлы, предлагать изменения, запускать команды и проверять Git diff. Опасные действия требуют подтверждения."</ID>
+    <ID>MaxLineLength:NeuroCodeApp.kt$"Файлы будут храниться внутри песочницы NeuroCode. Папку с телефона можно импортировать отдельной копией."</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$"Ключи API шифруются Android Keystore и не записываются в настройки, логи или файлы проекта. Сетевые адреса должны использовать HTTPS."</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$"Рекомендуются квантованные модели 1–3B. GGUF копируется во внутреннее хранилище; для модели 2 ГБ желательно не менее 6 ГБ RAM."</ID>
     <ID>NestedBlockDepth:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
     <ID>ReturnCount:CommandPolicy.kt$CommandPolicy$fun isSafeReadOnly(command: String): Boolean</ID>
     <ID>ReturnCount:EditorViewModel.kt$EditorViewModel$private suspend fun saveOpenFileInternal(projectId: String?)</ID>
@@ -135,6 +71,7 @@
     <ID>TooGenericExceptionCaught:ChatViewModel.kt$ChatViewModel$error: Throwable</ID>
     <ID>TooGenericExceptionCaught:GitViewModel.kt$GitViewModel$error: Throwable</ID>
     <ID>TooManyFunctions:GitRepository.kt$GitRepository</ID>
+    <ID>TooManyFunctions:OpenAiCompatibleClient.kt$OpenAiCompatibleClient</ID>
     <ID>TooManyFunctions:ProjectRepository.kt$ProjectRepository</ID>
   </CurrentIssues>
 </SmellBaseline>

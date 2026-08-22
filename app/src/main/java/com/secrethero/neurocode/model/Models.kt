@@ -51,6 +51,7 @@ data class AppSettings(
     val allowAgentShell: Boolean = false,
     val maxAgentSteps: Int = 8,
     val gitUsernames: Map<String, String> = emptyMap(),
+    val removedDefaultProviderIds: List<String> = emptyList(),
     val darkTheme: Boolean = true,
 )
 

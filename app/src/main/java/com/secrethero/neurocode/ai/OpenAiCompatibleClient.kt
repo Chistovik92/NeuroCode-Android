@@ -77,6 +77,35 @@ class OpenAiCompatibleClient {
         return executeBlocking(provider, apiKey, messages, tools)
     }
 
+    suspend fun models(provider: ProviderConfig, apiKey: String): List<String> =
+        withContext(Dispatchers.IO) {
+            validate(provider, apiKey)
+            val endpoint = provider.baseUrl.trimEnd('/') + "/models"
+            val request = Request.Builder()
+                .url(endpoint)
+                .header("Authorization", "Bearer $apiKey")
+                .header("Accept", "application/json")
+                .apply { provider.extraHeaders.forEach { (name, value) -> header(name, value) } }
+                .get()
+                .build()
+            http.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    throw apiError(response.code, body, response.message)
+                }
+                val root = json.parseToJsonElement(body).jsonObject
+                val data = (root["data"] as? JsonArray) ?: JsonArray(emptyList())
+                data.mapNotNull { element ->
+                    runCatching {
+                        element.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+                    }.getOrNull()
+                }.filter { !it.isNullOrBlank() }
+                    .map { it as String }
+                    .distinct()
+                    .sorted()
+            }
+        }
+
     private fun validate(provider: ProviderConfig, apiKey: String) {
         require(provider.baseUrl.startsWith("https://")) {
             "Адрес провайдера должен использовать HTTPS"

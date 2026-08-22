@@ -29,12 +29,19 @@ class SettingsRepository(context: Context) {
 
     suspend fun initialize() {
         var loaded = store.read()
+        val existingIds = loaded.providers.map { it.id }.toSet()
+        val missing = ProviderCatalog.defaults().filter {
+            it.id !in existingIds && it.id !in loaded.removedDefaultProviderIds
+        }
         if (loaded.providers.isEmpty()) {
             val providers = ProviderCatalog.defaults()
             loaded = loaded.copy(
                 providers = providers,
                 selectedProviderId = providers.firstOrNull()?.id,
             )
+            store.write(loaded)
+        } else if (missing.isNotEmpty()) {
+            loaded = loaded.copy(providers = loaded.providers + missing)
             store.write(loaded)
         }
         _settings.value = loaded
@@ -69,6 +76,11 @@ class SettingsRepository(context: Context) {
                     providers.firstOrNull()?.id
                 } else {
                     it.selectedProviderId
+                },
+                removedDefaultProviderIds = if (providerId in ProviderCatalog.defaultIds) {
+                    (it.removedDefaultProviderIds + providerId).distinct()
+                } else {
+                    it.removedDefaultProviderIds
                 },
             )
         }

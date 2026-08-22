@@ -41,8 +41,9 @@ class AppContainer(application: Application) {
     val git = GitRepository(projects)
     val shell = ShellSession(projects)
     val approvals = ApprovalGate()
+    val apiClient = OpenAiCompatibleClient()
     val agentTools = AgentTools(projects, git, shell, approvals)
-    val agent = AgentOrchestrator(OpenAiCompatibleClient(), agentTools)
+    val agent = AgentOrchestrator(apiClient, agentTools)
     val localLlama = LocalLlamaClient(application)
 
     private val _ready = MutableStateFlow(false)

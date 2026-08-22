@@ -1,4 +1,4 @@
-﻿package com.secrethero.neurocode.ui.screens
+package com.secrethero.neurocode.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -91,7 +91,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
             item {
                 AssistChip(
                     onClick = chat::newChat,
-                    label = { Text("РќРѕРІС‹Р№") },
+                    label = { Text("Новый") },
                     leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                 )
             }
@@ -115,7 +115,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                             ) {
                                 Icon(
                                     Icons.Default.Delete,
-                                    contentDescription = "РЈРґР°Р»РёС‚СЊ РґРёР°Р»РѕРі",
+                                    contentDescription = "Удалить диалог",
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
@@ -139,9 +139,9 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 label = {
                     Text(
                         if (settings.useLocalModel) {
-                            "Р›РѕРєР°Р»СЊРЅРѕ В· ${settings.localModelName ?: "GGUF"}"
+                            "Локально · ${settings.localModelName ?: "GGUF"}"
                         } else {
-                            "${provider?.name ?: "API"} В· ${provider?.model ?: "РјРѕРґРµР»СЊ"}"
+                            "${provider?.name ?: "API"} · ${provider?.model ?: "модель"}"
                         },
                         maxLines = 1,
                     )
@@ -149,7 +149,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
             )
             if (!settings.useLocalModel) {
                 Text(
-                    if (settings.agentMode) "РђРіРµРЅС‚" else "РўРѕР»СЊРєРѕ С‡Р°С‚",
+                    if (settings.agentMode) "Агент" else "Только чат",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -180,7 +180,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                     ) {
                         Column(Modifier.padding(10.dp)) {
                             TextButton(onClick = { showLog = !showLog }) {
-                                Text(if (showLog) "РЎРєСЂС‹С‚СЊ РґРµР№СЃС‚РІРёСЏ Р°РіРµРЅС‚Р°" else "РџРѕРєР°Р·Р°С‚СЊ РґРµР№СЃС‚РІРёСЏ Р°РіРµРЅС‚Р°")
+                                Text(if (showLog) "Скрыть действия агента" else "Показать действия агента")
                             }
                             if (showLog) {
                                 agentLog.forEach {
@@ -234,9 +234,9 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 placeholder = {
                     Text(
                         if (settings.agentMode && !settings.useLocalModel) {
-                            "РћРїРёС€РёС‚Рµ Р·Р°РґР°С‡Сѓ РґР»СЏ РїСЂРѕРµРєС‚Р°вЂ¦"
+                            "Опишите задачу для проекта…"
                         } else {
-                            "РЎРѕРѕР±С‰РµРЅРёРµвЂ¦"
+                            "Сообщение…"
                         },
                     )
                 },
@@ -256,7 +256,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
             ) {
                 Icon(
                     if (busy) Icons.Default.Stop else Icons.AutoMirrored.Filled.Send,
-                    contentDescription = if (busy) "РћСЃС‚Р°РЅРѕРІРёС‚СЊ" else "РћС‚РїСЂР°РІРёС‚СЊ",
+                    contentDescription = if (busy) "Остановить" else "Отправить",
                 )
             }
         }
@@ -308,15 +308,15 @@ private fun EmptyChatHint(local: Boolean) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            if (local) "Р›РѕРєР°Р»СЊРЅР°СЏ РјРѕРґРµР»СЊ РіРѕС‚РѕРІР° Рє РґРёР°Р»РѕРіСѓ" else "РђРіРµРЅС‚ РіРѕС‚РѕРІ СЂР°Р±РѕС‚Р°С‚СЊ СЃ РїСЂРѕРµРєС‚РѕРј",
+            if (local) "Локальная модель готова к диалогу" else "Агент готов работать с проектом",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
             if (local) {
-                "РўРµРєСѓС‰РёР№ РѕС‚РєСЂС‹С‚С‹Р№ С„Р°Р№Р» Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РґРѕР±Р°РІР»СЏРµС‚СЃСЏ РІ РєРѕРЅС‚РµРєСЃС‚. Р›РѕРєР°Р»СЊРЅС‹Р№ СЂРµР¶РёРј РЅРµ РёСЃРїРѕР»СЊР·СѓРµС‚ РёРЅС‚РµСЂРЅРµС‚."
+                "Текущий открытый файл автоматически добавляется в контекст. Локальный режим не использует интернет."
             } else {
-                "РћРЅ РјРѕР¶РµС‚ С‡РёС‚Р°С‚СЊ С„Р°Р№Р»С‹, РїСЂРµРґР»Р°РіР°С‚СЊ РёР·РјРµРЅРµРЅРёСЏ, Р·Р°РїСѓСЃРєР°С‚СЊ РєРѕРјР°РЅРґС‹ Рё РїСЂРѕРІРµСЂСЏС‚СЊ Git diff. РћРїР°СЃРЅС‹Рµ РґРµР№СЃС‚РІРёСЏ С‚СЂРµР±СѓСЋС‚ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ."
+                "Он может читать файлы, предлагать изменения, запускать команды и проверять Git diff. Опасные действия требуют подтверждения."
             },
             style = MaterialTheme.typography.bodyMedium,
         )

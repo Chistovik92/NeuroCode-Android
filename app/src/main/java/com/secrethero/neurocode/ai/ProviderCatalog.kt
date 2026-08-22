@@ -33,10 +33,18 @@ object ProviderCatalog {
             model = "llama-3.3-70b-versatile",
         ),
         ProviderConfig(
+            id = "google",
+            name = "Google Gemini",
+            baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai",
+            model = "gemini-2.5-flash",
+        ),
+        ProviderConfig(
             id = "mistral",
             name = "Mistral",
             baseUrl = "https://api.mistral.ai/v1",
             model = "codestral-latest",
         ),
     )
+
+    val defaultIds: Set<String> = defaults().map { it.id }.toSet()
 }

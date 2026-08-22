@@ -20,6 +20,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _modelImportProgress = MutableStateFlow<Pair<Long, Long>?>(null)
     val modelImportProgress: StateFlow<Pair<Long, Long>?> = _modelImportProgress.asStateFlow()
 
+    private val _providerModels =
+        MutableStateFlow<ProviderModelsState>(ProviderModelsState(emptyList(), null, false))
+    val providerModels: StateFlow<ProviderModelsState> = _providerModels.asStateFlow()
+
+    fun loadProviderModels(provider: ProviderConfig) = viewModelScope.launch {
+        _providerModels.value = _providerModels.value.copy(loading = true)
+        runCatching {
+            val key = container.settings.apiKey(provider).orEmpty()
+            container.apiClient.models(provider, key)
+        }.onSuccess { models ->
+            _providerModels.value = ProviderModelsState(models, null, false)
+        }.onFailure { error ->
+            _providerModels.value = ProviderModelsState(
+                emptyList(),
+                error.message ?: error::class.java.simpleName,
+                false,
+            )
+        }
+    }
+
     fun selectProvider(providerId: String) = updateSettings {
         it.copy(selectedProviderId = providerId, useLocalModel = false)
     }
@@ -62,3 +82,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 .onFailure(container.bus::showError)
         }
 }
+
+data class ProviderModelsState(
+    val models: List<String>,
+    val error: String?,
+    val loading: Boolean,
+)

@@ -1,23 +1,28 @@
-﻿package com.secrethero.neurocode.ui.screens
+package com.secrethero.neurocode.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,8 +45,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.BuildConfig
+import com.secrethero.neurocode.model.ProviderConfig
+import com.secrethero.neurocode.ui.ProviderModelsState
 import com.secrethero.neurocode.ui.SettingsViewModel
 import java.util.UUID
 
@@ -49,6 +55,7 @@ import java.util.UUID
 fun SettingsScreen(vm: SettingsViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val progress by vm.modelImportProgress.collectAsStateWithLifecycle()
+    val providerModels by vm.providerModels.collectAsStateWithLifecycle()
     var editingProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var providerDialog by remember { mutableStateOf(false) }
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
@@ -65,13 +72,13 @@ fun SettingsScreen(vm: SettingsViewModel) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("Р РµР¶РёРј СЂР°Р±РѕС‚С‹", style = MaterialTheme.typography.titleLarge)
+        Text("Режим работы", style = MaterialTheme.typography.titleLarge)
         SettingSwitch(
-            title = "Р›РѕРєР°Р»СЊРЅР°СЏ GGUF-РјРѕРґРµР»СЊ",
+            title = "Локальная GGUF-модель",
             description = if (settings.localModelPath == null) {
-                "РњРѕРґРµР»СЊ РµС‰С‘ РЅРµ РёРјРїРѕСЂС‚РёСЂРѕРІР°РЅР°"
+                "Модель ещё не импортирована"
             } else {
-                settings.localModelName ?: "Р›РѕРєР°Р»СЊРЅР°СЏ РјРѕРґРµР»СЊ"
+                settings.localModelName ?: "Локальная модель"
             },
             checked = settings.useLocalModel,
             enabled = settings.localModelPath != null,
@@ -82,7 +89,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             onClick = { modelPicker.launch(arrayOf("*/*")) },
         ) {
             Icon(Icons.Default.Memory, contentDescription = null)
-            Text(if (settings.localModelPath == null) " РРјРїРѕСЂС‚РёСЂРѕРІР°С‚СЊ GGUF" else " Р—Р°РјРµРЅРёС‚СЊ GGUF")
+            Text(if (settings.localModelPath == null) " Импортировать GGUF" else " Заменить GGUF")
         }
         progress?.let { (copied, total) ->
             if (total > 0) {
@@ -90,32 +97,32 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     progress = { (copied.toFloat() / total).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Text("${copied / 1024 / 1024} РёР· ${total / 1024 / 1024} РњР‘")
+                Text("${copied / 1024 / 1024} из ${total / 1024 / 1024} МБ")
             } else {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                Text("РљРѕРїРёСЂРѕРІР°РЅРёРµ РјРѕРґРµР»РёвЂ¦")
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text("Копирование модели…")
             }
         }
         Text(
-            "Р РµРєРѕРјРµРЅРґСѓСЋС‚СЃСЏ РєРІР°РЅС‚РѕРІР°РЅРЅС‹Рµ РјРѕРґРµР»Рё 1вЂ“3B. GGUF РєРѕРїРёСЂСѓРµС‚СЃСЏ РІРѕ РІРЅСѓС‚СЂРµРЅРЅРµРµ С…СЂР°РЅРёР»РёС‰Рµ; РґР»СЏ РјРѕРґРµР»Рё 2 Р“Р‘ Р¶РµР»Р°С‚РµР»СЊРЅРѕ РЅРµ РјРµРЅРµРµ 6 Р“Р‘ RAM.",
+            "Рекомендуются квантованные модели 1–3B. GGUF копируется во внутреннее хранилище; для модели 2 ГБ желательно не менее 6 ГБ RAM.",
             style = MaterialTheme.typography.bodySmall,
         )
 
         SettingSwitch(
-            title = "Р РµР¶РёРј Р°РіРµРЅС‚Р°",
-            description = "Р Р°Р·СЂРµС€Р°РµС‚ РѕР±Р»Р°С‡РЅРѕР№ РјРѕРґРµР»Рё РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ С„Р°Р№Р»С‹, С‚РµСЂРјРёРЅР°Р» Рё Git",
+            title = "Режим агента",
+            description = "Разрешает облачной модели использовать файлы, терминал и Git",
             checked = settings.agentMode,
             enabled = !settings.useLocalModel,
             onChecked = vm::setAgentMode,
         )
         SettingSwitch(
-            title = "РљРѕРјР°РЅРґС‹ Р±РµР· РїРѕРІС‚РѕСЂРЅРѕРіРѕ РІРѕРїСЂРѕСЃР°",
-            description = "РћРїР°СЃРЅС‹Рµ РєРѕРјР°РЅРґС‹ РІСЃС‘ СЂР°РІРЅРѕ РїРѕС‚СЂРµР±СѓСЋС‚ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ",
+            title = "Команды без повторного вопроса",
+            description = "Опасные команды всё равно потребуют подтверждения",
             checked = settings.allowAgentShell,
             enabled = settings.agentMode && !settings.useLocalModel,
             onChecked = vm::setAllowAgentShell,
         )
-        Text("РњР°РєСЃРёРјСѓРј С€Р°РіРѕРІ Р°РіРµРЅС‚Р°: ${settings.maxAgentSteps}")
+        Text("Максимум шагов агента: ${settings.maxAgentSteps}")
         Slider(
             value = settings.maxAgentSteps.toFloat(),
             onValueChange = { vm.setMaxAgentSteps(it.toInt()) },
@@ -129,7 +136,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "API-РїСЂРѕРІР°Р№РґРµСЂС‹",
+                "API-провайдеры",
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f),
             )
@@ -139,7 +146,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     providerDialog = true
                 },
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Р”РѕР±Р°РІРёС‚СЊ РїСЂРѕРІР°Р№РґРµСЂР°")
+                Icon(Icons.Default.Add, contentDescription = "Добавить провайдера")
             }
         }
 
@@ -166,26 +173,31 @@ fun SettingsScreen(vm: SettingsViewModel) {
                             providerDialog = true
                         },
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "РР·РјРµРЅРёС‚СЊ")
+                        Icon(Icons.Default.Edit, contentDescription = "Изменить")
                     }
                     IconButton(onClick = { deleteProvider = provider }) {
-                        Icon(Icons.Default.Delete, contentDescription = "РЈРґР°Р»РёС‚СЊ")
+                        Icon(Icons.Default.Delete, contentDescription = "Удалить")
                     }
                 }
             }
         }
 
-        Text("Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ", style = MaterialTheme.typography.titleLarge)
+        Text("Безопасность", style = MaterialTheme.typography.titleLarge)
         Text(
-            "РљР»СЋС‡Рё API С€РёС„СЂСѓСЋС‚СЃСЏ Android Keystore Рё РЅРµ Р·Р°РїРёСЃС‹РІР°СЋС‚СЃСЏ РІ РЅР°СЃС‚СЂРѕР№РєРё, Р»РѕРіРё РёР»Рё С„Р°Р№Р»С‹ РїСЂРѕРµРєС‚Р°. РЎРµС‚РµРІС‹Рµ Р°РґСЂРµСЃР° РґРѕР»Р¶РЅС‹ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ HTTPS.",
+            "Ключи API шифруются Android Keystore и не записываются в настройки, логи или файлы проекта. Сетевые адреса должны использовать HTTPS.",
             style = MaterialTheme.typography.bodyMedium,
         )
-        Text("NeuroCode Android ${BuildConfig.VERSION_NAME} В· РјРёРЅРёРјР°Р»СЊРЅР°СЏ РІРµСЂСЃРёСЏ Android 13", style = MaterialTheme.typography.labelMedium)
+        Text(
+            "NeuroCode Android ${BuildConfig.VERSION_NAME} · минимальная версия Android 13",
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 
     if (providerDialog) {
         ProviderDialog(
             current = editingProvider,
+            modelsState = providerModels,
+            onLoadModels = vm::loadProviderModels,
             onDismiss = { providerDialog = false },
             onSave = { provider, key ->
                 vm.saveProvider(provider, key.ifBlank { null })
@@ -197,18 +209,18 @@ fun SettingsScreen(vm: SettingsViewModel) {
     deleteProvider?.let { provider ->
         AlertDialog(
             onDismissRequest = { deleteProvider = null },
-            title = { Text("РЈРґР°Р»РёС‚СЊ ${provider.name}?") },
-            text = { Text("РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ Рё СЃРѕС…СЂР°РЅС‘РЅРЅС‹Р№ API-РєР»СЋС‡ Р±СѓРґСѓС‚ СѓРґР°Р»РµРЅС‹.") },
+            title = { Text("Удалить ${provider.name}?") },
+            text = { Text("Конфигурация и сохранённый API-ключ будут удалены.") },
             confirmButton = {
                 Button(
                     onClick = {
                         vm.removeProvider(provider.id)
                         deleteProvider = null
                     },
-                ) { Text("РЈРґР°Р»РёС‚СЊ") }
+                ) { Text("Удалить") }
             },
             dismissButton = {
-                TextButton(onClick = { deleteProvider = null }) { Text("РћС‚РјРµРЅР°") }
+                TextButton(onClick = { deleteProvider = null }) { Text("Отмена") }
             },
         )
     }
@@ -239,8 +251,53 @@ private fun SettingSwitch(
 }
 
 @Composable
+private fun ModelSelectorField(
+    model: String,
+    onModelChange: (String) -> Unit,
+    modelsState: ProviderModelsState,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onLoadModels: () -> Boolean,
+) {
+    OutlinedTextField(
+        value = model,
+        onValueChange = onModelChange,
+        label = { Text("Идентификатор модели") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+        trailingIcon = {
+            IconButton(onClick = { if (onLoadModels()) onExpandedChange(true) }) {
+                Icon(Icons.Default.ArrowDropDown, contentDescription = "Список моделей")
+            }
+        },
+    )
+    DropdownMenu(
+        expanded = expanded && modelsState.models.isNotEmpty(),
+        onDismissRequest = { onExpandedChange(false) },
+        modifier = Modifier.heightIn(max = 320.dp),
+    ) {
+        val query = model.trim()
+        val candidates = modelsState.models
+            .filter { query.isEmpty() || it.contains(query, ignoreCase = true) }
+            .ifEmpty { modelsState.models }
+            .take(60)
+        candidates.forEach { candidate ->
+            DropdownMenuItem(
+                text = { Text(candidate) },
+                onClick = {
+                    onModelChange(candidate)
+                    onExpandedChange(false)
+                },
+            )
+        }
+    }
+}
+
+@Composable
 private fun ProviderDialog(
     current: ProviderConfig?,
+    modelsState: ProviderModelsState,
+    onLoadModels: (ProviderConfig) -> Unit,
     onDismiss: () -> Unit,
     onSave: (ProviderConfig, String) -> Unit,
 ) {
@@ -248,35 +305,65 @@ private fun ProviderDialog(
     var baseUrl by remember { mutableStateOf(current?.baseUrl.orEmpty()) }
     var model by remember { mutableStateOf(current?.model.orEmpty()) }
     var apiKey by remember { mutableStateOf("") }
+    var modelsMenu by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (current == null) "РќРѕРІС‹Р№ API-РїСЂРѕРІР°Р№РґРµСЂ" else "РР·РјРµРЅРёС‚СЊ РїСЂРѕРІР°Р№РґРµСЂР°") },
+        title = { Text(if (current == null) "Новый API-провайдер" else "Изменить провайдера") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("РќР°Р·РІР°РЅРёРµ") },
+                    label = { Text("Название") },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = baseUrl,
                     onValueChange = { baseUrl = it },
-                    label = { Text("Base URL, РІРєР»СЋС‡Р°СЏ /v1") },
+                    label = { Text("Base URL, включая /v1") },
                     placeholder = { Text("https://api.example.com/v1") },
                     singleLine = true,
                 )
-                OutlinedTextField(
-                    value = model,
-                    onValueChange = { model = it },
-                    label = { Text("РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РјРѕРґРµР»Рё") },
-                    singleLine = true,
-                )
+                Box {
+                    ModelSelectorField(
+                        model = model,
+                        onModelChange = { model = it },
+                        modelsState = modelsState,
+                        expanded = modelsMenu,
+                        onExpandedChange = { modelsMenu = it },
+                        onLoadModels = {
+                            if (baseUrl.startsWith("https://") && model.isNotBlank()) {
+                                onLoadModels(
+                                    ProviderConfig(
+                                        id = current?.id ?: "draft",
+                                        name = name,
+                                        baseUrl = baseUrl.trim().trimEnd('/'),
+                                        model = model.trim(),
+                                        extraHeaders = current?.extraHeaders.orEmpty(),
+                                    ),
+                                )
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                    )
+                }
+                if (modelsState.loading) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+                modelsState.error?.let { message ->
+                    Text(
+                        "Не удалось получить список моделей: $message",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
                     label = {
-                        Text(if (current == null) "API-РєР»СЋС‡" else "РќРѕРІС‹Р№ API-РєР»СЋС‡ (РЅРµРѕР±СЏР·Р°С‚РµР»СЊРЅРѕ)")
+                        Text(if (current == null) "API-ключ" else "Новый API-ключ (необязательно)")
                     },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
@@ -300,11 +387,10 @@ private fun ProviderDialog(
                         apiKey,
                     )
                 },
-            ) { Text("РЎРѕС…СЂР°РЅРёС‚СЊ") }
+            ) { Text("Сохранить") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("РћС‚РјРµРЅР°") }
+            TextButton(onClick = onDismiss) { Text("Отмена") }
         },
     )
 }
-

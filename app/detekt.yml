@@ -1,0 +1,11 @@
+naming:
+  FunctionNaming:
+    ignoreAnnotated:
+      - 'Composable'
+style:
+  MagicNumber:
+    ignoreAnnotated:
+      - 'Composable'
+    ignorePropertyDeclaration: true
+  MaxLineLength:
+    excludeCommentStatements: true

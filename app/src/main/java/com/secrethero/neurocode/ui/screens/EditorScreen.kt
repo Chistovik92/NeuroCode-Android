@@ -1,4 +1,4 @@
-﻿package com.secrethero.neurocode.ui.screens
+package com.secrethero.neurocode.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -70,19 +70,19 @@ fun EditorScreen(editor: EditorViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Р¤Р°Р№Р»С‹ РїСЂРѕРµРєС‚Р°",
+                        "Файлы проекта",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { newFileDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "РќРѕРІС‹Р№ С„Р°Р№Р»")
+                        Icon(Icons.Default.Add, contentDescription = "Новый файл")
                     }
                     IconButton(onClick = { newDirectoryDialog = true }) {
-                        Icon(Icons.Default.CreateNewFolder, contentDescription = "РќРѕРІР°СЏ РїР°РїРєР°")
+                        Icon(Icons.Default.CreateNewFolder, contentDescription = "Новая папка")
                     }
                     IconButton(onClick = editor::refreshTree) {
-                        Icon(Icons.Default.Refresh, contentDescription = "РћР±РЅРѕРІРёС‚СЊ")
+                        Icon(Icons.Default.Refresh, contentDescription = "Обновить")
                     }
                 }
                 HorizontalDivider()
@@ -110,12 +110,12 @@ fun EditorScreen(editor: EditorViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = { scope.launch { drawer.open() } }) {
-                    Icon(Icons.Default.FolderOpen, contentDescription = "РћС‚РєСЂС‹С‚СЊ С„Р°Р№Р»С‹")
+                    Icon(Icons.Default.FolderOpen, contentDescription = "Открыть файлы")
                 }
                 Text(
                     buildString {
-                        append(openPath ?: "Р¤Р°Р№Р» РЅРµ РѕС‚РєСЂС‹С‚")
-                        if (dirty) append(" вЂў")
+                        append(openPath ?: "Файл не открыт")
+                        if (dirty) append(" •")
                     },
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
@@ -127,7 +127,7 @@ fun EditorScreen(editor: EditorViewModel) {
                     onClick = editor::saveOpenFile,
                     enabled = openPath != null && dirty,
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = "РЎРѕС…СЂР°РЅРёС‚СЊ")
+                    Icon(Icons.Default.Save, contentDescription = "Сохранить")
                 }
             }
             HorizontalDivider()
@@ -135,7 +135,7 @@ fun EditorScreen(editor: EditorViewModel) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Description, contentDescription = null)
-                        Text("РћС‚РєСЂРѕР№С‚Рµ С„Р°Р№Р» РёР· РґРµСЂРµРІР° РїСЂРѕРµРєС‚Р°")
+                        Text("Откройте файл из дерева проекта")
                     }
                 }
             } else {
@@ -150,10 +150,10 @@ fun EditorScreen(editor: EditorViewModel) {
 
     if (newFileDialog) {
         TextInputDialog(
-            title = "РќРѕРІС‹Р№ С„Р°Р№Р»",
-            label = "РџСѓС‚СЊ, РЅР°РїСЂРёРјРµСЂ src/main.py",
+            title = "Новый файл",
+            label = "Путь, например src/main.py",
             initialValue = "",
-            confirmLabel = "РЎРѕР·РґР°С‚СЊ",
+            confirmLabel = "Создать",
             onDismiss = { newFileDialog = false },
             onConfirm = {
                 editor.createFile(it)
@@ -163,10 +163,10 @@ fun EditorScreen(editor: EditorViewModel) {
     }
     if (newDirectoryDialog) {
         TextInputDialog(
-            title = "РќРѕРІР°СЏ РїР°РїРєР°",
-            label = "РџСѓС‚СЊ, РЅР°РїСЂРёРјРµСЂ src/components",
+            title = "Новая папка",
+            label = "Путь, например src/components",
             initialValue = "",
-            confirmLabel = "РЎРѕР·РґР°С‚СЊ",
+            confirmLabel = "Создать",
             onDismiss = { newDirectoryDialog = false },
             onConfirm = {
                 editor.createDirectory(it)

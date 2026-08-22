@@ -1,4 +1,4 @@
-﻿package com.secrethero.neurocode.ui.screens
+package com.secrethero.neurocode.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -61,10 +61,10 @@ fun TerminalScreen(terminal: TerminalViewModel) {
             horizontalArrangement = Arrangement.End,
         ) {
             IconButton(onClick = terminal::interruptTerminal) {
-                Icon(Icons.Default.Stop, contentDescription = "РћСЃС‚Р°РЅРѕРІРёС‚СЊ", tint = Color(0xFFFF6B6B))
+                Icon(Icons.Default.Stop, contentDescription = "Остановить", tint = Color(0xFFFF6B6B))
             }
             IconButton(onClick = terminal::clearTerminal) {
-                Icon(Icons.Default.ClearAll, contentDescription = "РћС‡РёСЃС‚РёС‚СЊ", tint = Color(0xFFB9C2CF))
+                Icon(Icons.Default.ClearAll, contentDescription = "Очистить", tint = Color(0xFFB9C2CF))
             }
         }
         LazyColumn(
@@ -122,7 +122,7 @@ fun TerminalScreen(terminal: TerminalViewModel) {
                     }
                 },
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Р’С‹РїРѕР»РЅРёС‚СЊ", tint = Color(0xFF65E5C4))
+                Icon(Icons.Default.PlayArrow, contentDescription = "Выполнить", tint = Color(0xFF65E5C4))
             }
         }
     }

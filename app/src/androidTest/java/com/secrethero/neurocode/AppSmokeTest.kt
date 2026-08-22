@@ -1,23 +1,29 @@
 package com.secrethero.neurocode
 
-import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AppSmokeTest {
 
+    @get:Rule
+    val composeRule = createAndroidComposeRule<MainActivity>()
+
     @Test
     fun appStartsAndSettingsTabOpens() {
-        ActivityScenario.launch(MainActivity::class.java)
-        onView(withText("Настройки")).perform(click())
-        onView(withText("Режим работы")).check(matches(isDisplayed()))
-        onView(withText("API-провайдеры")).check(matches(isDisplayed()))
+        composeRule.waitUntil(timeoutMillis = 30_000) {
+            composeRule.onAllNodesWithText("Настройки").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("Настройки").performClick()
+        composeRule.waitUntil(timeoutMillis = 15_000) {
+            composeRule.onAllNodesWithText("Режим работы").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("API-провайдеры").assertExists()
     }
 }
