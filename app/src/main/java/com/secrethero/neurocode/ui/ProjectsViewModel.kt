@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 
 class ProjectsViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container
+    private val context = application
 
     val settings = container.settings.settings
     val projects = container.projects.projects
@@ -52,6 +53,47 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
 
     fun currentProject(): Project? =
         projects.value.firstOrNull { it.id == settings.value.selectedProjectId }
+
+    private val _syncBusy = MutableStateFlow(false)
+    val syncBusy: StateFlow<Boolean> = _syncBusy.asStateFlow()
+
+    fun linkedFolder(): String? =
+        settings.value.selectedProjectId?.let { settings.value.linkedFolderByProject[it] }
+
+    fun linkFolder(uri: Uri) = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+            container.settings.update {
+                it.copy(linkedFolderByProject = it.linkedFolderByProject + (projectId to uri.toString()))
+            }
+            container.bus.showNotice("Папка синхронизации привязана")
+        }.onFailure(container.bus::showError)
+    }
+
+    fun syncToLinkedFolder() = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        val stored = settings.value.linkedFolderByProject[projectId]
+        if (stored == null) {
+            container.bus.showNotice("Сначала привяжите папку синхронизации")
+            return@launch
+        }
+        try {
+            _syncBusy.value = true
+            val count = container.projects.exportTree(projectId, Uri.parse(stored)) { _, _ -> }
+            container.bus.showNotice("Синхронизировано файлов: $count")
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            container.bus.showError(error)
+        } finally {
+            _syncBusy.value = false
+        }
+    }
 
     fun exportProject(uri: Uri) = viewModelScope.launch {
         val projectId = settings.value.selectedProjectId

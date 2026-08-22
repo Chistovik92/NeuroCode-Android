@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Source
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -103,6 +104,12 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
     ) { uri ->
         uri?.let(viewModel.projects::exportProjectZip)
     }
+    val linkFolder = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        uri?.let(viewModel.projects::linkFolder)
+    }
+    val syncBusy by viewModel.projects.syncBusy.collectAsStateWithLifecycle()
 
     LaunchedEffect(error) {
         error?.let {
@@ -196,6 +203,28 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                                     },
                                     leadingIcon = {
                                         Icon(Icons.Default.Archive, contentDescription = null)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Привязать папку синхронизации") },
+                                    onClick = {
+                                        projectMenu = false
+                                        linkFolder.launch(null)
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Синхронизировать в папку") },
+                                    onClick = {
+                                        projectMenu = false
+                                        viewModel.projects.syncToLinkedFolder()
+                                    },
+                                    enabled = !syncBusy &&
+                                        viewModel.projects.linkedFolder() != null,
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Sync, contentDescription = null)
                                     },
                                 )
                                 DropdownMenuItem(

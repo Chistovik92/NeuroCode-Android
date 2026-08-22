@@ -26,6 +26,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     val editorText: StateFlow<String> = _editorText.asStateFlow()
     private val _editorDirty = MutableStateFlow(false)
     val editorDirty: StateFlow<Boolean> = _editorDirty.asStateFlow()
+    private val recentFiles = MutableStateFlow<List<String>>(emptyList())
 
     private var loadedProjectId: String? = null
 
@@ -46,6 +47,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         _openPath.value = null
         _editorText.value = ""
         _editorDirty.value = false
+        recentFiles.value = container.settings.settings.value.recentFilesByProject[projectId].orEmpty()
         refreshTree(projectId)
     }
 
@@ -65,6 +67,42 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             _editorText.value = container.projects.readText(projectId, path)
             _openPath.value = path
             _editorDirty.value = false
+            rememberRecent(projectId, path)
+        }.onFailure(bus::showError)
+    }
+
+    private suspend fun rememberRecent(projectId: String, path: String) {
+        val updated = (listOf(path) + recentFiles.value).distinct().take(8)
+        container.settings.update { current ->
+            current.copy(
+                recentFilesByProject = current.recentFilesByProject + (projectId to updated),
+            )
+        }
+        recentFiles.value = updated
+    }
+
+    fun recentFiles(): StateFlow<List<String>> = recentFiles
+
+    fun renameEntry(oldPath: String, newPath: String) = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        runCatching {
+            if (_editorDirty.value) saveOpenFileInternal(projectId)
+            container.projects.renameEntry(projectId, oldPath, newPath)
+            if (_openPath.value == oldPath) _openPath.value = newPath
+            refreshTree(projectId)
+        }.onFailure(bus::showError)
+    }
+
+    fun deleteEntry(path: String) = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        runCatching {
+            container.projects.deleteEntry(projectId, path)
+            if (_openPath.value == path || _openPath.value?.startsWith("$path/") == true) {
+                _openPath.value = null
+                _editorText.value = ""
+                _editorDirty.value = false
+            }
+            refreshTree(projectId)
         }.onFailure(bus::showError)
     }
 

@@ -58,6 +58,22 @@ class OpenAiCompatibleClient {
         .callTimeout(15, TimeUnit.MINUTES)
         .build()
 
+    private class ApiException(val code: Int, message: String) : IOException(message)
+
+    private fun chatEndpoints(provider: ProviderConfig): List<String> {
+        val base = provider.baseUrl.trim().trimEnd('/')
+        return buildList {
+            add("$base/chat/completions")
+            if (!base.endsWith("/v1") && !base.contains("/v1beta")) {
+                add("$base/v1/chat/completions")
+            }
+        }
+    }
+
+    private fun isRetryableEndpointFailure(error: Throwable): Boolean =
+        error is SerializationException ||
+            (error is ApiException && (error.code == 404 || error.code == 405))
+
     suspend fun complete(
         provider: ProviderConfig,
         apiKey: String,
@@ -65,18 +81,44 @@ class OpenAiCompatibleClient {
         tools: JsonArray = JsonArray(emptyList()),
         onDelta: ((String) -> Unit)? = null,
     ): AssistantTurn {
-        if (onDelta != null) {
-            var received = false
-            try {
-                return executeStreaming(provider, apiKey, messages, tools) { chunk ->
-                    received = true
-                    onDelta(chunk)
-                }
-            } catch (error: IOException) {
-                if (received) throw error
+        validate(provider, apiKey)
+        if (onDelta == null) {
+            return tryChatEndpoints(provider) { endpoint ->
+                executeBlocking(endpoint, apiKey, messages, tools, provider)
             }
         }
-        return executeBlocking(provider, apiKey, messages, tools)
+        var received = false
+        return tryChatEndpoints(provider, shouldRethrow = { received }) { endpoint ->
+            executeStreaming(endpoint, apiKey, messages, tools, { chunk ->
+                received = true
+                onDelta(chunk)
+            }, provider)
+        }
+    }
+
+    private suspend fun tryChatEndpoints(
+        provider: ProviderConfig,
+        shouldRethrow: () -> Boolean = { false },
+        block: suspend (String) -> AssistantTurn,
+    ): AssistantTurn {
+        var lastError: Exception? = null
+        for (endpoint in chatEndpoints(provider)) {
+            try {
+                return block(endpoint)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: IOException) {
+                if (shouldRethrow() || !isRetryableEndpointFailure(error)) throw error
+                lastError = error
+            } catch (error: SerializationException) {
+                if (shouldRethrow()) throw error
+                lastError = error
+            }
+        }
+        throw IOException(
+            "Эндпоинт чата не найден. Проверьте Base URL — он обычно оканчивается на /v1. " +
+                "Причина последней попытки: ${lastError?.message ?: "неизвестна"}",
+        )
     }
 
     suspend fun models(provider: ProviderConfig, apiKey: String): List<String> {
@@ -145,14 +187,15 @@ class OpenAiCompatibleClient {
     }
 
     private suspend fun executeBlocking(
-        provider: ProviderConfig,
+        endpoint: String,
         apiKey: String,
         messages: List<ApiMessage>,
         tools: JsonArray,
+        providerForHeaders: ProviderConfig,
     ): AssistantTurn = withContext(Dispatchers.IO) {
-        validate(provider, apiKey)
-        val payload = buildPayload(provider, messages, tools, stream = false)
-        val request = buildRequest(provider, apiKey, payload)
+        validate(providerForHeaders, apiKey)
+        val payload = buildPayload(providerForHeaders, messages, tools, stream = false)
+        val request = buildRequest(endpoint, providerForHeaders, apiKey, payload)
         http.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
@@ -163,15 +206,16 @@ class OpenAiCompatibleClient {
     }
 
     private suspend fun executeStreaming(
-        provider: ProviderConfig,
+        endpoint: String,
         apiKey: String,
         messages: List<ApiMessage>,
         tools: JsonArray,
         onChunk: (String) -> Unit,
+        providerForHeaders: ProviderConfig,
     ): AssistantTurn = withContext(Dispatchers.IO) {
-        validate(provider, apiKey)
-        val payload = buildPayload(provider, messages, tools, stream = true)
-        val request = buildRequest(provider, apiKey, payload)
+        validate(providerForHeaders, apiKey)
+        val payload = buildPayload(providerForHeaders, messages, tools, stream = true)
+        val request = buildRequest(endpoint, providerForHeaders, apiKey, payload)
         streamingHttp.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val body = response.body?.string().orEmpty()
@@ -246,11 +290,11 @@ class OpenAiCompatibleClient {
     }
 
     private fun buildRequest(
+        endpoint: String,
         provider: ProviderConfig,
         apiKey: String,
         payload: JsonObject,
     ): Request {
-        val endpoint = provider.baseUrl.trimEnd('/') + "/chat/completions"
         return Request.Builder()
             .url(endpoint)
             .header("Authorization", "Bearer $apiKey")
@@ -265,9 +309,8 @@ class OpenAiCompatibleClient {
             json.parseToJsonElement(body).jsonObject["error"]
                 ?.jsonObject?.get("message")?.jsonPrimitive?.content
         }.getOrNull()
-        return IOException(
-            "Ошибка API $code: ${message ?: body.take(500).ifBlank { fallback }}",
-        )
+        val short = message ?: body.take(160).ifBlank { fallback }
+        return ApiException(code, "Ошибка API $code: $short")
     }
 
     private fun parseTurn(body: String): AssistantTurn {

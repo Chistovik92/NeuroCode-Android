@@ -6,11 +6,12 @@
     <ID>CyclomaticComplexMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
     <ID>CyclomaticComplexMethod:GitScreen.kt$@Composable fun GitScreen(git: GitViewModel)</ID>
     <ID>CyclomaticComplexMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp(viewModel: AppViewModel)</ID>
-    <ID>CyclomaticComplexMethod:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun executeStreaming( provider: ProviderConfig, apiKey: String, messages: List&lt;ApiMessage&gt;, tools: JsonArray, onChunk: (String) -&gt; Unit, ): AssistantTurn</ID>
+    <ID>CyclomaticComplexMethod:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun executeStreaming( endpoint: String, apiKey: String, messages: List&lt;ApiMessage&gt;, tools: JsonArray, onChunk: (String) -&gt; Unit, providerForHeaders: ProviderConfig, ): AssistantTurn</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$fun definitions(): JsonArray</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, ): String</ID>
     <ID>LongMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
     <ID>LongMethod:EditorScreen.kt$@Composable fun EditorScreen(editor: EditorViewModel)</ID>
+    <ID>LongMethod:EditorScreen.kt$@OptIn(ExperimentalFoundationApi::class) @Composable private fun FileTreeNode( node: FileNode, depth: Int, onOpen: (String) -&gt; Unit, onRename: (String) -&gt; Unit, onDelete: (String) -&gt; Unit, )</ID>
     <ID>LongMethod:GitScreen.kt$@Composable fun GitScreen(git: GitViewModel)</ID>
     <ID>LongMethod:GitScreen.kt$@Composable private fun RemoteCard( git: GitViewModel, currentUrl: String?, savedUsername: String, busy: Boolean, gitReady: Boolean, )</ID>
     <ID>LongMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp(viewModel: AppViewModel)</ID>
@@ -19,6 +20,7 @@
     <ID>LongMethod:TerminalScreen.kt$@Composable fun TerminalScreen(terminal: TerminalViewModel)</ID>
     <ID>LongParameterList:AgentOrchestrator.kt$AgentOrchestrator$( projectId: String, projectName: String, provider: ProviderConfig, apiKey: String, history: List&lt;ChatMessage&gt;, maxSteps: Int, allowAgentShell: Boolean, onEvent: (AgentEvent) -&gt; Unit = {}, )</ID>
     <ID>LongParameterList:NeuroCodeApp.kt$( title: String, label: String, initialValue: String, confirmLabel: String, onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, )</ID>
+    <ID>LongParameterList:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$( endpoint: String, apiKey: String, messages: List&lt;ApiMessage&gt;, tools: JsonArray, onChunk: (String) -&gt; Unit, providerForHeaders: ProviderConfig, )</ID>
     <ID>LongParameterList:SettingsScreen.kt$( model: String, onModelChange: (String) -&gt; Unit, modelsState: ProviderModelsState, expanded: Boolean, onExpandedChange: (Boolean) -&gt; Unit, onLoadModels: () -&gt; Boolean, )</ID>
     <ID>LoopWithTooManyJumpStatements:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$while</ID>
     <ID>MagicNumber:AgentOrchestrator.kt$AgentOrchestrator$20</ID>
@@ -36,13 +38,16 @@
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$50</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$500</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$800</ID>
+    <ID>MagicNumber:EditorViewModel.kt$EditorViewModel$8</ID>
     <ID>MagicNumber:GitRepository.kt$GitRepository$8</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$1024</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$256L</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$2_048</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$32</ID>
     <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$0.2</ID>
-    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$500</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$160</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$404</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$405</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$240</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$32</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$4096</ID>
@@ -67,9 +72,12 @@
     <ID>NestedBlockDepth:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
     <ID>ReturnCount:CommandPolicy.kt$CommandPolicy$fun isSafeReadOnly(command: String): Boolean</ID>
     <ID>ReturnCount:EditorViewModel.kt$EditorViewModel$private suspend fun saveOpenFileInternal(projectId: String?)</ID>
+    <ID>ThrowsCount:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun tryChatEndpoints( provider: ProviderConfig, shouldRethrow: () -&gt; Boolean = { false }, block: suspend (String) -&gt; AssistantTurn, ): AssistantTurn</ID>
     <ID>ThrowsCount:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
     <ID>TooGenericExceptionCaught:ChatViewModel.kt$ChatViewModel$error: Throwable</ID>
     <ID>TooGenericExceptionCaught:GitViewModel.kt$GitViewModel$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ProjectsViewModel.kt$ProjectsViewModel$error: Throwable</ID>
+    <ID>TooManyFunctions:EditorViewModel.kt$EditorViewModel : AndroidViewModel</ID>
     <ID>TooManyFunctions:GitRepository.kt$GitRepository</ID>
     <ID>TooManyFunctions:OpenAiCompatibleClient.kt$OpenAiCompatibleClient</ID>
     <ID>TooManyFunctions:ProjectRepository.kt$ProjectRepository</ID>

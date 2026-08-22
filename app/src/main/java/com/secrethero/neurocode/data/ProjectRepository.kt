@@ -116,6 +116,29 @@ class ProjectRepository(private val context: Context) {
         return copied
     }
 
+    suspend fun renameEntry(projectId: String, oldPath: String, newPath: String) =
+        withContext(Dispatchers.IO) {
+            val source = resolve(projectId, oldPath)
+            require(source != resolve(projectId, "")) { "Нельзя переименовать корень проекта" }
+            val target = resolve(projectId, newPath)
+            require(!target.exists()) { "Путь уже существует: $newPath" }
+            target.parentFile?.mkdirs()
+            check(source.renameTo(target)) {
+                "Не удалось переместить $oldPath → $newPath"
+            }
+            touch(projectId)
+        }
+
+    suspend fun deleteEntry(projectId: String, relativePath: String) =
+        withContext(Dispatchers.IO) {
+            val root = resolve(projectId, "")
+            val target = resolve(projectId, relativePath)
+            require(target != root) { "Нельзя удалить корень проекта" }
+            backup(projectId, relativePath, target)
+            check(target.deleteRecursively()) { "Не удалось удалить: $relativePath" }
+            touch(projectId)
+        }
+
     data class ZipExportResult(
         val files: Int,
         val bytes: Long,

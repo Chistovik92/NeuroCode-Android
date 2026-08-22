@@ -1,6 +1,8 @@
 package com.secrethero.neurocode.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +23,10 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,10 +61,13 @@ fun EditorScreen(editor: EditorViewModel) {
     val openPath by editor.openPath.collectAsStateWithLifecycle()
     val text by editor.editorText.collectAsStateWithLifecycle()
     val dirty by editor.editorDirty.collectAsStateWithLifecycle()
+    val recents by editor.recentFiles().collectAsStateWithLifecycle()
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var newFileDialog by remember { mutableStateOf(false) }
     var newDirectoryDialog by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<String?>(null) }
+    var deleteTarget by remember { mutableStateOf<String?>(null) }
 
     ModalNavigationDrawer(
         drawerState = drawer,
@@ -86,6 +96,30 @@ fun EditorScreen(editor: EditorViewModel) {
                     }
                 }
                 HorizontalDivider()
+                if (recents.isNotEmpty()) {
+                    Text(
+                        "Недавние",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+                    recents.forEach { recent ->
+                        Text(
+                            recent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    editor.openFile(recent)
+                                    scope.launch { drawer.close() }
+                                }
+                                .padding(start = 24.dp, top = 4.dp, bottom = 4.dp, end = 10.dp),
+                        )
+                    }
+                    HorizontalDivider()
+                }
                 Column(
                     Modifier
                         .width(320.dp)
@@ -93,10 +127,16 @@ fun EditorScreen(editor: EditorViewModel) {
                         .padding(vertical = 8.dp),
                 ) {
                     tree.forEach { node ->
-                        FileTreeNode(node, 0) { path ->
-                            editor.openFile(path)
-                            scope.launch { drawer.close() }
-                        }
+                        FileTreeNode(
+                            node = node,
+                            depth = 0,
+                            onOpen = { path ->
+                                editor.openFile(path)
+                                scope.launch { drawer.close() }
+                            },
+                            onRename = { renameTarget = it },
+                            onDelete = { deleteTarget = it },
+                        )
                     }
                 }
             }
@@ -174,50 +214,108 @@ fun EditorScreen(editor: EditorViewModel) {
             },
         )
     }
+    renameTarget?.let { target ->
+        TextInputDialog(
+            title = "Переименовать/переместить",
+            label = "Новый путь",
+            initialValue = target,
+            confirmLabel = "Применить",
+            onDismiss = { renameTarget = null },
+            onConfirm = { newPath ->
+                editor.renameEntry(target, newPath)
+                renameTarget = null
+            },
+        )
+    }
+    deleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Удалить?") },
+            text = {
+                Text("$target\n\nКопия сохранится в .neurocode/history.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        editor.deleteEntry(target)
+                        deleteTarget = null
+                    },
+                ) { Text("Удалить") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) { Text("Отмена") }
+            },
+        )
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FileTreeNode(
     node: FileNode,
     depth: Int,
     onOpen: (String) -> Unit,
+    onRename: (String) -> Unit,
+    onDelete: (String) -> Unit,
 ) {
     var expanded by remember(node.relativePath) { mutableStateOf(depth < 1) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                if (node.directory) expanded = !expanded else onOpen(node.relativePath)
-            }
-            .padding(
-                start = (12 + depth * 16).dp,
-                end = 10.dp,
-                top = 7.dp,
-                bottom = 7.dp,
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            if (node.directory) {
-                if (expanded) Icons.Default.FolderOpen else Icons.Default.Folder
-            } else {
-                Icons.Default.Description
-            },
-            contentDescription = null,
-            tint = if (node.directory) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            node.name,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+    var menu by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = {
+                        if (node.directory) expanded = !expanded else onOpen(node.relativePath)
+                    },
+                    onLongClick = { menu = true },
+                )
+                .padding(
+                    start = (12 + depth * 16).dp,
+                    end = 10.dp,
+                    top = 7.dp,
+                    bottom = 7.dp,
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                if (node.directory) {
+                    if (expanded) Icons.Default.FolderOpen else Icons.Default.Folder
+                } else {
+                    Icons.Default.Description
+                },
+                contentDescription = null,
+                tint = if (node.directory) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                node.name,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = { Text("Переименовать / переместить") },
+                onClick = {
+                    menu = false
+                    onRename(node.relativePath)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Удалить") },
+                onClick = {
+                    menu = false
+                    onDelete(node.relativePath)
+                },
+            )
+        }
     }
     if (node.directory && expanded) {
         node.children.forEach { child ->
-            FileTreeNode(child, depth + 1, onOpen)
+            FileTreeNode(child, depth + 1, onOpen, onRename, onDelete)
         }
     }
 }

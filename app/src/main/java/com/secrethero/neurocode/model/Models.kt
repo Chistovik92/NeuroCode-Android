@@ -52,6 +52,8 @@ data class AppSettings(
     val maxAgentSteps: Int = 8,
     val gitUsernames: Map<String, String> = emptyMap(),
     val removedDefaultProviderIds: List<String> = emptyList(),
+    val recentFilesByProject: Map<String, List<String>> = emptyMap(),
+    val linkedFolderByProject: Map<String, String> = emptyMap(),
     val darkTheme: Boolean = true,
 )
 
