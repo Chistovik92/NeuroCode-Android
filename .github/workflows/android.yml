@@ -29,8 +29,12 @@ jobs:
       - name: Install Android native toolchain
         shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null
-          sdkmanager \
+          sdkmanager="$(command -v sdkmanager || true)"
+          if [[ -z "$sdkmanager" ]]; then
+            sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          yes | "$sdkmanager" --licenses >/dev/null
+          "$sdkmanager" \
             "platforms;android-36" \
             "build-tools;36.0.0" \
             "ndk;29.0.13113456" \
