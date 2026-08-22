@@ -33,12 +33,14 @@ jobs:
           if [[ -z "$sdkmanager" ]]; then
             sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           fi
-          yes | "$sdkmanager" --licenses >/dev/null
+          yes_input="$(mktemp)"
+          printf 'y\n%.0s' $(seq 1 100) > "$yes_input"
+          "$sdkmanager" --licenses < "$yes_input" >/dev/null
           "$sdkmanager" \
             "platforms;android-36" \
             "build-tools;36.0.0" \
             "ndk;29.0.13113456" \
-            "cmake;3.31.6"
+            "cmake;3.31.6" < "$yes_input"
 
       - name: Unit tests and debug APK
         run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
