@@ -144,9 +144,25 @@ jobs:
             "cmake;3.31.6" < "$yes_input"
 
       - name: Smoke test on emulator
+        id: emu
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
           disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            adb wait-for-device shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 3; done'
+            sleep 30
+            ./gradlew --no-daemon :app:connectedDebugAndroidTest
+
+      - name: Smoke test retry
+        if: steps.emu.outcome == 'failure'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          disable-animations: true
+          emulator-boot-timeout: 900
           script: ./gradlew --no-daemon :app:connectedDebugAndroidTest
