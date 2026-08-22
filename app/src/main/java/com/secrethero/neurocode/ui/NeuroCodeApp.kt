@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Source
 import androidx.compose.material.icons.filled.Terminal
@@ -26,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -71,9 +74,11 @@ private enum class MainTab(
 fun NeuroCodeApp(viewModel: AppViewModel) {
     val ready by viewModel.ready.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val notice by viewModel.notice.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val approval by viewModel.approval.collectAsStateWithLifecycle()
+    val exportProgress by viewModel.exportProgress.collectAsStateWithLifecycle()
     val currentProject = projects.firstOrNull { it.id == settings.selectedProjectId }
     var tabName by rememberSaveable { mutableStateOf(MainTab.CHAT.name) }
     val tab = MainTab.entries.firstOrNull { it.name == tabName } ?: MainTab.CHAT
@@ -86,11 +91,23 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
     ) { uri ->
         uri?.let(viewModel::importProject)
     }
+    val exportFolder = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        uri?.let(viewModel::exportProject)
+    }
 
     LaunchedEffect(error) {
         error?.let {
             snackbar.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(notice) {
+        notice?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearNotice()
         }
     }
 
@@ -155,6 +172,16 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                             )
                             if (currentProject != null) {
                                 DropdownMenuItem(
+                                    text = { Text("Экспортировать проект") },
+                                    onClick = {
+                                        projectMenu = false
+                                        exportFolder.launch(null)
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.SaveAlt, contentDescription = null)
+                                    },
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Удалить текущий проект") },
                                     onClick = {
                                         projectMenu = false
@@ -218,6 +245,28 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                     Text("Запретить")
                 }
             },
+        )
+    }
+
+    exportProgress?.let { (copied, total) ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Экспорт проекта") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (total > 0) {
+                        LinearProgressIndicator(
+                            progress = { copied.toFloat() / total },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text("$copied из $total файлов")
+                    } else {
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Text("Подготовка…")
+                    }
+                }
+            },
+            confirmButton = {},
         )
     }
 

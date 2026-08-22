@@ -2,6 +2,7 @@ package com.secrethero.neurocode.data
 
 import android.content.Context
 import android.net.Uri
+import android.webkit.MimeTypeMap
 import androidx.documentfile.provider.DocumentFile
 import com.secrethero.neurocode.model.FileNode
 import com.secrethero.neurocode.model.Project
@@ -52,6 +53,66 @@ class ProjectRepository(private val context: Context) {
             touch(project.id)
             project
         }
+
+    suspend fun exportTree(
+        projectId: String,
+        target: Uri,
+        onProgress: (copied: Int, total: Int) -> Unit = { _, _ -> },
+    ): Int = withContext(Dispatchers.IO) {
+        val root = resolve(projectId, "")
+        val destination = DocumentFile.fromTreeUri(context, target)
+            ?: throw IOException("Не удалось открыть папку назначения")
+        val total = root.walkTopDown()
+            .onEnter { it.name !in exportIgnoredDirectories }
+            .filter { it.isFile && !it.name.endsWith(PENDING_SUFFIX) }
+            .count()
+        onProgress(0, total)
+        copyToDocumentTree(root, destination, 0, onProgress, total)
+    }
+
+    private fun copyToDocumentTree(
+        source: File,
+        target: DocumentFile,
+        depth: Int,
+        onProgress: (copied: Int, total: Int) -> Unit,
+        total: Int,
+    ): Int {
+        require(depth <= MAX_EXPORT_DEPTH) { "Слишком глубокая структура папок" }
+        var copied = 0
+        val existing = target.listFiles().associateBy { it.name }
+        source.listFiles().orEmpty()
+            .filterNot { it.name in exportIgnoredDirectories }
+            .filterNot { it.name.endsWith(PENDING_SUFFIX) }
+            .sortedBy { it.name.lowercase() }
+            .forEach { entry ->
+                val current = existing[entry.name]
+                if (entry.isDirectory) {
+                    val directory = current?.takeIf { it.isDirectory }
+                        ?: target.createDirectory(entry.name)
+                        ?: throw IOException("Не удалось создать папку ${entry.name}")
+                    copied += copyToDocumentTree(entry, directory, depth + 1, onProgress, total)
+                } else {
+                    require(entry.length() <= MAX_IMPORTED_FILE_BYTES) {
+                        "Файл ${entry.name} больше 200 МБ"
+                    }
+                    val document = current?.takeIf { it.isFile }
+                        ?: target.createDocument(mimeTypeFor(entry.name), entry.name)
+                        ?: throw IOException("Не удалось создать файл ${entry.name}")
+                    context.contentResolver.openOutputStream(document.uri, "wt")?.use { output ->
+                        entry.inputStream().use { input -> input.copyTo(output) }
+                    } ?: throw IOException("Не удалось записать ${entry.name}")
+                    copied++
+                    onProgress(copied, total)
+                }
+            }
+        return copied
+    }
+
+    private fun mimeTypeFor(name: String): String {
+        val extension = name.substringAfterLast('.', "").lowercase()
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+            ?: "application/octet-stream"
+    }
 
     suspend fun delete(projectId: String) = withContext(Dispatchers.IO) {
         val project = get(projectId) ?: return@withContext
@@ -220,6 +281,9 @@ class ProjectRepository(private val context: Context) {
         private const val SEARCH_FILE_BYTES = 1024L * 1024
         private const val MAX_IMPORTED_FILE_BYTES = 200L * 1024 * 1024
         private const val MAX_IMPORTED_FILES = 10_000
+        private const val MAX_EXPORT_DEPTH = 32
+        private const val PENDING_SUFFIX = ".neurocode.tmp"
         private val ignoredDirectories = setOf(".git", "build", ".gradle", ".idea", "node_modules")
+        private val exportIgnoredDirectories = setOf(".neurocode")
     }
 }

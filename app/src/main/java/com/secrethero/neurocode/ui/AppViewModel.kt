@@ -63,6 +63,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val gitLog: StateFlow<List<GitCommitInfo>> = _gitLog.asStateFlow()
     private val _modelImportProgress = MutableStateFlow<Pair<Long, Long>?>(null)
     val modelImportProgress: StateFlow<Pair<Long, Long>?> = _modelImportProgress.asStateFlow()
+    private val _exportProgress = MutableStateFlow<Pair<Int, Int>?>(null)
+    val exportProgress: StateFlow<Pair<Int, Int>?> = _exportProgress.asStateFlow()
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -87,6 +91,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearError() {
         _error.value = null
+    }
+
+    fun clearNotice() {
+        _notice.value = null
+    }
+
+    fun exportProject(uri: Uri) = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId
+        if (projectId == null) {
+            _notice.value = "Сначала выберите проект"
+            return@launch
+        }
+        runCatching {
+            _exportProgress.value = 0 to 0
+            val count = container.projects.exportTree(projectId, uri) { copied, total ->
+                _exportProgress.value = copied to total
+            }
+            _notice.value = "Экспортировано файлов: $count"
+        }.onFailure(::showError)
+        _exportProgress.value = null
     }
 
     fun createProject(name: String) = viewModelScope.launch {
