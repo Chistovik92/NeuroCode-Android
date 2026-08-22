@@ -1,5 +1,7 @@
 # NeuroCode Android
 
+[![Android build](https://github.com/Chistovik92/NeuroCode-Android/actions/workflows/android.yml/badge.svg)](https://github.com/Chistovik92/NeuroCode-Android/actions/workflows/android.yml)
+
 NeuroCode — автономная среда для работы с AI-кодинг-агентом прямо на Android, без обязательного ПК или сервера. Проект вдохновлён рабочим процессом OpenCode, но не связан с командой OpenCode.
 
 ## Дорожная карта
@@ -12,6 +14,8 @@ NeuroCode — автономная среда для работы с AI-коди
 | 0.1.1 | Экспорт проекта на устройство через SAF | ✅ готово |
 | 0.1.2 | Git remote по HTTPS: clone, pull, push с шифрованным токеном | ✅ готово |
 | 0.1.3 | Надёжность агента: стриминг SSE, память инструментов, тесты политики shell | ✅ готово |
+| 0.2.0 | Инженерное качество: release-подпись в CI, разделение ViewModel, статанализ | 🚧 в работе |
+| 0.3.0+ | Файлы и синхронизация, возможности агента, proot/LSP (см. ROADMAP.md) | ⬜ план |
 
 ## Что уже реализовано
 
@@ -28,6 +32,7 @@ NeuroCode — автономная среда для работы с AI-коди
 - редактор Sora Editor с номерами строк, undo/redo и поиском;
 - встроенный Android shell-терминал;
 - Git через JGit: init, status, diff, stage, commit, история и HTTPS remote — clone, pull, push;
+- подписанный release-APK в CI (секреты) и локально через keystore.properties;
 - импорт GGUF и реальный локальный inference через официальный Android binding llama.cpp;
 - потоковый вывод токенов локальной модели;
 - шифрование API-ключей через Android Keystore;
