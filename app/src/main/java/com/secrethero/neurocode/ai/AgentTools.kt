@@ -51,6 +51,24 @@ class AgentTools(
             required = listOf("path", "content"),
         ))
         add(tool(
+            name = "replace_in_file",
+            description = "Заменить уникальный фрагмент текстового файла. Экономнее полной перезаписи. Требует подтверждения пользователя.",
+            properties = mapOf(
+                "path" to property("string", "Относительный путь от корня проекта"),
+                "search" to property("string", "Точный существующий фрагмент, ровно одно вхождение"),
+                "replacement" to property("string", "Текст для замены"),
+            ),
+            required = listOf("path", "search", "replacement"),
+        ))
+        add(tool(
+            name = "delete_file",
+            description = "Удалить файл проекта (папки удалять нельзя). Копия сохраняется в .neurocode/history. Требует подтверждения пользователя.",
+            properties = mapOf(
+                "path" to property("string", "Относительный путь от корня проекта"),
+            ),
+            required = listOf("path"),
+        ))
+        add(tool(
             name = "search_text",
             description = "Найти текст во всех небольших текстовых файлах проекта.",
             properties = mapOf(
@@ -108,6 +126,40 @@ class AgentTools(
                 projects.writeText(projectId, path, content)
                 "Файл $path сохранён (${content.length} символов)"
             }
+            "replace_in_file" -> {
+                val path = arguments.string("path")
+                val search = arguments.string("search")
+                val replacement = arguments.string("replacement")
+                require(search.isNotEmpty()) { "Параметр search пуст" }
+                val original = projects.readText(projectId, path)
+                val occurrences = countOccurrences(original, search)
+                require(occurrences == 1) {
+                    "Фрагмент должен иметь ровно одно вхождение, найдено: $occurrences"
+                }
+                val approved = approvals.ask(
+                    ToolApprovalRequest(
+                        title = "Разрешить правку файла?",
+                        details = "$path\n\n− ${search.take(600)}\n+ ${replacement.take(600)}",
+                        risk = ApprovalRisk.FILE_WRITE,
+                    ),
+                )
+                if (!approved) return "Пользователь запретил правку $path"
+                projects.writeText(projectId, path, original.replaceFirst(search, replacement))
+                "Файл $path изменён (${search.length} → ${replacement.length} символов)"
+            }
+            "delete_file" -> {
+                val path = arguments.string("path")
+                val approved = approvals.ask(
+                    ToolApprovalRequest(
+                        title = "Удалить файл?",
+                        details = "$path\n\nКопия сохранится в .neurocode/history.",
+                        risk = ApprovalRisk.DESTRUCTIVE,
+                    ),
+                )
+                if (!approved) return "Пользователь запретил удаление $path"
+                projects.deleteFile(projectId, path)
+                "Файл $path удалён, копия в .neurocode/history"
+            }
             "search_text" -> {
                 val query = arguments.string("query")
                 val limit = arguments["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 100) ?: 50
@@ -144,6 +196,17 @@ class AgentTools(
         }
     }.getOrElse { error ->
         "Ошибка инструмента ${call.name}: ${error.message ?: error::class.java.simpleName}"
+    }
+
+    private fun countOccurrences(haystack: String, needle: String): Int {
+        var count = 0
+        var index = 0
+        while (true) {
+            index = haystack.indexOf(needle, index)
+            if (index < 0) return count
+            count++
+            index += needle.length
+        }
     }
 
     private fun tool(

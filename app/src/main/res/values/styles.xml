@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.NeuroCode" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.NeuroCode" parent="android:Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowNoTitle">true</item>

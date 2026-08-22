@@ -178,6 +178,17 @@ class ProjectRepository(private val context: Context) {
             touch(projectId)
         }
 
+    suspend fun deleteFile(projectId: String, relativePath: String) =
+        withContext(Dispatchers.IO) {
+            val root = resolve(projectId, "")
+            val file = resolve(projectId, relativePath)
+            require(file != root) { "Нельзя удалить корень проекта" }
+            require(file.isFile) { "Удаление доступно только для файлов: $relativePath" }
+            backup(projectId, relativePath, file)
+            check(file.delete()) { "Не удалось удалить файл $relativePath" }
+            touch(projectId)
+        }
+
     suspend fun search(projectId: String, query: String, limit: Int = 100): List<SearchHit> =
         withContext(Dispatchers.IO) {
             if (query.isBlank()) return@withContext emptyList()
