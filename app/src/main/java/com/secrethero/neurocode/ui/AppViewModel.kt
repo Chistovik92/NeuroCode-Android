@@ -250,7 +250,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val answer = if (settings.value.useLocalModel) {
                     runLocal(sessionId, text.trim())
                 } else {
-                    runCloud(history)
+                    runCloud(sessionId, history)
                 }
                 container.chats.append(
                     sessionId,
@@ -452,7 +452,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _modelImportProgress.value = null
     }
 
-    private suspend fun runCloud(history: List<ChatMessage>): String {
+    private suspend fun runCloud(sessionId: String, history: List<ChatMessage>): String {
         val current = settings.value
         val provider = current.providers.firstOrNull { it.id == current.selectedProviderId }
             ?: error("Выберите API-провайдера")
@@ -468,10 +468,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 history = history,
                 maxSteps = current.maxAgentSteps,
                 allowAgentShell = current.allowAgentShell,
-                onEvent = ::onAgentEvent,
+                onEvent = { onAgentEvent(sessionId, it) },
             )
         } else {
-            container.agent.chat(provider, key, history)
+            container.agent.chat(
+                provider,
+                key,
+                history,
+                onEvent = { onAgentEvent(sessionId, it) },
+            )
         }
     }
 
@@ -505,11 +510,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         return answer.toString()
     }
 
-    private fun onAgentEvent(event: AgentEvent) {
+    private fun onAgentEvent(sessionId: String, event: AgentEvent) {
         when (event) {
             is AgentEvent.Status -> _chatRunState.value = ChatRunState.Working(event.text)
+            is AgentEvent.Delta -> _streamingResponse.value += event.text
             is AgentEvent.ToolStarted -> appendAgentLog("→ ${event.name}: ${event.arguments.take(500)}")
-            is AgentEvent.ToolFinished -> appendAgentLog("← ${event.name}: ${event.result.take(800)}")
+            is AgentEvent.ToolFinished -> {
+                appendAgentLog("← ${event.name}: ${event.result.take(800)}")
+                viewModelScope.launch {
+                    runCatching {
+                        container.chats.append(
+                            sessionId,
+                            ChatMessage(
+                                role = MessageRole.TOOL,
+                                content = event.result.take(4_000),
+                                toolName = event.name,
+                            ),
+                        )
+                    }
+                }
+            }
         }
     }
 

@@ -117,8 +117,8 @@ class AgentTools(
                 val command = arguments.string("command").take(2_000)
                 val timeout = arguments["timeout_seconds"]?.jsonPrimitive?.intOrNull
                     ?.coerceIn(1, 120)?.times(1_000L) ?: 60_000L
-                val risky = commandRisk(command)
-                val unattended = allowAgentShell && risky == null && isSafeReadOnlyCommand(command)
+                val risky = CommandPolicy.risk(command)
+                val unattended = allowAgentShell && risky == null && CommandPolicy.isSafeReadOnly(command)
                 if (!unattended) {
                     val approved = approvals.ask(
                         ToolApprovalRequest(
@@ -144,32 +144,6 @@ class AgentTools(
         }
     }.getOrElse { error ->
         "Ошибка инструмента ${call.name}: ${error.message ?: error::class.java.simpleName}"
-    }
-
-    private fun commandRisk(command: String): String? {
-        val normalized = command.lowercase()
-        return when {
-            Regex("(^|[;&|]\\s*)rm\\s+(-[^ ]*r[^ ]*f|-[^ ]*f[^ ]*r)").containsMatchIn(normalized) ->
-                "рекурсивное удаление"
-            Regex("(^|[;&|]\\s*)(dd|mkfs|reboot|shutdown|su)\\b").containsMatchIn(normalized) ->
-                "системная или необратимая операция"
-            normalized.contains("curl") && normalized.contains("|") && normalized.contains("sh") ->
-                "запуск скачанного скрипта"
-            normalized.contains("wget") && normalized.contains("|") && normalized.contains("sh") ->
-                "запуск скачанного скрипта"
-            Regex("(^|\\s|[\"'])/").containsMatchIn(normalized) ->
-                "обращение за пределами рабочего проекта"
-            Regex("(^|/)\\.\\.(/|$)").containsMatchIn(normalized) ->
-                "переход за пределы рабочего проекта"
-            else -> null
-        }
-    }
-
-    private fun isSafeReadOnlyCommand(command: String): Boolean {
-        if (command.any { it in ";|&><\n\r`$(){}" }) return false
-        if (command.contains("..")) return false
-        val executable = command.trim().substringBefore(' ')
-        return executable in setOf("pwd", "ls", "find", "grep", "sed", "head", "tail", "wc", "cat")
     }
 
     private fun tool(

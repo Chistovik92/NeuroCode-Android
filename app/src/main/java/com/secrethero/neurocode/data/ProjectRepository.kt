@@ -130,12 +130,7 @@ class ProjectRepository(private val context: Context) {
 
     fun resolve(projectId: String, relativePath: String): File {
         val project = get(projectId) ?: error("Проект не найден")
-        val root = File(project.rootPath).canonicalFile
-        val file = File(root, relativePath.trimStart('/')).canonicalFile
-        require(file == root || file.path.startsWith(root.path + File.separator)) {
-            "Путь выходит за пределы проекта"
-        }
-        return file
+        return PathGuard.resolveWithin(File(project.rootPath), relativePath)
     }
 
     suspend fun tree(projectId: String): List<FileNode> = withContext(Dispatchers.IO) {

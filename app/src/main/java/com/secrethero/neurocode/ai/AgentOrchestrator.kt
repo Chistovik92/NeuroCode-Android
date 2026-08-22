@@ -6,6 +6,7 @@ import com.secrethero.neurocode.model.ProviderConfig
 
 sealed interface AgentEvent {
     data class Status(val text: String) : AgentEvent
+    data class Delta(val text: String) : AgentEvent
     data class ToolStarted(val name: String, val arguments: String) : AgentEvent
     data class ToolFinished(val name: String, val result: String) : AgentEvent
 }
@@ -30,23 +31,17 @@ class AgentOrchestrator(
                 content = systemPrompt(projectName),
             ),
         )
-        history.takeLast(40)
-            .filter { it.role != MessageRole.TOOL }
-            .forEach { message ->
-                messages += ApiMessage(
-                    role = when (message.role) {
-                        MessageRole.SYSTEM -> "system"
-                        MessageRole.USER -> "user"
-                        MessageRole.ASSISTANT -> "assistant"
-                        MessageRole.TOOL -> "tool"
-                    },
-                    content = message.content,
-                )
-            }
+        messages += contextMessages(history)
 
         repeat(maxSteps.coerceIn(1, 20)) { index ->
             onEvent(AgentEvent.Status("Шаг агента ${index + 1}"))
-            val turn = client.complete(provider, apiKey, messages, tools.definitions())
+            val turn = client.complete(
+                provider = provider,
+                apiKey = apiKey,
+                messages = messages,
+                tools = tools.definitions(),
+                onDelta = { chunk -> onEvent(AgentEvent.Delta(chunk)) },
+            )
             messages += ApiMessage(
                 role = "assistant",
                 content = turn.content,
@@ -76,19 +71,48 @@ class AgentOrchestrator(
         provider: ProviderConfig,
         apiKey: String,
         history: List<ChatMessage>,
+        onEvent: (AgentEvent) -> Unit = {},
     ): String {
-        val messages = history.takeLast(50).map { message ->
-            ApiMessage(
-                role = when (message.role) {
-                    MessageRole.SYSTEM -> "system"
-                    MessageRole.USER -> "user"
-                    MessageRole.ASSISTANT -> "assistant"
-                    MessageRole.TOOL -> "tool"
-                },
-                content = message.content,
-            )
+        val messages = contextMessages(history, limit = 50, toolSummariesLimit = 0)
+        return client.complete(
+            provider = provider,
+            apiKey = apiKey,
+            messages = messages,
+            onDelta = { chunk -> onEvent(AgentEvent.Delta(chunk)) },
+        ).content
+    }
+
+    private fun contextMessages(
+        history: List<ChatMessage>,
+        limit: Int = 40,
+        toolSummariesLimit: Int = 12,
+    ): List<ApiMessage> {
+        val result = mutableListOf<ApiMessage>()
+        var summaries = 0
+        history.takeLast(limit).forEach { message ->
+            if (message.role == MessageRole.TOOL) {
+                if (summaries < toolSummariesLimit) {
+                    summaries++
+                    result += ApiMessage(
+                        role = "user",
+                        content =
+                            "[автоматическая сводка: результат инструмента ${message.toolName ?: "?"}] " +
+                                message.content.take(TOOL_SUMMARY_CHARS),
+                    )
+                }
+            } else {
+                result += ApiMessage(
+                    role = when (message.role) {
+                        MessageRole.SYSTEM -> "system"
+                        MessageRole.USER -> "user"
+                        MessageRole.ASSISTANT -> "assistant"
+                        MessageRole.TOOL -> "user"
+                    },
+                    content = message.content,
+                )
+            }
         }
-        return client.complete(provider, apiKey, messages).content
+        return result
     }
 
     private fun systemPrompt(projectName: String) = """
@@ -101,4 +125,8 @@ class AgentOrchestrator(
         Никогда не запрашивай и не выводи API-ключи, токены или другие секреты.
         Отвечай пользователю по-русски, а имена API, классов и команд сохраняй как в коде.
     """.trimIndent()
+
+    companion object {
+        private const val TOOL_SUMMARY_CHARS = 1_200
+    }
 }
