@@ -5,8 +5,9 @@
     <ID>CyclomaticComplexMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, ): String</ID>
     <ID>CyclomaticComplexMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
     <ID>CyclomaticComplexMethod:GitScreen.kt$@Composable fun GitScreen(git: GitViewModel)</ID>
-    <ID>CyclomaticComplexMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp(viewModel: AppViewModel)</ID>
+    <ID>CyclomaticComplexMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp( viewModel: AppViewModel, expanded: Boolean, )</ID>
     <ID>CyclomaticComplexMethod:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun executeStreaming( endpoint: String, apiKey: String, messages: List&lt;ApiMessage&gt;, tools: JsonArray, onChunk: (String) -&gt; Unit, providerForHeaders: ProviderConfig, ): AssistantTurn</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$fun definitions(): JsonArray</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, ): String</ID>
     <ID>LongMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
@@ -14,7 +15,7 @@
     <ID>LongMethod:EditorScreen.kt$@OptIn(ExperimentalFoundationApi::class) @Composable private fun FileTreeNode( node: FileNode, depth: Int, onOpen: (String) -&gt; Unit, onRename: (String) -&gt; Unit, onDelete: (String) -&gt; Unit, )</ID>
     <ID>LongMethod:GitScreen.kt$@Composable fun GitScreen(git: GitViewModel)</ID>
     <ID>LongMethod:GitScreen.kt$@Composable private fun RemoteCard( git: GitViewModel, currentUrl: String?, savedUsername: String, busy: Boolean, gitReady: Boolean, )</ID>
-    <ID>LongMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp(viewModel: AppViewModel)</ID>
+    <ID>LongMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp( viewModel: AppViewModel, expanded: Boolean, )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable private fun ProviderDialog( current: ProviderConfig?, modelsState: ProviderModelsState, onLoadModels: (ProviderConfig) -&gt; Unit, onDismiss: () -&gt; Unit, onSave: (ProviderConfig, String) -&gt; Unit, )</ID>
     <ID>LongMethod:TerminalScreen.kt$@Composable fun TerminalScreen(terminal: TerminalViewModel)</ID>
@@ -45,9 +46,14 @@
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$2_048</ID>
     <ID>MagicNumber:LocalLlamaClient.kt$LocalLlamaClient$32</ID>
     <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$0.2</ID>
-    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$160</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$200</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$300</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$401</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$402</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$403</ID>
     <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$404</ID>
     <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$405</ID>
+    <ID>MagicNumber:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$429</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$240</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$32</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$4096</ID>

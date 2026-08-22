@@ -24,6 +24,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.BuildConfig
 import com.secrethero.neurocode.model.ProviderConfig
+import com.secrethero.neurocode.model.ThemeMode
 import com.secrethero.neurocode.ui.ProviderModelsState
 import com.secrethero.neurocode.ui.SettingsViewModel
 import java.util.UUID
@@ -72,6 +74,25 @@ fun SettingsScreen(vm: SettingsViewModel) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        Text("Оформление", style = MaterialTheme.typography.titleLarge)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ThemeMode.entries.forEach { mode ->
+                FilterChip(
+                    selected = settings.themeMode == mode,
+                    onClick = { vm.setThemeMode(mode) },
+                    label = {
+                        Text(
+                            when (mode) {
+                                ThemeMode.SYSTEM -> "Системная"
+                                ThemeMode.LIGHT -> "Светлая"
+                                ThemeMode.DARK -> "Тёмная"
+                            },
+                        )
+                    },
+                )
+            }
+        }
+
         Text("Режим работы", style = MaterialTheme.typography.titleLarge)
         SettingSwitch(
             title = "Локальная GGUF-модель",

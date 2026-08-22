@@ -1,3 +1,6 @@
+complexity:
+  TooManyFunctions:
+    thresholdInClasses: 14
 naming:
   FunctionNaming:
     ignoreAnnotated:

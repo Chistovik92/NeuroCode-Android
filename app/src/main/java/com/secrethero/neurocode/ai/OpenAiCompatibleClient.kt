@@ -60,6 +60,16 @@ class OpenAiCompatibleClient {
 
     private class ApiException(val code: Int, message: String) : IOException(message)
 
+    private fun httpHint(code: Int): String = when {
+        code == 401 -> " Проверьте API-ключ и доступ к выбранной модели."
+        code == 402 -> " Недостаточно средств на аккаунте провайдера."
+        code == 403 -> " Ключу запрещён доступ к этой модели."
+        code == 404 -> " Модель или адрес не найдены — проверьте Base URL и имя модели."
+        code == 429 -> " Слишком много запросов — попробуйте позже."
+        code in SERVER_ERROR_CODES -> " Ошибка на стороне провайдера."
+        else -> ""
+    }
+
     private fun chatEndpoints(provider: ProviderConfig): List<String> {
         val base = provider.baseUrl.trim().trimEnd('/')
         return buildList {
@@ -305,12 +315,19 @@ class OpenAiCompatibleClient {
     }
 
     private fun apiError(code: Int, body: String, fallback: String): IOException {
-        val message = runCatching {
+        val parsed = runCatching {
             json.parseToJsonElement(body).jsonObject["error"]
                 ?.jsonObject?.get("message")?.jsonPrimitive?.content
         }.getOrNull()
-        val short = message ?: body.take(160).ifBlank { fallback }
-        return ApiException(code, "Ошибка API $code: $short")
+        val short = when {
+            parsed != null -> parsed
+            body.contains("<!DOCTYPE", ignoreCase = true) ||
+                body.contains("<html", ignoreCase = true) ->
+                "сервер вернул HTML-страницу вместо ответа API"
+            else -> body.take(200).ifBlank { fallback }
+        }
+        val hint = httpHint(code)
+        return ApiException(code, "Ошибка API $code: ${short.take(300)}.$hint")
     }
 
     private fun parseTurn(body: String): AssistantTurn {
@@ -368,5 +385,9 @@ class OpenAiCompatibleClient {
         var id: String = ""
         var name: String = ""
         val arguments = StringBuilder()
+    }
+
+    private companion object {
+        val SERVER_ERROR_CODES = 500..599
     }
 }

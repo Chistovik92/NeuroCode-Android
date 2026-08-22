@@ -40,6 +40,13 @@ data class ProviderConfig(
 )
 
 @Serializable
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK,
+}
+
+@Serializable
 data class AppSettings(
     val providers: List<ProviderConfig> = emptyList(),
     val selectedProviderId: String? = null,
@@ -54,7 +61,7 @@ data class AppSettings(
     val removedDefaultProviderIds: List<String> = emptyList(),
     val recentFilesByProject: Map<String, List<String>> = emptyMap(),
     val linkedFolderByProject: Map<String, String> = emptyMap(),
-    val darkTheme: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.DARK,
 )
 
 @Serializable

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ProviderConfig
+import com.secrethero.neurocode.model.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +49,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setAgentMode(enabled: Boolean) = updateSettings { it.copy(agentMode = enabled) }
     fun setAllowAgentShell(enabled: Boolean) = updateSettings { it.copy(allowAgentShell = enabled) }
     fun setMaxAgentSteps(value: Int) = updateSettings { it.copy(maxAgentSteps = value.coerceIn(1, 20)) }
+    fun setThemeMode(mode: ThemeMode) = updateSettings { it.copy(themeMode = mode) }
 
     fun saveProvider(provider: ProviderConfig, apiKey: String?) = viewModelScope.launch {
         runCatching { container.settings.upsertProvider(provider, apiKey) }

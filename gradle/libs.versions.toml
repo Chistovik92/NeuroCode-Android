@@ -34,6 +34,7 @@ compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 compose-foundation = { module = "androidx.compose.foundation:foundation" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-window-size = { module = "androidx.compose.material3:material3-window-size-class" }
 compose-icons = { module = "androidx.compose.material:material-icons-extended" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "core" }
@@ -58,4 +59,5 @@ compose = [
     "compose-foundation",
     "compose-material3",
     "compose-icons",
+    "compose-window-size",
 ]

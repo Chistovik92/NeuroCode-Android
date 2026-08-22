@@ -56,6 +56,8 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
 
     private val _syncBusy = MutableStateFlow(false)
     val syncBusy: StateFlow<Boolean> = _syncBusy.asStateFlow()
+    private val _syncProgress = MutableStateFlow<Pair<Int, Int>?>(null)
+    val syncProgress: StateFlow<Pair<Int, Int>?> = _syncProgress.asStateFlow()
 
     fun linkedFolder(): String? =
         settings.value.selectedProjectId?.let { settings.value.linkedFolderByProject[it] }
@@ -92,6 +94,33 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
             container.bus.showError(error)
         } finally {
             _syncBusy.value = false
+        }
+    }
+
+    fun syncFromLinkedFolder() = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        val stored = settings.value.linkedFolderByProject[projectId]
+        if (stored == null) {
+            container.bus.showNotice("Сначала привяжите папку синхронизации")
+            return@launch
+        }
+        try {
+            _syncBusy.value = true
+            _syncProgress.value = 0 to 0
+            val result = container.projects.syncFromFolder(projectId, Uri.parse(stored)) { done, total ->
+                _syncProgress.value = done to total
+            }
+            container.bus.showNotice(
+                "Из папки: добавлено ${result.added}, обновлено ${result.updated}" +
+                    if (result.skipped > 0) ", пропущено ${result.skipped}" else "",
+            )
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            container.bus.showError(error)
+        } finally {
+            _syncBusy.value = false
+            _syncProgress.value = null
         }
     }
 

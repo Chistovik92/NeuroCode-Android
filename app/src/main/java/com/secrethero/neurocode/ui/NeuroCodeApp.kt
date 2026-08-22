@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MoreVert
@@ -34,6 +36,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -73,7 +77,10 @@ private enum class MainTab(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NeuroCodeApp(viewModel: AppViewModel) {
+fun NeuroCodeApp(
+    viewModel: AppViewModel,
+    expanded: Boolean,
+) {
     val ready by viewModel.ready.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
@@ -110,6 +117,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
         uri?.let(viewModel.projects::linkFolder)
     }
     val syncBusy by viewModel.projects.syncBusy.collectAsStateWithLifecycle()
+    val syncProgress by viewModel.projects.syncProgress.collectAsStateWithLifecycle()
 
     LaunchedEffect(error) {
         error?.let {
@@ -228,6 +236,18 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                                     },
                                 )
                                 DropdownMenuItem(
+                                    text = { Text("Синхронизировать из папки") },
+                                    onClick = {
+                                        projectMenu = false
+                                        viewModel.projects.syncFromLinkedFolder()
+                                    },
+                                    enabled = !syncBusy &&
+                                        viewModel.projects.linkedFolder() != null,
+                                    leadingIcon = {
+                                        Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                    },
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Удалить текущий проект") },
                                     onClick = {
                                         projectMenu = false
@@ -241,14 +261,16 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
             )
         },
         bottomBar = {
-            NavigationBar {
-                MainTab.entries.forEach { item ->
-                    NavigationBarItem(
-                        selected = item == tab,
-                        onClick = { tabName = item.name },
-                        icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title) },
-                    )
+            if (!expanded) {
+                NavigationBar {
+                    MainTab.entries.forEach { item ->
+                        NavigationBarItem(
+                            selected = item == tab,
+                            onClick = { tabName = item.name },
+                            icon = { Icon(item.icon, contentDescription = item.title) },
+                            label = { Text(item.title) },
+                        )
+                    }
                 }
             }
         },
@@ -260,11 +282,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                 onImport = { importFolder.launch(null) },
             )
         } else {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-            ) {
+            val screens: @Composable () -> Unit = {
                 when (tab) {
                     MainTab.CHAT -> ChatScreen(viewModel.chat, viewModel.editor)
                     MainTab.EDITOR -> EditorScreen(viewModel.editor)
@@ -272,6 +290,27 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                     MainTab.GIT -> GitScreen(viewModel.git)
                     MainTab.SETTINGS -> SettingsScreen(viewModel.settingsScreen)
                 }
+            }
+            if (expanded) {
+                Row(Modifier.fillMaxSize().padding(padding)) {
+                    NavigationRail {
+                        MainTab.entries.forEach { item ->
+                            NavigationRailItem(
+                                selected = item == tab,
+                                onClick = { tabName = item.name },
+                                icon = { Icon(item.icon, contentDescription = item.title) },
+                                label = { Text(item.title) },
+                            )
+                        }
+                    }
+                    Box(Modifier.weight(1f).fillMaxSize()) { screens() }
+                }
+            } else {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                ) { screens() }
             }
         }
     }
@@ -333,6 +372,27 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                     } else {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
                         Text("Подготовка…")
+                    }
+                }
+            },
+            confirmButton = {},
+        )
+    }
+
+    syncProgress?.let { (done, total) ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Синхронизация из папки") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (total > 0) {
+                        LinearProgressIndicator(
+                            progress = { done.toFloat() / total },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text("$done из $total файлов")
+                    } else {
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
                     }
                 }
             },

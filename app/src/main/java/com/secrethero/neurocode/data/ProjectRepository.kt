@@ -139,6 +139,71 @@ class ProjectRepository(private val context: Context) {
             touch(projectId)
         }
 
+    data class SyncResult(
+        val added: Int,
+        val updated: Int,
+        val skipped: Int,
+    )
+
+    suspend fun syncFromFolder(
+        projectId: String,
+        source: Uri,
+        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ): SyncResult = withContext(Dispatchers.IO) {
+        val root = resolve(projectId, "")
+        val tree = DocumentFile.fromTreeUri(context, source)
+            ?: throw IOException("Не удалось открыть привязанную папку")
+        val files = collectDocumentFiles(tree, depth = 0)
+        var result = SyncResult(0, 0, 0)
+        for ((index, doc) in files.withIndex()) {
+            onProgress(index, files.size)
+            if (doc.length > MAX_IMPORTED_FILE_BYTES) {
+                result = result.copy(skipped = result.skipped + 1)
+                continue
+            }
+            val target = File(root, doc.relativePath)
+            target.parentFile?.mkdirs()
+            val existed = target.exists()
+            context.contentResolver.openInputStream(doc.uri)?.use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+            } ?: run {
+                result = result.copy(skipped = result.skipped + 1)
+                return@run
+            }
+            result = if (existed) {
+                result.copy(updated = result.updated + 1)
+            } else {
+                result.copy(added = result.added + 1)
+            }
+            onProgress(index + 1, files.size)
+        }
+        touch(projectId)
+        result
+    }
+
+    private class RemoteDoc(
+        val uri: android.net.Uri,
+        val relativePath: String,
+        val length: Long,
+    )
+
+    private fun collectDocumentFiles(dir: DocumentFile, depth: Int): List<RemoteDoc> {
+        require(depth <= MAX_EXPORT_DEPTH) { "Слишком глубокая структура папок" }
+        val out = mutableListOf<RemoteDoc>()
+        for (child in dir.listFiles().take(MAX_IMPORTED_FILES)) {
+            val name = child.name ?: continue
+            when {
+                child.isDirectory && name !in exportIgnoredDirectories ->
+                    out += collectDocumentFiles(child, depth + 1).map {
+                        RemoteDoc(it.uri, "$name/${it.relativePath}", it.length)
+                    }
+                child.isFile && !name.endsWith(PENDING_SUFFIX) ->
+                    out += RemoteDoc(child.uri, name, child.length())
+            }
+        }
+        return out
+    }
+
     data class ZipExportResult(
         val files: Int,
         val bytes: Long,
