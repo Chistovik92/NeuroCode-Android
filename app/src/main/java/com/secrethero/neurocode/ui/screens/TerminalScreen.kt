@@ -1,4 +1,4 @@
-package com.secrethero.neurocode.ui.screens
+﻿package com.secrethero.neurocode.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,15 +35,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.secrethero.neurocode.ui.AppViewModel
+import com.secrethero.neurocode.ui.TerminalViewModel
 
 @Composable
-fun TerminalScreen(viewModel: AppViewModel) {
-    val lines by viewModel.terminalLines.collectAsStateWithLifecycle()
+fun TerminalScreen(terminal: TerminalViewModel) {
+    val lines by terminal.lines.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var command by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) { viewModel.startTerminal() }
+    LaunchedEffect(Unit) { terminal.startTerminal() }
     LaunchedEffect(lines.size) {
         if (lines.isNotEmpty()) listState.scrollToItem(lines.lastIndex)
     }
@@ -60,11 +60,11 @@ fun TerminalScreen(viewModel: AppViewModel) {
                 .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            IconButton(onClick = viewModel::interruptTerminal) {
-                Icon(Icons.Default.Stop, contentDescription = "Остановить", tint = Color(0xFFFF6B6B))
+            IconButton(onClick = terminal::interruptTerminal) {
+                Icon(Icons.Default.Stop, contentDescription = "РћСЃС‚Р°РЅРѕРІРёС‚СЊ", tint = Color(0xFFFF6B6B))
             }
-            IconButton(onClick = viewModel::clearTerminal) {
-                Icon(Icons.Default.ClearAll, contentDescription = "Очистить", tint = Color(0xFFB9C2CF))
+            IconButton(onClick = terminal::clearTerminal) {
+                Icon(Icons.Default.ClearAll, contentDescription = "РћС‡РёСЃС‚РёС‚СЊ", tint = Color(0xFFB9C2CF))
             }
         }
         LazyColumn(
@@ -108,7 +108,7 @@ fun TerminalScreen(viewModel: AppViewModel) {
                 keyboardActions = KeyboardActions(
                     onSend = {
                         if (command.isNotBlank()) {
-                            viewModel.runTerminal(command)
+                            terminal.runTerminal(command)
                             command = ""
                         }
                     },
@@ -117,13 +117,15 @@ fun TerminalScreen(viewModel: AppViewModel) {
             IconButton(
                 onClick = {
                     if (command.isNotBlank()) {
-                        viewModel.runTerminal(command)
+                        terminal.runTerminal(command)
                         command = ""
                     }
                 },
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Выполнить", tint = Color(0xFF65E5C4))
+                Icon(Icons.Default.PlayArrow, contentDescription = "Р’С‹РїРѕР»РЅРёС‚СЊ", tint = Color(0xFF65E5C4))
             }
         }
     }
 }
+
+

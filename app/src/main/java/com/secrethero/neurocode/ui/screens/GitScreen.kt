@@ -1,4 +1,4 @@
-package com.secrethero.neurocode.ui.screens
+﻿package com.secrethero.neurocode.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -44,22 +44,22 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.git.GitStatus
-import com.secrethero.neurocode.ui.AppViewModel
+import com.secrethero.neurocode.ui.GitViewModel
 import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun GitScreen(viewModel: AppViewModel) {
-    val status by viewModel.gitStatus.collectAsStateWithLifecycle()
-    val diff by viewModel.gitDiff.collectAsStateWithLifecycle()
-    val log by viewModel.gitLog.collectAsStateWithLifecycle()
-    val remoteUrl by viewModel.gitRemoteUrl.collectAsStateWithLifecycle()
-    val syncBusy by viewModel.gitSyncBusy.collectAsStateWithLifecycle()
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
+fun GitScreen(git: GitViewModel) {
+    val status by git.gitStatus.collectAsStateWithLifecycle()
+    val diff by git.gitDiff.collectAsStateWithLifecycle()
+    val log by git.gitLog.collectAsStateWithLifecycle()
+    val remoteUrl by git.gitRemoteUrl.collectAsStateWithLifecycle()
+    val syncBusy by git.gitSyncBusy.collectAsStateWithLifecycle()
+    val settings by git.settings.collectAsStateWithLifecycle()
     val projectId = settings.selectedProjectId
     var commitDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { viewModel.refreshGit() }
+    LaunchedEffect(Unit) { git.refresh() }
 
     Column(
         Modifier
@@ -73,18 +73,18 @@ fun GitScreen(viewModel: AppViewModel) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                status?.let { "Ветка: ${it.branch}" } ?: "Git не инициализирован",
+                status?.let { "Р’РµС‚РєР°: ${it.branch}" } ?: "Git РЅРµ РёРЅРёС†РёР°Р»РёР·РёСЂРѕРІР°РЅ",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = { viewModel.refreshGit() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Обновить")
+            IconButton(onClick = { git.refresh() }) {
+                Icon(Icons.Default.Refresh, contentDescription = "РћР±РЅРѕРІРёС‚СЊ")
             }
         }
 
         RemoteCard(
-            viewModel = viewModel,
+            git = git,
             currentUrl = remoteUrl,
             savedUsername = projectId?.let { settings.gitUsernames[it] }.orEmpty(),
             busy = syncBusy,
@@ -100,8 +100,8 @@ fun GitScreen(viewModel: AppViewModel) {
                     Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text("Создайте локальный Git-репозиторий для истории изменений и diff.")
-                    Button(onClick = viewModel::initGit) { Text("git init") }
+                    Text("РЎРѕР·РґР°Р№С‚Рµ Р»РѕРєР°Р»СЊРЅС‹Р№ Git-СЂРµРїРѕР·РёС‚РѕСЂРёР№ РґР»СЏ РёСЃС‚РѕСЂРёРё РёР·РјРµРЅРµРЅРёР№ Рё diff.")
+                    Button(onClick = git::initGit) { Text("git init") }
                 }
             }
             return@Column
@@ -110,19 +110,19 @@ fun GitScreen(viewModel: AppViewModel) {
         StatusCard(status!!)
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = viewModel::stageAll) {
+            FilledTonalButton(onClick = git::stageAll) {
                 Icon(Icons.Default.AddTask, contentDescription = null)
-                Text(" Индексировать всё")
+                Text(" РРЅРґРµРєСЃРёСЂРѕРІР°С‚СЊ РІСЃС‘")
             }
             Button(onClick = { commitDialog = true }) {
-                Text("Коммит")
+                Text("РљРѕРјРјРёС‚")
             }
-            OutlinedButton(onClick = { viewModel.refreshGit(stagedDiff = true) }) {
+            OutlinedButton(onClick = { git.refresh(stagedDiff = true) }) {
                 Text("Staged diff")
             }
         }
 
-        Text("Изменения", style = MaterialTheme.typography.titleMedium)
+        Text("РР·РјРµРЅРµРЅРёСЏ", style = MaterialTheme.typography.titleMedium)
         Surface(
             color = Color(0xFF080B10),
             shape = MaterialTheme.shapes.medium,
@@ -134,7 +134,7 @@ fun GitScreen(viewModel: AppViewModel) {
                     .padding(10.dp),
             ) {
                 if (diff.isBlank()) {
-                    Text("Изменений нет", color = Color(0xFF9AA7B5))
+                    Text("РР·РјРµРЅРµРЅРёР№ РЅРµС‚", color = Color(0xFF9AA7B5))
                 } else {
                     diff.lineSequence().forEach { line ->
                         Text(
@@ -153,9 +153,9 @@ fun GitScreen(viewModel: AppViewModel) {
             }
         }
 
-        Text("История", style = MaterialTheme.typography.titleMedium)
+        Text("РСЃС‚РѕСЂРёСЏ", style = MaterialTheme.typography.titleMedium)
         if (log.isEmpty()) {
-            Text("Коммитов пока нет")
+            Text("РљРѕРјРјРёС‚РѕРІ РїРѕРєР° РЅРµС‚")
         } else {
             log.forEach { commit ->
                 Surface(
@@ -166,7 +166,7 @@ fun GitScreen(viewModel: AppViewModel) {
                     Column(Modifier.padding(10.dp)) {
                         Text(commit.message, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "${commit.shortHash} · ${commit.author} · ${
+                            "${commit.shortHash} В· ${commit.author} В· ${
                                 DateFormat.getDateTimeInstance().format(Date(commit.timestamp))
                             }",
                             style = MaterialTheme.typography.labelSmall,
@@ -181,7 +181,7 @@ fun GitScreen(viewModel: AppViewModel) {
         CommitDialog(
             onDismiss = { commitDialog = false },
             onCommit = { message, name, email ->
-                viewModel.commit(message, name, email)
+                git.commit(message, name, email)
                 commitDialog = false
             },
         )
@@ -190,7 +190,7 @@ fun GitScreen(viewModel: AppViewModel) {
 
 @Composable
 private fun RemoteCard(
-    viewModel: AppViewModel,
+    git: GitViewModel,
     currentUrl: String?,
     savedUsername: String,
     busy: Boolean,
@@ -212,28 +212,28 @@ private fun RemoteCard(
         ) {
             Text("Remote", style = MaterialTheme.typography.titleMedium)
             Text(
-                currentUrl ?: "origin не настроен",
+                currentUrl ?: "origin РЅРµ РЅР°СЃС‚СЂРѕРµРЅ",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
-                label = { Text("HTTPS URL репозитория") },
+                label = { Text("HTTPS URL СЂРµРїРѕР·РёС‚РѕСЂРёСЏ") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Имя пользователя") },
+                label = { Text("РРјСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = token,
                 onValueChange = { token = it },
-                label = { Text(if (currentUrl == null) "Токен доступа" else "Новый токен (пусто — не менять)") },
+                label = { Text(if (currentUrl == null) "РўРѕРєРµРЅ РґРѕСЃС‚СѓРїР°" else "РќРѕРІС‹Р№ С‚РѕРєРµРЅ (РїСѓСЃС‚Рѕ вЂ” РЅРµ РјРµРЅСЏС‚СЊ)") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -245,28 +245,28 @@ private fun RemoteCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     enabled = !busy && url.startsWith("https://"),
-                    onClick = { viewModel.connectRemote(url.trim(), username.trim(), token) },
+                    onClick = { git.connectRemote(url.trim(), username.trim(), token) },
                 ) {
                     Icon(Icons.Default.Link, contentDescription = null)
-                    Text(" Подключить")
+                    Text(" РџРѕРґРєР»СЋС‡РёС‚СЊ")
                 }
                 FilledTonalButton(
                     enabled = !busy && gitReady && currentUrl != null,
-                    onClick = viewModel::pullRemote,
+                    onClick = git::pullRemote,
                 ) {
                     Icon(Icons.Default.ArrowDownward, contentDescription = null)
                     Text(" Pull")
                 }
                 FilledTonalButton(
                     enabled = !busy && gitReady && currentUrl != null,
-                    onClick = viewModel::pushRemote,
+                    onClick = git::pushRemote,
                 ) {
                     Icon(Icons.Default.ArrowUpward, contentDescription = null)
                     Text(" Push")
                 }
             }
             OutlinedButton(onClick = { cloneDialog = true }, enabled = !busy) {
-                Text("Клонировать в новый проект…")
+                Text("РљР»РѕРЅРёСЂРѕРІР°С‚СЊ РІ РЅРѕРІС‹Р№ РїСЂРѕРµРєС‚вЂ¦")
             }
         }
     }
@@ -276,7 +276,7 @@ private fun RemoteCard(
             onDismiss = { cloneDialog = false },
             onClone = { cloneUrl, cloneUsername, cloneToken ->
                 cloneDialog = false
-                viewModel.cloneProject(cloneUrl, cloneUsername, cloneToken)
+                git.cloneProject(cloneUrl, cloneUsername, cloneToken)
             },
         )
     }
@@ -292,29 +292,29 @@ private fun CloneDialog(
     var token by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Клонировать репозиторий") },
+        title = { Text("РљР»РѕРЅРёСЂРѕРІР°С‚СЊ СЂРµРїРѕР·РёС‚РѕСЂРёР№") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Создаст новый проект в песочнице NeuroCode. Токен сохраняется в зашифрованном хранилище.",
+                    "РЎРѕР·РґР°СЃС‚ РЅРѕРІС‹Р№ РїСЂРѕРµРєС‚ РІ РїРµСЃРѕС‡РЅРёС†Рµ NeuroCode. РўРѕРєРµРЅ СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ Р·Р°С€РёС„СЂРѕРІР°РЅРЅРѕРј С…СЂР°РЅРёР»РёС‰Рµ.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("HTTPS URL репозитория") },
+                    label = { Text("HTTPS URL СЂРµРїРѕР·РёС‚РѕСЂРёСЏ") },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Имя пользователя") },
+                    label = { Text("РРјСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ") },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = token,
                     onValueChange = { token = it },
-                    label = { Text("Токен доступа") },
+                    label = { Text("РўРѕРєРµРЅ РґРѕСЃС‚СѓРїР°") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -325,10 +325,10 @@ private fun CloneDialog(
             Button(
                 enabled = url.trim().startsWith("https://"),
                 onClick = { onClone(url.trim(), username.trim(), token) },
-            ) { Text("Клонировать") }
+            ) { Text("РљР»РѕРЅРёСЂРѕРІР°С‚СЊ") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена") }
+            TextButton(onClick = onDismiss) { Text("РћС‚РјРµРЅР°") }
         },
     )
 }
@@ -336,11 +336,11 @@ private fun CloneDialog(
 @Composable
 private fun StatusCard(status: GitStatus) {
     val rows = listOf(
-        "Новые" to status.untracked,
-        "Изменены" to status.modified,
-        "В индексе" to (status.added + status.changed),
-        "Удалены" to (status.missing + status.removed),
-        "Конфликты" to status.conflicting,
+        "РќРѕРІС‹Рµ" to status.untracked,
+        "РР·РјРµРЅРµРЅС‹" to status.modified,
+        "Р’ РёРЅРґРµРєСЃРµ" to (status.added + status.changed),
+        "РЈРґР°Р»РµРЅС‹" to (status.missing + status.removed),
+        "РљРѕРЅС„Р»РёРєС‚С‹" to status.conflicting,
     ).filter { it.second.isNotEmpty() }
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -352,7 +352,7 @@ private fun StatusCard(status: GitStatus) {
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                if (status.clean) "Рабочее дерево чистое" else "Есть изменения",
+                if (status.clean) "Р Р°Р±РѕС‡РµРµ РґРµСЂРµРІРѕ С‡РёСЃС‚РѕРµ" else "Р•СЃС‚СЊ РёР·РјРµРЅРµРЅРёСЏ",
                 color = if (status.clean) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.tertiary,
                 fontWeight = FontWeight.SemiBold,
@@ -374,24 +374,24 @@ private fun CommitDialog(
     var email by remember { mutableStateOf("user@localhost") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Создать коммит") },
+        title = { Text("РЎРѕР·РґР°С‚СЊ РєРѕРјРјРёС‚") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = message,
                     onValueChange = { message = it },
-                    label = { Text("Сообщение") },
+                    label = { Text("РЎРѕРѕР±С‰РµРЅРёРµ") },
                 )
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Имя автора") },
+                    label = { Text("РРјСЏ Р°РІС‚РѕСЂР°") },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email автора") },
+                    label = { Text("Email Р°РІС‚РѕСЂР°") },
                     singleLine = true,
                 )
             }
@@ -400,10 +400,12 @@ private fun CommitDialog(
             Button(
                 enabled = message.isNotBlank(),
                 onClick = { onCommit(message, name, email) },
-            ) { Text("Коммит") }
+            ) { Text("РљРѕРјРјРёС‚") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена") }
+            TextButton(onClick = onDismiss) { Text("РћС‚РјРµРЅР°") }
         },
     )
 }
+
+

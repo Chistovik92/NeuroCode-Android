@@ -1,4 +1,4 @@
-package com.secrethero.neurocode.ui.screens
+﻿package com.secrethero.neurocode.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -43,17 +43,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.model.FileNode
-import com.secrethero.neurocode.ui.AppViewModel
+import com.secrethero.neurocode.ui.EditorViewModel
 import com.secrethero.neurocode.ui.TextInputDialog
 import com.secrethero.neurocode.ui.components.CodeEditorView
 import kotlinx.coroutines.launch
 
 @Composable
-fun EditorScreen(viewModel: AppViewModel) {
-    val tree by viewModel.fileTree.collectAsStateWithLifecycle()
-    val openPath by viewModel.openPath.collectAsStateWithLifecycle()
-    val text by viewModel.editorText.collectAsStateWithLifecycle()
-    val dirty by viewModel.editorDirty.collectAsStateWithLifecycle()
+fun EditorScreen(editor: EditorViewModel) {
+    val tree by editor.fileTree.collectAsStateWithLifecycle()
+    val openPath by editor.openPath.collectAsStateWithLifecycle()
+    val text by editor.editorText.collectAsStateWithLifecycle()
+    val dirty by editor.editorDirty.collectAsStateWithLifecycle()
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var newFileDialog by remember { mutableStateOf(false) }
@@ -70,19 +70,19 @@ fun EditorScreen(viewModel: AppViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Файлы проекта",
+                        "Р¤Р°Р№Р»С‹ РїСЂРѕРµРєС‚Р°",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { newFileDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Новый файл")
+                        Icon(Icons.Default.Add, contentDescription = "РќРѕРІС‹Р№ С„Р°Р№Р»")
                     }
                     IconButton(onClick = { newDirectoryDialog = true }) {
-                        Icon(Icons.Default.CreateNewFolder, contentDescription = "Новая папка")
+                        Icon(Icons.Default.CreateNewFolder, contentDescription = "РќРѕРІР°СЏ РїР°РїРєР°")
                     }
-                    IconButton(onClick = viewModel::refreshFileTree) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Обновить")
+                    IconButton(onClick = editor::refreshTree) {
+                        Icon(Icons.Default.Refresh, contentDescription = "РћР±РЅРѕРІРёС‚СЊ")
                     }
                 }
                 HorizontalDivider()
@@ -94,7 +94,7 @@ fun EditorScreen(viewModel: AppViewModel) {
                 ) {
                     tree.forEach { node ->
                         FileTreeNode(node, 0) { path ->
-                            viewModel.openFile(path)
+                            editor.openFile(path)
                             scope.launch { drawer.close() }
                         }
                     }
@@ -110,12 +110,12 @@ fun EditorScreen(viewModel: AppViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = { scope.launch { drawer.open() } }) {
-                    Icon(Icons.Default.FolderOpen, contentDescription = "Открыть файлы")
+                    Icon(Icons.Default.FolderOpen, contentDescription = "РћС‚РєСЂС‹С‚СЊ С„Р°Р№Р»С‹")
                 }
                 Text(
                     buildString {
-                        append(openPath ?: "Файл не открыт")
-                        if (dirty) append(" •")
+                        append(openPath ?: "Р¤Р°Р№Р» РЅРµ РѕС‚РєСЂС‹С‚")
+                        if (dirty) append(" вЂў")
                     },
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
@@ -124,10 +124,10 @@ fun EditorScreen(viewModel: AppViewModel) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 IconButton(
-                    onClick = viewModel::saveOpenFile,
+                    onClick = editor::saveOpenFile,
                     enabled = openPath != null && dirty,
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = "Сохранить")
+                    Icon(Icons.Default.Save, contentDescription = "РЎРѕС…СЂР°РЅРёС‚СЊ")
                 }
             }
             HorizontalDivider()
@@ -135,13 +135,13 @@ fun EditorScreen(viewModel: AppViewModel) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Description, contentDescription = null)
-                        Text("Откройте файл из дерева проекта")
+                        Text("РћС‚РєСЂРѕР№С‚Рµ С„Р°Р№Р» РёР· РґРµСЂРµРІР° РїСЂРѕРµРєС‚Р°")
                     }
                 }
             } else {
                 CodeEditorView(
                     text = text,
-                    onTextChange = viewModel::updateEditorText,
+                    onTextChange = editor::updateEditorText,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -150,26 +150,26 @@ fun EditorScreen(viewModel: AppViewModel) {
 
     if (newFileDialog) {
         TextInputDialog(
-            title = "Новый файл",
-            label = "Путь, например src/main.py",
+            title = "РќРѕРІС‹Р№ С„Р°Р№Р»",
+            label = "РџСѓС‚СЊ, РЅР°РїСЂРёРјРµСЂ src/main.py",
             initialValue = "",
-            confirmLabel = "Создать",
+            confirmLabel = "РЎРѕР·РґР°С‚СЊ",
             onDismiss = { newFileDialog = false },
             onConfirm = {
-                viewModel.createFile(it)
+                editor.createFile(it)
                 newFileDialog = false
             },
         )
     }
     if (newDirectoryDialog) {
         TextInputDialog(
-            title = "Новая папка",
-            label = "Путь, например src/components",
+            title = "РќРѕРІР°СЏ РїР°РїРєР°",
+            label = "РџСѓС‚СЊ, РЅР°РїСЂРёРјРµСЂ src/components",
             initialValue = "",
-            confirmLabel = "Создать",
+            confirmLabel = "РЎРѕР·РґР°С‚СЊ",
             onDismiss = { newDirectoryDialog = false },
             onConfirm = {
-                viewModel.createDirectory(it)
+                editor.createDirectory(it)
                 newDirectoryDialog = false
             },
         )
@@ -221,3 +221,6 @@ private fun FileTreeNode(
         }
     }
 }
+
+
+

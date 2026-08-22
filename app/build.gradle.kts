@@ -1,11 +1,14 @@
 import java.io.FileInputStream
 import java.util.Properties
 
+val appVersionName = rootProject.file("VERSION").readText().trim().ifBlank { "0.0.0" }
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.detekt)
 }
 
 val keystoreProperties = Properties().apply {
@@ -24,8 +27,8 @@ android {
         applicationId = "com.secrethero.neurocode"
         minSdk = 33
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.2.0.1"
+        versionCode = 4
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -89,6 +92,12 @@ android {
         "META-INF/LICENSE*",
         "META-INF/NOTICE*",
     )
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    parallel = true
+    baseline = file("detekt-baseline.xml")
 }
 
 dependencies {

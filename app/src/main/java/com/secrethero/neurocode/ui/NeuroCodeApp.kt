@@ -1,4 +1,4 @@
-package com.secrethero.neurocode.ui
+﻿package com.secrethero.neurocode.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,11 +62,11 @@ private enum class MainTab(
     val title: String,
     val icon: ImageVector,
 ) {
-    CHAT("Чат", Icons.AutoMirrored.Filled.Chat),
-    EDITOR("Код", Icons.Default.Code),
-    TERMINAL("Терминал", Icons.Default.Terminal),
+    CHAT("Р§Р°С‚", Icons.AutoMirrored.Filled.Chat),
+    EDITOR("РљРѕРґ", Icons.Default.Code),
+    TERMINAL("РўРµСЂРјРёРЅР°Р»", Icons.Default.Terminal),
     GIT("Git", Icons.Default.Source),
-    SETTINGS("Настройки", Icons.Default.Settings),
+    SETTINGS("РќР°СЃС‚СЂРѕР№РєРё", Icons.Default.Settings),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,10 +75,10 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
     val ready by viewModel.ready.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val projects by viewModel.projects.collectAsStateWithLifecycle()
-    val approval by viewModel.approval.collectAsStateWithLifecycle()
-    val exportProgress by viewModel.exportProgress.collectAsStateWithLifecycle()
+    val settings by viewModel.settingsScreen.settings.collectAsStateWithLifecycle()
+    val projects by viewModel.projects.projects.collectAsStateWithLifecycle()
+    val approval by viewModel.chat.approval.collectAsStateWithLifecycle()
+    val exportProgress by viewModel.projects.exportProgress.collectAsStateWithLifecycle()
     val currentProject = projects.firstOrNull { it.id == settings.selectedProjectId }
     var tabName by rememberSaveable { mutableStateOf(MainTab.CHAT.name) }
     val tab = MainTab.entries.firstOrNull { it.name == tabName } ?: MainTab.CHAT
@@ -89,12 +89,12 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
     val importFolder = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
-        uri?.let(viewModel::importProject)
+        uri?.let(viewModel.projects::importProject)
     }
     val exportFolder = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
-        uri?.let(viewModel::exportProject)
+        uri?.let(viewModel.projects::exportProject)
     }
 
     LaunchedEffect(error) {
@@ -126,7 +126,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                     Column {
                         Text("NeuroCode", fontWeight = FontWeight.SemiBold)
                         Text(
-                            currentProject?.name ?: "Проект не выбран",
+                            currentProject?.name ?: "РџСЂРѕРµРєС‚ РЅРµ РІС‹Р±СЂР°РЅ",
                             style = MaterialTheme.typography.labelSmall,
                         )
                     }
@@ -134,7 +134,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                 actions = {
                     Box {
                         IconButton(onClick = { projectMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Проекты")
+                            Icon(Icons.Default.MoreVert, contentDescription = "РџСЂРѕРµРєС‚С‹")
                         }
                         DropdownMenu(
                             expanded = projectMenu,
@@ -144,7 +144,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                                 DropdownMenuItem(
                                     text = { Text(project.name) },
                                     onClick = {
-                                        viewModel.selectProject(project.id)
+                                        viewModel.projects.selectProject(project.id)
                                         projectMenu = false
                                     },
                                     leadingIcon = {
@@ -153,7 +153,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Новый проект") },
+                                text = { Text("РќРѕРІС‹Р№ РїСЂРѕРµРєС‚") },
                                 onClick = {
                                     projectMenu = false
                                     createProjectDialog = true
@@ -161,7 +161,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                                 leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                             )
                             DropdownMenuItem(
-                                text = { Text("Импорт папки") },
+                                text = { Text("РРјРїРѕСЂС‚ РїР°РїРєРё") },
                                 onClick = {
                                     projectMenu = false
                                     importFolder.launch(null)
@@ -172,7 +172,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                             )
                             if (currentProject != null) {
                                 DropdownMenuItem(
-                                    text = { Text("Экспортировать проект") },
+                                    text = { Text("Р­РєСЃРїРѕСЂС‚РёСЂРѕРІР°С‚СЊ РїСЂРѕРµРєС‚") },
                                     onClick = {
                                         projectMenu = false
                                         exportFolder.launch(null)
@@ -182,7 +182,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Удалить текущий проект") },
+                                    text = { Text("РЈРґР°Р»РёС‚СЊ С‚РµРєСѓС‰РёР№ РїСЂРѕРµРєС‚") },
                                     onClick = {
                                         projectMenu = false
                                         deleteProjectDialog = true
@@ -220,11 +220,11 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                     .padding(padding),
             ) {
                 when (tab) {
-                    MainTab.CHAT -> ChatScreen(viewModel)
-                    MainTab.EDITOR -> EditorScreen(viewModel)
-                    MainTab.TERMINAL -> TerminalScreen(viewModel)
-                    MainTab.GIT -> GitScreen(viewModel)
-                    MainTab.SETTINGS -> SettingsScreen(viewModel)
+                    MainTab.CHAT -> ChatScreen(viewModel.chat, viewModel.editor)
+                    MainTab.EDITOR -> EditorScreen(viewModel.editor)
+                    MainTab.TERMINAL -> TerminalScreen(viewModel.terminal)
+                    MainTab.GIT -> GitScreen(viewModel.git)
+                    MainTab.SETTINGS -> SettingsScreen(viewModel.settingsScreen)
                 }
             }
         }
@@ -232,17 +232,17 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
 
     approval?.let { request ->
         AlertDialog(
-            onDismissRequest = { viewModel.approveTool(false) },
+            onDismissRequest = { viewModel.chat.approveTool(false) },
             title = { Text(request.title) },
             text = { Text(request.details) },
             confirmButton = {
-                Button(onClick = { viewModel.approveTool(true) }) {
-                    Text("Разрешить")
+                Button(onClick = { viewModel.chat.approveTool(true) }) {
+                    Text("Р Р°Р·СЂРµС€РёС‚СЊ")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.approveTool(false) }) {
-                    Text("Запретить")
+                TextButton(onClick = { viewModel.chat.approveTool(false) }) {
+                    Text("Р—Р°РїСЂРµС‚РёС‚СЊ")
                 }
             },
         )
@@ -251,7 +251,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
     exportProgress?.let { (copied, total) ->
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("Экспорт проекта") },
+            title = { Text("Р­РєСЃРїРѕСЂС‚ РїСЂРѕРµРєС‚Р°") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (total > 0) {
@@ -259,10 +259,10 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                             progress = { copied.toFloat() / total },
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Text("$copied из $total файлов")
+                        Text("$copied РёР· $total С„Р°Р№Р»РѕРІ")
                     } else {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
-                        Text("Подготовка…")
+                        Text("РџРѕРґРіРѕС‚РѕРІРєР°вЂ¦")
                     }
                 }
             },
@@ -272,13 +272,13 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
 
     if (createProjectDialog) {
         TextInputDialog(
-            title = "Новый проект",
-            label = "Название",
+            title = "РќРѕРІС‹Р№ РїСЂРѕРµРєС‚",
+            label = "РќР°Р·РІР°РЅРёРµ",
             initialValue = "",
-            confirmLabel = "Создать",
+            confirmLabel = "РЎРѕР·РґР°С‚СЊ",
             onDismiss = { createProjectDialog = false },
             onConfirm = {
-                viewModel.createProject(it)
+                viewModel.projects.createProject(it)
                 createProjectDialog = false
             },
         )
@@ -287,21 +287,21 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
     if (deleteProjectDialog && currentProject != null) {
         AlertDialog(
             onDismissRequest = { deleteProjectDialog = false },
-            title = { Text("Удалить проект?") },
+            title = { Text("РЈРґР°Р»РёС‚СЊ РїСЂРѕРµРєС‚?") },
             text = {
-                Text("Проект «${currentProject.name}» и его внутренняя копия файлов будут удалены.")
+                Text("РџСЂРѕРµРєС‚ В«${currentProject.name}В» Рё РµРіРѕ РІРЅСѓС‚СЂРµРЅРЅСЏСЏ РєРѕРїРёСЏ С„Р°Р№Р»РѕРІ Р±СѓРґСѓС‚ СѓРґР°Р»РµРЅС‹.")
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteProject(currentProject.id)
+                        viewModel.projects.deleteProject(currentProject.id)
                         deleteProjectDialog = false
                     },
-                ) { Text("Удалить") }
+                ) { Text("РЈРґР°Р»РёС‚СЊ") }
             },
             dismissButton = {
                 TextButton(onClick = { deleteProjectDialog = false }) {
-                    Text("Отмена")
+                    Text("РћС‚РјРµРЅР°")
                 }
             },
         )
@@ -326,13 +326,13 @@ private fun EmptyProjectScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Icon(Icons.Default.Code, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Text("Создайте первый проект", style = MaterialTheme.typography.headlineSmall)
+            Text("РЎРѕР·РґР°Р№С‚Рµ РїРµСЂРІС‹Р№ РїСЂРѕРµРєС‚", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Файлы будут храниться внутри песочницы NeuroCode. Папку с телефона можно импортировать отдельной копией.",
+                "Р¤Р°Р№Р»С‹ Р±СѓРґСѓС‚ С…СЂР°РЅРёС‚СЊСЃСЏ РІРЅСѓС‚СЂРё РїРµСЃРѕС‡РЅРёС†С‹ NeuroCode. РџР°РїРєСѓ СЃ С‚РµР»РµС„РѕРЅР° РјРѕР¶РЅРѕ РёРјРїРѕСЂС‚РёСЂРѕРІР°С‚СЊ РѕС‚РґРµР»СЊРЅРѕР№ РєРѕРїРёРµР№.",
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(onClick = onCreate) { Text("Новый проект") }
-            FilledTonalButton(onClick = onImport) { Text("Импортировать папку") }
+            Button(onClick = onCreate) { Text("РќРѕРІС‹Р№ РїСЂРѕРµРєС‚") }
+            FilledTonalButton(onClick = onImport) { Text("РРјРїРѕСЂС‚РёСЂРѕРІР°С‚СЊ РїР°РїРєСѓ") }
         }
     }
 }
@@ -365,7 +365,9 @@ fun TextInputDialog(
             ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена") }
+            TextButton(onClick = onDismiss) { Text("РћС‚РјРµРЅР°") }
         },
     )
 }
+
+
