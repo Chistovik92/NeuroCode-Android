@@ -15,12 +15,14 @@ NeuroCode — автономная среда для работы с AI-коди
 | 0.1.2 | Git remote по HTTPS: clone, pull, push с шифрованным токеном | ✅ готово |
 | 0.1.3 | Надёжность агента: стриминг SSE, память инструментов, тесты политики shell | ✅ готово |
 | 0.2.0 | Инженерное качество: release-подпись в CI, разделение ViewModel, detekt, smoke-тест | ✅ готово |
+| 0.2.1 | Список моделей из API провайдера, Google Gemini, починка smoke-теста | ✅ готово |
 | 0.3.0+ | Файлы и синхронизация, возможности агента, proot/LSP (см. ROADMAP.md) | ⬜ план |
 
 ## Что уже реализовано
 
 - чат с несколькими OpenAI-compatible API-провайдерами;
-- готовые профили OpenAI, OpenRouter, DeepSeek, Groq и Mistral;
+- готовые профили OpenAI, OpenRouter, DeepSeek, Groq, Google Gemini и Mistral;
+- выпадающий список моделей из API провайдера (в том числе для своих агрегаторов);
 - собственные HTTPS endpoint и идентификатор модели;
 - агентный цикл с инструментами list_files, read_file, write_file, replace_in_file, delete_file, search_text, run_command, git_status и git_diff;
 - потоковый вывод токенов облачных и локальных моделей (SSE + llama.cpp);
