@@ -1,0 +1,5 @@
+-keep class com.arm.aichat.** { *; }
+-keepclasseswithmembernames class * { native <methods>; }
+-dontwarn org.eclipse.jgit.**
+-dontwarn org.slf4j.**
+-keepattributes Signature,InnerClasses,EnclosingMethod
