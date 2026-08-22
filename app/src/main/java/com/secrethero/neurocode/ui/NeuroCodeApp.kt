@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MoreVert
@@ -79,6 +80,7 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
     val projects by viewModel.projects.projects.collectAsStateWithLifecycle()
     val approval by viewModel.chat.approval.collectAsStateWithLifecycle()
     val exportProgress by viewModel.projects.exportProgress.collectAsStateWithLifecycle()
+    val zipProgress by viewModel.projects.zipProgress.collectAsStateWithLifecycle()
     val currentProject = projects.firstOrNull { it.id == settings.selectedProjectId }
     var tabName by rememberSaveable { mutableStateOf(MainTab.CHAT.name) }
     val tab = MainTab.entries.firstOrNull { it.name == tabName } ?: MainTab.CHAT
@@ -95,6 +97,11 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
         uri?.let(viewModel.projects::exportProject)
+    }
+    val exportZip = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri ->
+        uri?.let(viewModel.projects::exportProjectZip)
     }
 
     LaunchedEffect(error) {
@@ -182,6 +189,16 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                                     },
                                 )
                                 DropdownMenuItem(
+                                    text = { Text("Экспорт в ZIP-архив") },
+                                    onClick = {
+                                        projectMenu = false
+                                        exportZip.launch("neurocode-project.zip")
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Archive, contentDescription = null)
+                                    },
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Удалить текущий проект") },
                                     onClick = {
                                         projectMenu = false
@@ -260,6 +277,30 @@ fun NeuroCodeApp(viewModel: AppViewModel) {
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Text("$copied из $total файлов")
+                    } else {
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Text("Подготовка…")
+                    }
+                }
+            },
+            confirmButton = {},
+        )
+    }
+
+    zipProgress?.let { (written, total) ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Создание ZIP-архива") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (total > 0) {
+                        LinearProgressIndicator(
+                            progress = {
+                                (written.toFloat() / total).coerceIn(0f, 1f)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text("${written / 1024 / 1024} из ${total / 1024 / 1024} МБ")
                     } else {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
                         Text("Подготовка…")

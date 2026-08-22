@@ -31,6 +31,7 @@ NeuroCode — автономная среда для работы с AI-коди
 - проекты во внутренней песочнице приложения;
 - создание проекта и импорт папки через Storage Access Framework;
 - экспорт проекта обратно в любую папку устройства через Storage Access Framework;
+- экспорт всего проекта одним ZIP-архивом;
 - редактор Sora Editor с номерами строк, undo/redo и поиском;
 - встроенный Android shell-терминал;
 - Git через JGit: init, status, diff, stage, commit, история и HTTPS remote — clone, pull, push;

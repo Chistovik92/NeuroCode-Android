@@ -3,8 +3,10 @@ package com.secrethero.neurocode.ai
 import com.secrethero.neurocode.model.AssistantTurn
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ToolCall
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -77,34 +79,62 @@ class OpenAiCompatibleClient {
         return executeBlocking(provider, apiKey, messages, tools)
     }
 
-    suspend fun models(provider: ProviderConfig, apiKey: String): List<String> =
-        withContext(Dispatchers.IO) {
-            validate(provider, apiKey)
-            val endpoint = provider.baseUrl.trimEnd('/') + "/models"
-            val request = Request.Builder()
-                .url(endpoint)
-                .header("Authorization", "Bearer $apiKey")
-                .header("Accept", "application/json")
-                .apply { provider.extraHeaders.forEach { (name, value) -> header(name, value) } }
-                .get()
-                .build()
-            http.newCall(request).execute().use { response ->
-                val body = response.body?.string().orEmpty()
-                if (!response.isSuccessful) {
-                    throw apiError(response.code, body, response.message)
-                }
-                val root = json.parseToJsonElement(body).jsonObject
-                val data = (root["data"] as? JsonArray) ?: JsonArray(emptyList())
-                data.mapNotNull { element ->
-                    runCatching {
-                        element.jsonObject["id"]?.jsonPrimitive?.contentOrNull
-                    }.getOrNull()
-                }.filter { !it.isNullOrBlank() }
-                    .map { it as String }
-                    .distinct()
-                    .sorted()
+    suspend fun models(provider: ProviderConfig, apiKey: String): List<String> {
+        validate(provider, apiKey)
+        val base = provider.baseUrl.trim().trimEnd('/')
+        val candidates = buildList {
+            add("$base/models")
+            if (!base.endsWith("/v1") && !base.contains("/v1beta")) add("$base/v1/models")
+        }
+        var lastError: Exception? = null
+        for (endpoint in candidates) {
+            try {
+                return fetchModels(endpoint, provider, apiKey)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: IOException) {
+                lastError = error
+            } catch (error: SerializationException) {
+                lastError = error
             }
         }
+        throw IOException(
+            "Список моделей не получен. Проверьте Base URL — он обычно оканчивается на /v1. " +
+                "Причина последней попытки: ${lastError?.message ?: "неизвестна"}",
+        )
+    }
+
+    private suspend fun fetchModels(
+        endpoint: String,
+        provider: ProviderConfig,
+        apiKey: String,
+    ): List<String> = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url(endpoint)
+            .header("Authorization", "Bearer $apiKey")
+            .header("Accept", "application/json")
+            .apply { provider.extraHeaders.forEach { (name, value) -> header(name, value) } }
+            .get()
+            .build()
+        http.newCall(request).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                throw apiError(response.code, body, response.message)
+            }
+            val root = runCatching { json.parseToJsonElement(body).jsonObject }.getOrElse {
+                throw IOException("сервер вернул не JSON (проверьте адрес)")
+            }
+            val data = (root["data"] as? JsonArray) ?: JsonArray(emptyList())
+            data.mapNotNull { element ->
+                runCatching {
+                    element.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+                }.getOrNull()
+            }.filter { !it.isNullOrBlank() }
+                .map { it as String }
+                .distinct()
+                .sorted()
+        }
+    }
 
     private fun validate(provider: ProviderConfig, apiKey: String) {
         require(provider.baseUrl.startsWith("https://")) {

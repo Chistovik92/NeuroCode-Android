@@ -322,6 +322,7 @@ private fun ProviderDialog(
                     onValueChange = { baseUrl = it },
                     label = { Text("Base URL, включая /v1") },
                     placeholder = { Text("https://api.example.com/v1") },
+                    supportingText = { Text("Адрес обычно оканчивается на /v1") },
                     singleLine = true,
                 )
                 Box {

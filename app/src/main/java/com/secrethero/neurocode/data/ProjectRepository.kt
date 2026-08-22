@@ -13,9 +13,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.IOException
 import java.util.UUID
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class ProjectRepository(private val context: Context) {
     private val workspaceRoot = File(context.filesDir, "workspaces").apply { mkdirs() }
@@ -111,6 +114,50 @@ class ProjectRepository(private val context: Context) {
                 }
             }
         return copied
+    }
+
+    data class ZipExportResult(
+        val files: Int,
+        val bytes: Long,
+    )
+
+    suspend fun exportZip(
+        projectId: String,
+        target: Uri,
+        onProgress: (writtenBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
+    ): ZipExportResult = withContext(Dispatchers.IO) {
+        val root = resolve(projectId, "")
+        val entries = root.walkTopDown()
+            .onEnter { it.name !in exportIgnoredDirectories }
+            .filter { it.isFile && !it.name.endsWith(PENDING_SUFFIX) }
+            .toList()
+        val total = entries.sumOf { it.length() }
+        onProgress(0, total)
+        val output = context.contentResolver.openOutputStream(target, "wt")
+            ?: throw IOException("Не удалось создать архив в выбранной папке")
+        var written = 0L
+        ZipOutputStream(BufferedOutputStream(output)).use { zip ->
+            for (file in entries) {
+                val relative = file.relativeTo(root).invariantSeparatorsPath
+                val entry = ZipEntry(relative).apply {
+                    time = file.lastModified().coerceAtLeast(0)
+                }
+                zip.putNextEntry(entry)
+                file.inputStream().use { input ->
+                    val buffer = ByteArray(ZIP_BUFFER_SIZE)
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        zip.write(buffer, 0, read)
+                        written += read
+                        onProgress(written, total)
+                    }
+                }
+                zip.closeEntry()
+            }
+            zip.finish()
+        }
+        ZipExportResult(files = entries.size, bytes = written)
     }
 
     private fun mimeTypeFor(name: String): String {
@@ -294,6 +341,7 @@ class ProjectRepository(private val context: Context) {
         private const val MAX_IMPORTED_FILES = 10_000
         private const val MAX_EXPORT_DEPTH = 32
         private const val PENDING_SUFFIX = ".neurocode.tmp"
+        private const val ZIP_BUFFER_SIZE = 64 * 1024
         private val ignoredDirectories = setOf(".git", "build", ".gradle", ".idea", "node_modules")
         private val exportIgnoredDirectories = setOf(".neurocode")
     }
