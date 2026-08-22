@@ -11,5 +11,6 @@ app/release/
 *.aab
 *.jks
 *.keystore
+keystore.properties
 secrets.properties
 third_party/llama.cpp/build/

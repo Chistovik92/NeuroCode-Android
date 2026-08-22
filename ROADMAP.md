@@ -42,8 +42,11 @@
   (с копией в `.neurocode/history`);
 - [x] Удалены неиспользуемые зависимости: navigation.compose, datastore-preferences, material.
 
-## 0.2 и дальше — идеи без даты ⬜
+## 0.2 и дальше — идеи без даты 🚧
 
+- [x] Release-подпись и публикация APK в CI: `keystore.properties` локально, секреты
+  `RELEASE_KEYSTORE_BASE64/RELEASE_STORE_PASSWORD/RELEASE_KEY_ALIAS/RELEASE_KEY_PASSWORD` в Actions,
+  артефакт neurocode-release-apk; без секретов шаг пропускается;
 - [ ] Разделение `AppViewModel` на экранные ViewModel;
 - [ ] proot-окружение с полноценным Linux-окружением (отдельный модуль);
 - [ ] Language Server Protocol / подсветка по языкам в редакторе;

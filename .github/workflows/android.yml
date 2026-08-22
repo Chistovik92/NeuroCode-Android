@@ -50,3 +50,39 @@ jobs:
             dist/NeuroCode-arm64-v8a-debug.apk
             app/build/outputs/apk/debug/app-x86_64-debug.apk
           if-no-files-found: error
+
+      - name: Prepare release signing
+        id: release_prep
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          if [[ -n "$KEYSTORE_B64" && -n "$STORE_PASS" && -n "$KEY_ALIAS" && -n "$KEY_PASS" ]]; then
+            key_path="$GITHUB_WORKSPACE/release.keystore.jks"
+            echo "$KEYSTORE_B64" | base64 -d > "$key_path"
+            {
+              echo "storeFile=$key_path"
+              echo "storePassword=$STORE_PASS"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "keyPassword=$KEY_PASS"
+            } > keystore.properties
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Секреты release-подписи не заданы — подписанный release пропущен."
+          fi
+
+      - name: Signed release APK
+        if: steps.release_prep.outputs.available == 'true'
+        run: ./gradlew --no-daemon :app:assembleRelease
+
+      - name: Upload release APK
+        if: steps.release_prep.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: neurocode-release-apk
+          path: app/build/outputs/apk/release/app-*-release.apk
+          if-no-files-found: error

@@ -84,6 +84,36 @@ Actions → Android build → Run workflow
 
 Артефакт neurocode-debug-apk будет доступен в завершённом запуске workflow.
 
+## Release-подпись
+
+Debug-вариант подписан стандартным debug-ключом. Для подписанного release-APK:
+
+1. Создайте собственный ключ (храните вне репозитория):
+
+   ~~~bash
+   keytool -genkeypair -v -keystore neurocode-release.jks \
+     -alias neurocode -keyalg RSA -keysize 4096 -validity 10000
+   ~~~
+
+2. Локальная сборка — создайте `keystore.properties` в корне (в .gitignore):
+
+   ~~~text
+   storeFile=/абсолютный/путь/neurocode-release.jks
+   storePassword=пароль_хранилища
+   keyAlias=neurocode
+   keyPassword=пароль_ключа
+   ~~~
+
+   и выполните `./gradlew :app:assembleRelease`.
+
+3. GitHub Actions — добавьте четыре секрета (Settings → Secrets and variables → Actions):
+   `RELEASE_KEYSTORE_BASE64` (base64 файла .jks), `RELEASE_STORE_PASSWORD`,
+   `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`. После push workflow соберёт артефакт
+   neurocode-release-apk. Без секретов шаг подписи автоматически пропускается.
+
+base64 файла: Linux/macOS `base64 -w0 neurocode-release.jks`, Windows
+`certutil -encode neurocode-release.jks encoded.txt` (содержимое между BEGIN/END).
+
 ## Первый запуск
 
 1. Создайте новый проект или импортируйте папку.
