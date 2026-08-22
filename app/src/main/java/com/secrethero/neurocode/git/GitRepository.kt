@@ -119,7 +119,7 @@ class GitRepository(private val projects: ProjectRepository) {
                     .setRemoteBranchName(branch)
                     .setCredentialsProvider(credentials(username, token))
                     .call()
-                result.fetchResult.messages().joinToString("\n")
+                result.fetchResult.getMessages()
                     .ifBlank { result.mergeResult?.mergeStatus?.toString() ?: "Обновлено" }
             }
         }
@@ -159,9 +159,9 @@ class GitRepository(private val projects: ProjectRepository) {
         open(projectId).use { git ->
             val uri = URIish(url.trim())
             if (git.remoteList().call().any { it.name == REMOTE_NAME }) {
-                git.remoteSetUrl().setRemoteName(REMOTE_NAME).setUri(uri).call()
+                git.remoteSetUrl().setRemoteName(REMOTE_NAME).setRemoteUri(uri).call()
             } else {
-                git.remoteAdd().setRemoteName(REMOTE_NAME).setUri(uri).call()
+                git.remoteAdd().setName(REMOTE_NAME).setUri(uri).call()
             }
         }
     }
