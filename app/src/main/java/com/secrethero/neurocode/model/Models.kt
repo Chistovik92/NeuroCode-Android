@@ -50,6 +50,7 @@ data class AppSettings(
     val agentMode: Boolean = true,
     val allowAgentShell: Boolean = false,
     val maxAgentSteps: Int = 8,
+    val gitUsernames: Map<String, String> = emptyMap(),
     val darkTheme: Boolean = true,
 )
 

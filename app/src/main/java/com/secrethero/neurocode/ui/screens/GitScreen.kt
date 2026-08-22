@@ -9,15 +9,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddTask
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -34,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.git.GitStatus
@@ -46,6 +53,10 @@ fun GitScreen(viewModel: AppViewModel) {
     val status by viewModel.gitStatus.collectAsStateWithLifecycle()
     val diff by viewModel.gitDiff.collectAsStateWithLifecycle()
     val log by viewModel.gitLog.collectAsStateWithLifecycle()
+    val remoteUrl by viewModel.gitRemoteUrl.collectAsStateWithLifecycle()
+    val syncBusy by viewModel.gitSyncBusy.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val projectId = settings.selectedProjectId
     var commitDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.refreshGit() }
@@ -71,6 +82,14 @@ fun GitScreen(viewModel: AppViewModel) {
                 Icon(Icons.Default.Refresh, contentDescription = "Обновить")
             }
         }
+
+        RemoteCard(
+            viewModel = viewModel,
+            currentUrl = remoteUrl,
+            savedUsername = projectId?.let { settings.gitUsernames[it] }.orEmpty(),
+            busy = syncBusy,
+            gitReady = status != null,
+        )
 
         if (status == null) {
             Surface(
@@ -167,6 +186,151 @@ fun GitScreen(viewModel: AppViewModel) {
             },
         )
     }
+}
+
+@Composable
+private fun RemoteCard(
+    viewModel: AppViewModel,
+    currentUrl: String?,
+    savedUsername: String,
+    busy: Boolean,
+    gitReady: Boolean,
+) {
+    var url by remember(currentUrl) { mutableStateOf(currentUrl.orEmpty()) }
+    var username by remember(savedUsername) { mutableStateOf(savedUsername) }
+    var token by remember { mutableStateOf("") }
+    var cloneDialog by remember { mutableStateOf(false) }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Remote", style = MaterialTheme.typography.titleMedium)
+            Text(
+                currentUrl ?: "origin не настроен",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                label = { Text("HTTPS URL репозитория") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("Имя пользователя") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = token,
+                onValueChange = { token = it },
+                label = { Text(if (currentUrl == null) "Токен доступа" else "Новый токен (пусто — не менять)") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (busy) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    enabled = !busy && url.startsWith("https://"),
+                    onClick = { viewModel.connectRemote(url.trim(), username.trim(), token) },
+                ) {
+                    Icon(Icons.Default.Link, contentDescription = null)
+                    Text(" Подключить")
+                }
+                FilledTonalButton(
+                    enabled = !busy && gitReady && currentUrl != null,
+                    onClick = viewModel::pullRemote,
+                ) {
+                    Icon(Icons.Default.ArrowDownward, contentDescription = null)
+                    Text(" Pull")
+                }
+                FilledTonalButton(
+                    enabled = !busy && gitReady && currentUrl != null,
+                    onClick = viewModel::pushRemote,
+                ) {
+                    Icon(Icons.Default.ArrowUpward, contentDescription = null)
+                    Text(" Push")
+                }
+            }
+            OutlinedButton(onClick = { cloneDialog = true }, enabled = !busy) {
+                Text("Клонировать в новый проект…")
+            }
+        }
+    }
+
+    if (cloneDialog) {
+        CloneDialog(
+            onDismiss = { cloneDialog = false },
+            onClone = { cloneUrl, cloneUsername, cloneToken ->
+                cloneDialog = false
+                viewModel.cloneProject(cloneUrl, cloneUsername, cloneToken)
+            },
+        )
+    }
+}
+
+@Composable
+private fun CloneDialog(
+    onDismiss: () -> Unit,
+    onClone: (String, String, String) -> Unit,
+) {
+    var url by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var token by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Клонировать репозиторий") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Создаст новый проект в песочнице NeuroCode. Токен сохраняется в зашифрованном хранилище.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("HTTPS URL репозитория") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Имя пользователя") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = token,
+                    onValueChange = { token = it },
+                    label = { Text("Токен доступа") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = url.trim().startsWith("https://"),
+                onClick = { onClone(url.trim(), username.trim(), token) },
+            ) { Text("Клонировать") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        },
+    )
 }
 
 @Composable

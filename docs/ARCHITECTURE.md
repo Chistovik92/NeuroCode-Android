@@ -33,7 +33,7 @@ JGit работает с обычным .git внутри внутренней �
 ## Ограничения 0.1
 
 - нет полноценного proot Linux;
-- нет SSH Git remote и UI для pull/push;
+- SSH-remote не поддерживаются; HTTPS clone, pull и push доступны через JGit с токеном из зашифрованного хранилища;
 - нет Language Server Protocol;
 - возврат во внешнюю папку — только ручной экспорт проекта через SAF; автоматической синхронизации внутренней копии нет;
 - облачный API использует OpenAI-compatible Chat Completions;

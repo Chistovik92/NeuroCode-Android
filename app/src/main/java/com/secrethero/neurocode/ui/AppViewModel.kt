@@ -61,6 +61,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val gitDiff: StateFlow<String> = _gitDiff.asStateFlow()
     private val _gitLog = MutableStateFlow<List<GitCommitInfo>>(emptyList())
     val gitLog: StateFlow<List<GitCommitInfo>> = _gitLog.asStateFlow()
+    private val _gitRemoteUrl = MutableStateFlow<String?>(null)
+    val gitRemoteUrl: StateFlow<String?> = _gitRemoteUrl.asStateFlow()
+    private val _gitSyncBusy = MutableStateFlow(false)
+    val gitSyncBusy: StateFlow<Boolean> = _gitSyncBusy.asStateFlow()
     private val _modelImportProgress = MutableStateFlow<Pair<Long, Long>?>(null)
     val modelImportProgress: StateFlow<Pair<Long, Long>?> = _modelImportProgress.asStateFlow()
     private val _exportProgress = MutableStateFlow<Pair<Int, Int>?>(null)
@@ -300,6 +304,92 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _gitDiff.value = ""
             _gitLog.value = emptyList()
         }
+        _gitRemoteUrl.value = runCatching { container.git.remoteUrl(projectId) }.getOrNull()
+    }
+
+    fun connectRemote(url: String, username: String, token: String) = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        gitSync {
+            container.git.setRemoteUrl(projectId, url)
+            container.settings.saveGitToken(projectId, token)
+            container.settings.update {
+                it.copy(gitUsernames = it.gitUsernames + (projectId to username.trim()))
+            }
+            _gitRemoteUrl.value = container.git.remoteUrl(projectId)
+            "Remote сохранён: $url"
+        }
+    }
+
+    fun pullRemote() = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        gitSync {
+            val result = container.git.pull(
+                projectId,
+                settings.value.gitUsernames[projectId].orEmpty(),
+                container.settings.gitToken(projectId).orEmpty(),
+            )
+            refreshGitInternal(projectId)
+            result
+        }
+    }
+
+    fun pushRemote() = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        gitSync {
+            val result = container.git.push(
+                projectId,
+                settings.value.gitUsernames[projectId].orEmpty(),
+                container.settings.gitToken(projectId).orEmpty(),
+            )
+            refreshGitInternal(projectId)
+            result
+        }
+    }
+
+    fun cloneProject(url: String, username: String, token: String) = viewModelScope.launch {
+        runCatching {
+            _gitSyncBusy.value = true
+            val name = url.trimEnd('/').substringAfterLast('/')
+                .removeSuffix(".git").ifBlank { "Клонированный проект" }
+            val project = container.projects.register(name)
+            try {
+                container.git.clone(url, java.io.File(project.rootPath), username, token)
+            } catch (error: Throwable) {
+                container.projects.delete(project.id)
+                throw error
+            }
+            container.settings.saveGitToken(project.id, token)
+            container.settings.update {
+                it.copy(
+                    selectedProjectId = project.id,
+                    gitUsernames = it.gitUsernames + (project.id to username.trim()),
+                )
+            }
+            refreshProject(project.id)
+            _notice.value = "Клонировано: ${project.name}"
+        }.onFailure(::showError)
+        _gitSyncBusy.value = false
+    }
+
+    private suspend fun gitSync(block: suspend () -> String) {
+        try {
+            _gitSyncBusy.value = true
+            val message = block()
+            _notice.value = message
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            showError(error)
+        } finally {
+            _gitSyncBusy.value = false
+        }
+    }
+
+    private suspend fun refreshGitInternal(projectId: String) {
+        _gitStatus.value = container.git.status(projectId)
+        _gitDiff.value = container.git.diff(projectId)
+        _gitLog.value = container.git.log(projectId)
+        _gitRemoteUrl.value = container.git.remoteUrl(projectId)
     }
 
     fun initGit() = viewModelScope.launch {

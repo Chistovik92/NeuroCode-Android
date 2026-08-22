@@ -4,9 +4,11 @@ import android.content.Context
 import com.secrethero.neurocode.ai.ProviderCatalog
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ProviderConfig
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.serializer
 
 class SettingsRepository(context: Context) {
@@ -73,4 +75,13 @@ class SettingsRepository(context: Context) {
     }
 
     fun apiKey(provider: ProviderConfig): String? = secrets.get(provider.apiKeyName)
+
+    suspend fun saveGitToken(projectId: String, token: String) = withContext(Dispatchers.IO) {
+        val name = "git-token-$projectId"
+        if (token.isBlank()) secrets.delete(name) else secrets.put(name, token.trim())
+    }
+
+    suspend fun gitToken(projectId: String): String? = withContext(Dispatchers.IO) {
+        secrets.get("git-token-$projectId")
+    }
 }

@@ -6,8 +6,11 @@ import kotlinx.coroutines.withContext
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.Constants
+import org.eclipse.jgit.transport.RefSpec
+import org.eclipse.jgit.transport.URIish
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 import java.io.ByteArrayOutputStream
+import java.io.File
 
 data class GitStatus(
     val branch: String,
@@ -110,22 +113,69 @@ class GitRepository(private val projects: ProjectRepository) {
     suspend fun pull(projectId: String, username: String, token: String): String =
         withContext(Dispatchers.IO) {
             open(projectId).use { git ->
+                val branch = currentBranch(git)
                 val result = git.pull()
+                    .setRemote(REMOTE_NAME)
+                    .setRemoteBranchName(branch)
                     .setCredentialsProvider(credentials(username, token))
                     .call()
-                result.toString()
+                result.fetchResult.messages().joinToString("\n")
+                    .ifBlank { result.mergeResult?.mergeStatus?.toString() ?: "Обновлено" }
             }
         }
 
     suspend fun push(projectId: String, username: String, token: String): String =
         withContext(Dispatchers.IO) {
             open(projectId).use { git ->
-                git.push()
+                val branch = currentBranch(git)
+                val results = git.push()
+                    .setRemote(REMOTE_NAME)
+                    .setRefSpecs(RefSpec("HEAD:refs/heads/$branch"))
                     .setCredentialsProvider(credentials(username, token))
                     .call()
-                    .joinToString("\n")
+                results.joinToString("\n") { result ->
+                    result.remoteUpdates.joinToString(", ") { update ->
+                        "${update.remoteName}: ${update.message ?: "отправлено"}"
+                    }
+                }.ifBlank { "Отправлено" }
             }
         }
+
+    suspend fun clone(url: String, directory: File, username: String, token: String) {
+        withContext(Dispatchers.IO) {
+            require(url.startsWith("https://")) { "Поддерживаются только HTTPS-адреса remote" }
+            val command = Git.cloneRepository()
+                .setURI(url)
+                .setDirectory(directory)
+            if (token.isNotBlank()) {
+                command.setCredentialsProvider(credentials(username, token))
+            }
+            command.call().use { }
+        }
+    }
+
+    suspend fun setRemoteUrl(projectId: String, url: String) = withContext(Dispatchers.IO) {
+        require(url.startsWith("https://")) { "Поддерживаются только HTTPS-адреса remote" }
+        open(projectId).use { git ->
+            val uri = URIish(url.trim())
+            if (git.remoteList().call().any { it.name == REMOTE_NAME }) {
+                git.remoteSetUrl().setRemoteName(REMOTE_NAME).setUri(uri).call()
+            } else {
+                git.remoteAdd().setRemoteName(REMOTE_NAME).setUri(uri).call()
+            }
+        }
+    }
+
+    suspend fun remoteUrl(projectId: String): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            open(projectId).use { git ->
+                git.repository.config.getString("remote", REMOTE_NAME, "url")
+            }
+        }.getOrNull()
+    }
+
+    private fun currentBranch(git: Git): String =
+        runCatching { git.repository.branch }.getOrDefault(Constants.MASTER)
 
     private fun statusBlocking(projectId: String): GitStatus {
         val root = projects.resolve(projectId, "")
@@ -151,4 +201,8 @@ class GitRepository(private val projects: ProjectRepository) {
 
     private fun credentials(username: String, token: String) =
         UsernamePasswordCredentialsProvider(username.ifBlank { "git" }, token)
+
+    companion object {
+        private const val REMOTE_NAME = "origin"
+    }
 }

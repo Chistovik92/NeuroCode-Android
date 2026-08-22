@@ -32,12 +32,17 @@ class ProjectRepository(private val context: Context) {
     }
 
     suspend fun create(name: String): Project = withContext(Dispatchers.IO) {
+        val project = register(name)
+        File(project.rootPath, "README.md").writeText(
+            "# ${project.name}\n\nПроект создан в NeuroCode Android.\n",
+        )
+        project
+    }
+
+    suspend fun register(name: String): Project = withContext(Dispatchers.IO) {
         val cleanName = sanitizeName(name.ifBlank { "Проект" })
         val id = UUID.randomUUID().toString()
         val root = File(workspaceRoot, id).apply { mkdirs() }
-        File(root, "README.md").writeText(
-            "# $cleanName\n\nПроект создан в NeuroCode Android.\n",
-        )
         File(root, ".neurocode").mkdirs()
         val project = Project(id = id, name = cleanName, rootPath = root.absolutePath)
         persist(listOf(project) + _projects.value)
@@ -96,7 +101,7 @@ class ProjectRepository(private val context: Context) {
                         "Файл ${entry.name} больше 200 МБ"
                     }
                     val document = current?.takeIf { it.isFile }
-                        ?: target.createDocument(mimeTypeFor(entry.name), entry.name)
+                        ?: target.createFile(mimeTypeFor(entry.name), entry.name)
                         ?: throw IOException("Не удалось создать файл ${entry.name}")
                     context.contentResolver.openOutputStream(document.uri, "wt")?.use { output ->
                         entry.inputStream().use { input -> input.copyTo(output) }

@@ -14,7 +14,7 @@ NeuroCode — автономная среда для работы с AI-коди
 - экспорт проекта обратно в любую папку устройства через Storage Access Framework;
 - редактор Sora Editor с номерами строк, undo/redo и поиском;
 - встроенный Android shell-терминал;
-- Git через JGit: init, status, diff, stage, commit и история;
+- Git через JGit: init, status, diff, stage, commit, история и HTTPS remote — clone, pull, push;
 - импорт GGUF и реальный локальный inference через официальный Android binding llama.cpp;
 - потоковый вывод токенов локальной модели;
 - шифрование API-ключей через Android Keystore;
@@ -101,7 +101,7 @@ NeuroCode.
 
 ## Безопасность
 
-- API-ключи хранятся отдельно от JSON-настроек и шифруются AES-GCM ключом из Android Keystore.
+- API-ключи и токены Git remote хранятся отдельно от JSON-настроек и шифруются AES-GCM ключом из Android Keystore.
 - HTTP endpoint запрещены: поддерживается только HTTPS.
 - Агент не получает инструмент чтения произвольных путей.
 - Все пути канонизируются и обязаны оставаться внутри активного проекта.
