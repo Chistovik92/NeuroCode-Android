@@ -135,9 +135,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             emptyList()
         }
+        val externalTools = current.externalTools.filter { it.enabled }
 
         val answer = try {
-            runCloudAttempt(current, project, provider, key, history, skills, sessionId)
+            runCloudAttempt(current, project, provider, key, history, skills, externalTools, sessionId)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (primaryError: Throwable) {
@@ -149,7 +150,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     "Повторяю запрос через «${fallback.name}».",
             )
             _chatRunState.value = ChatRunState.Working("Резервный провайдер: ${fallback.name}")
-            runCloudAttempt(current, project, fallback, fallbackKey, history, skills, sessionId)
+            runCloudAttempt(current, project, fallback, fallbackKey, history, skills, externalTools, sessionId)
         }
         runPostChecks(current, project, sessionId)
         return answer
@@ -171,6 +172,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         key: String,
         history: List<ChatMessage>,
         skills: List<String>,
+        externalTools: List<com.secrethero.neurocode.model.ExternalAgentTool>,
         sessionId: String,
     ): String = if (current.agentMode && project != null) {
         val projectSummary = runCatching {
@@ -186,6 +188,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             maxSteps = current.maxAgentSteps,
             allowAgentShell = current.allowAgentShell,
             activeSkills = skills,
+            externalTools = externalTools,
             onEvent = { onAgentEvent(sessionId, it) },
         )
     } else {

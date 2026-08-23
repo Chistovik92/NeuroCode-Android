@@ -1,6 +1,7 @@
 package com.secrethero.neurocode.ai
 
 import com.secrethero.neurocode.model.ChatMessage
+import com.secrethero.neurocode.model.ExternalAgentTool
 import com.secrethero.neurocode.model.MessageRole
 import com.secrethero.neurocode.model.ProviderConfig
 
@@ -26,6 +27,7 @@ class AgentOrchestrator(
         maxSteps: Int,
         allowAgentShell: Boolean,
         activeSkills: List<String> = emptyList(),
+        externalTools: List<ExternalAgentTool> = emptyList(),
         onEvent: (AgentEvent) -> Unit = {},
     ): String {
         val messages = mutableListOf(
@@ -42,7 +44,7 @@ class AgentOrchestrator(
                 provider = provider,
                 apiKey = apiKey,
                 messages = messages,
-                tools = tools.definitions(),
+                tools = tools.definitions(externalTools),
                 onDelta = { chunk -> onEvent(AgentEvent.Delta(chunk)) },
             )
             messages += ApiMessage(
@@ -58,7 +60,7 @@ class AgentOrchestrator(
 
             turn.toolCalls.forEach { call ->
                 onEvent(AgentEvent.ToolStarted(call.name, call.arguments))
-                val result = tools.execute(projectId, call, allowAgentShell)
+                val result = tools.execute(projectId, call, allowAgentShell, externalTools)
                 onEvent(AgentEvent.ToolFinished(call.name, result))
                 messages += ApiMessage(
                     role = "tool",

@@ -3,6 +3,7 @@ package com.secrethero.neurocode.ai
 import com.secrethero.neurocode.data.ProjectRepository
 import com.secrethero.neurocode.git.GitRepository
 import com.secrethero.neurocode.model.ApprovalRisk
+import com.secrethero.neurocode.model.ExternalAgentTool
 import com.secrethero.neurocode.model.ToolApprovalRequest
 import com.secrethero.neurocode.model.ToolCall
 import com.secrethero.neurocode.terminal.ApprovalGate
@@ -27,7 +28,7 @@ class AgentTools(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun definitions(): JsonArray = buildJsonArray {
+    fun definitions(externalTools: List<ExternalAgentTool> = emptyList()): JsonArray = buildJsonArray {
         add(tool(
             name = "list_files",
             description = "Показать дерево файлов активного проекта.",
@@ -98,12 +99,20 @@ class AgentTools(
                 "staged" to property("boolean", "true для проиндексированных изменений"),
             ),
         ))
+        externalTools.filter { it.enabled }.forEach { external ->
+            add(tool(
+                name = externalName(external),
+                description = "${external.name}: ${external.description}. Команда фиксирована настройками и потребует подтверждения.",
+                properties = emptyMap(),
+            ))
+        }
     }
 
     suspend fun execute(
         projectId: String,
         call: ToolCall,
         allowAgentShell: Boolean,
+        externalTools: List<ExternalAgentTool> = emptyList(),
     ): String = runCatching {
         val arguments = json.parseToJsonElement(call.arguments).jsonObject
         when (call.name) {
@@ -192,11 +201,39 @@ class AgentTools(
                 val staged = arguments["staged"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
                 git.diff(projectId, staged).ifBlank { "Изменений нет" }.take(MAX_TOOL_OUTPUT)
             }
-            else -> "Неизвестный инструмент: ${call.name}"
+            else -> executeExternal(projectId, call, externalTools)
         }
     }.getOrElse { error ->
         "Ошибка инструмента ${call.name}: ${error.message ?: error::class.java.simpleName}"
     }
+
+    private suspend fun executeExternal(
+        projectId: String,
+        call: ToolCall,
+        externalTools: List<ExternalAgentTool>,
+    ): String {
+        val tool = externalTools.firstOrNull {
+            it.enabled && externalName(it) == call.name
+        } ?: return "Неизвестный инструмент: ${call.name}"
+        val command = tool.command.trim().take(2_000)
+        require(command.isNotBlank()) { "Внешний инструмент ${tool.name} не содержит команду" }
+        val risk = CommandPolicy.risk(command)
+        val approved = approvals.ask(
+            ToolApprovalRequest(
+                title = if (risk == null) "Запустить внешний инструмент?" else "Опасный внешний инструмент",
+                details = buildString {
+                    append(tool.name).append("\n$ ").append(command)
+                    risk?.let { append("\n\nПричина: ").append(it) }
+                },
+                risk = if (risk == null) ApprovalRisk.SHELL else ApprovalRisk.DESTRUCTIVE,
+            ),
+        )
+        if (!approved) return "Пользователь запретил запуск ${tool.name}"
+        return shell.runOnce(projectId, command, 120_000).take(MAX_TOOL_OUTPUT)
+    }
+
+    private fun externalName(tool: ExternalAgentTool): String =
+        "custom_" + tool.id.filter { it.isLetterOrDigit() }.take(12).lowercase()
 
     private fun countOccurrences(haystack: String, needle: String): Int {
         var count = 0

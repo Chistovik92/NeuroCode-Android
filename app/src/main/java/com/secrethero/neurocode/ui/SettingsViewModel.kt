@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppSettings
+import com.secrethero.neurocode.model.ExternalAgentTool
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +70,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         current.copy(
             skills = current.skills.map {
                 if (it.id == skillId) it.copy(enabled = enabled) else it
+            },
+        )
+    }
+
+    fun saveExternalTool(tool: ExternalAgentTool) = updateSettings { current ->
+        current.copy(externalTools = current.externalTools.filterNot { it.id == tool.id } + tool)
+    }
+
+    fun deleteExternalTool(toolId: String) = updateSettings { current ->
+        current.copy(externalTools = current.externalTools.filterNot { it.id == toolId })
+    }
+
+    fun toggleExternalTool(toolId: String, enabled: Boolean) = updateSettings { current ->
+        current.copy(
+            externalTools = current.externalTools.map {
+                if (it.id == toolId) it.copy(enabled = enabled) else it
             },
         )
     }

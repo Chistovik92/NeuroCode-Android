@@ -55,9 +55,19 @@ data class AgentSkill(
 )
 
 @Serializable
+data class ExternalAgentTool(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val description: String,
+    val command: String,
+    val enabled: Boolean = true,
+)
+
+@Serializable
 data class AppSettings(
     val skills: List<AgentSkill> = emptyList(),
     val skillsEnabled: Boolean = true,
+    val externalTools: List<ExternalAgentTool> = emptyList(),
     val providers: List<ProviderConfig> = emptyList(),
     val selectedProviderId: String? = null,
     val selectedProjectId: String? = null,
