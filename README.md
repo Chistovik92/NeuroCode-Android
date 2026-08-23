@@ -27,6 +27,7 @@ NeuroCode — автономная среда для работы с AI-коди
 - чат с несколькими OpenAI-compatible API-провайдерами;
 - готовые профили OpenAI, OpenRouter, DeepSeek, Groq, Google Gemini и Mistral;
 - выпадающий список моделей из API провайдера (в том числе для своих агрегаторов);
+- автоматический краткий контекст проекта в агентном режиме (пути и размеры файлов без содержимого);
 - собственные HTTPS endpoint и идентификатор модели;
 - агентный цикл с инструментами list_files, read_file, write_file, replace_in_file, delete_file, search_text, run_command, git_status и git_diff;
 - потоковый вывод токенов облачных и локальных моделей (SSE + llama.cpp);

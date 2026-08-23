@@ -276,6 +276,39 @@ class ProjectRepository(private val context: Context) {
             .map { toNode(root, it, 0) }
     }
 
+    suspend fun contextSummary(
+        projectId: String,
+        maxEntries: Int = 200,
+        maxChars: Int = 8_000,
+    ): String = withContext(Dispatchers.IO) {
+        val root = resolve(projectId, "")
+        val lines = mutableListOf<String>()
+        var chars = 0
+        var truncated = false
+        root.walkTopDown()
+            .onEnter { it == root || it.name !in ignoredDirectories + exportIgnoredDirectories }
+            .filter { it.isFile }
+            .sortedBy { it.relativeTo(root).invariantSeparatorsPath.lowercase() }
+            .forEach { file ->
+                if (lines.size >= maxEntries || chars >= maxChars) {
+                    truncated = true
+                    return@forEach
+                }
+                val path = runCatching {
+                    file.relativeTo(root).invariantSeparatorsPath
+                }.getOrNull() ?: return@forEach
+                val line = "- $path (${file.length()} байт)"
+                if (chars + line.length + 1 > maxChars) {
+                    truncated = true
+                    return@forEach
+                }
+                lines += line
+                chars += line.length + 1
+            }
+        if (truncated) lines += "- … список обрезан лимитом контекста"
+        lines.joinToString("\n")
+    }
+
     suspend fun readText(projectId: String, relativePath: String): String =
         withContext(Dispatchers.IO) {
             val file = resolve(projectId, relativePath)

@@ -136,9 +136,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             emptyList()
         }
         return if (current.agentMode && project != null) {
+            val projectSummary = runCatching {
+                container.projects.contextSummary(project.id)
+            }.getOrDefault("")
             container.agent.run(
                 projectId = project.id,
                 projectName = project.name,
+                projectSummary = projectSummary,
                 provider = provider,
                 apiKey = key,
                 history = history,
