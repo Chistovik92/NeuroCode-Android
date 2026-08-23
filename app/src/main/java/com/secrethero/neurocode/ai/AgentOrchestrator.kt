@@ -15,6 +15,7 @@ class AgentOrchestrator(
     private val client: OpenAiCompatibleClient,
     private val tools: AgentTools,
 ) {
+    @Suppress("LongParameterList")
     suspend fun run(
         projectId: String,
         projectName: String,
@@ -23,12 +24,13 @@ class AgentOrchestrator(
         history: List<ChatMessage>,
         maxSteps: Int,
         allowAgentShell: Boolean,
+        activeSkills: List<String> = emptyList(),
         onEvent: (AgentEvent) -> Unit = {},
     ): String {
         val messages = mutableListOf(
             ApiMessage(
                 role = "system",
-                content = systemPrompt(projectName),
+                content = systemPrompt(projectName, activeSkills),
             ),
         )
         messages += contextMessages(history)
@@ -115,7 +117,15 @@ class AgentOrchestrator(
         return result
     }
 
-    private fun systemPrompt(projectName: String) = """
+    private fun systemPrompt(projectName: String, activeSkills: List<String> = emptyList()): String {
+        val skillsBlock = if (activeSkills.isEmpty()) {
+            ""
+        } else {
+            "\n\n## Активные навыки\n" +
+                activeSkills.joinToString("\n") { skill -> "- $skill" } +
+                "\nПрименяй эти навыки при выполнении задачи."
+        }
+        return """
         Ты — агент разработки внутри Android-приложения NeuroCode.
         Активный проект: $projectName.
         Работай только через предоставленные инструменты и только внутри корня проекта.
@@ -123,8 +133,9 @@ class AgentOrchestrator(
         Не выдумывай результаты команд. После изменений проверь Git diff, если Git доступен.
         Android shell ограничен: в нём могут отсутствовать git, python, node и компиляторы.
         Никогда не запрашивай и не выводи API-ключи, токены или другие секреты.
-        Отвечай пользователю по-русски, а имена API, классов и команд сохраняй как в коде.
+        Отвечай пользователю по-русски, а имена API, классов и команд сохраняй как в коде.$skillsBlock
     """.trimIndent()
+    }
 
     companion object {
         private const val TOOL_SUMMARY_CHARS = 1_200

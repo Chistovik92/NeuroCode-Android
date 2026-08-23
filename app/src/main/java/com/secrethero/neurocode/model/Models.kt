@@ -47,7 +47,17 @@ enum class ThemeMode {
 }
 
 @Serializable
+data class AgentSkill(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val prompt: String,
+    val enabled: Boolean = true,
+)
+
+@Serializable
 data class AppSettings(
+    val skills: List<AgentSkill> = emptyList(),
+    val skillsEnabled: Boolean = true,
     val providers: List<ProviderConfig> = emptyList(),
     val selectedProviderId: String? = null,
     val selectedProjectId: String? = null,

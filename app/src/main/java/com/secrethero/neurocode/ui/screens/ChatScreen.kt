@@ -1,6 +1,8 @@
 package com.secrethero.neurocode.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -20,8 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
@@ -41,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -61,11 +68,14 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
     val runState by chat.chatRunState.collectAsStateWithLifecycle()
     val streaming by chat.streamingResponse.collectAsStateWithLifecycle()
     val agentLog by chat.agentLog.collectAsStateWithLifecycle()
+    val switcherModels by chat.switcherModels.collectAsStateWithLifecycle()
+    val clipboard = LocalClipboardManager.current
     val active = sessions.firstOrNull { it.id == activeId }
     val messages = active?.messages.orEmpty()
     val listState = rememberLazyListState()
     var input by remember { mutableStateOf("") }
     var showLog by remember { mutableStateOf(false) }
+    var showSwitcher by remember { mutableStateOf(false) }
     val busy = runState is ChatRunState.Working
     val provider = settings.providers.firstOrNull { it.id == settings.selectedProviderId }
 
@@ -135,7 +145,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AssistChip(
-                onClick = {},
+                onClick = { showSwitcher = true },
                 label = {
                     Text(
                         if (settings.useLocalModel) {
@@ -154,6 +164,20 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = {
+                val text = messages.joinToString("\n\n") { message ->
+                    when (message.role) {
+                        MessageRole.USER -> "Вы: ${message.content}"
+                        MessageRole.ASSISTANT -> "Агент: ${message.content}"
+                        MessageRole.TOOL -> "[инструмент ${message.toolName ?: ""}] ${message.content}"
+                        MessageRole.SYSTEM -> message.content
+                    }
+                }
+                clipboard.setText(AnnotatedString(text))
+            }) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Копировать диалог")
+            }
         }
 
         LazyColumn(
@@ -170,7 +194,12 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 }
             }
             items(messages, key = { it.id }) { message ->
-                MessageBubble(message)
+                MessageBubble(
+                    message = message,
+                    onCopy = {
+                        clipboard.setText(AnnotatedString(message.content))
+                    },
+                )
             }
             if (agentLog.isNotEmpty()) {
                 item {
@@ -204,6 +233,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                             role = MessageRole.ASSISTANT,
                             content = streaming,
                         ),
+                        onCopy = { clipboard.setText(AnnotatedString(streaming)) },
                     )
                 }
             }
@@ -261,39 +291,136 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
             }
         }
     }
+
+    if (showSwitcher) {
+        AlertDialog(
+            onDismissRequest = {
+                showSwitcher = false
+                chat.clearSwitcherModels()
+            },
+            title = { Text("Модель для следующего запроса") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Провайдер",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(settings.providers, key = { it.id }) { p ->
+                            FilterChip(
+                                selected = p.id == settings.selectedProviderId,
+                                onClick = {
+                                    chat.switchProvider(p.id)
+                                    chat.loadSwitcherModels(p)
+                                },
+                                label = { Text(p.name) },
+                            )
+                        }
+                    }
+                    val current = settings.providers.firstOrNull {
+                        it.id == settings.selectedProviderId
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Модели", style = MaterialTheme.typography.labelMedium)
+                        TextButton(onClick = { current?.let(chat::loadSwitcherModels) }) {
+                            Text(if (switcherModels?.loading == true) "Загрузка…" else "Показать")
+                        }
+                    }
+                    switcherModels?.error?.let { error ->
+                        Text(
+                            error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    switcherModels?.models?.take(40)?.forEach { candidate ->
+                        Text(
+                            candidate,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (current != null) {
+                                        chat.setProviderModel(current, candidate)
+                                    }
+                                    showSwitcher = false
+                                    chat.clearSwitcherModels()
+                                }
+                                .padding(vertical = 4.dp),
+                        )
+                    }
+                    Text(
+                        "История диалога и скиллы сохранятся при смене модели.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = {
+                    showSwitcher = false
+                    chat.clearSwitcherModels()
+                }) { Text("Закрыть") }
+            },
+        )
+    }
 }
 
 @Composable
-private fun MessageBubble(message: ChatMessage) {
+private fun MessageBubble(message: ChatMessage, onCopy: () -> Unit) {
     val user = message.role == MessageRole.USER
-    Row(
+    Column(
+        horizontalAlignment = if (user) Alignment.End else Alignment.Start,
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (user) Arrangement.End else Arrangement.Start,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .background(
-                    color = if (user) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    shape = RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (user) 16.dp else 4.dp,
-                        bottomEnd = if (user) 4.dp else 16.dp,
-                    ),
-                )
-                .padding(12.dp),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                message.content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (message.role == MessageRole.TOOL) Color(0xFFFFB86C)
-                else MaterialTheme.colorScheme.onSurface,
-            )
+            IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = "Копировать сообщение",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 340.dp)
+                    .background(
+                        color = when {
+                            user -> MaterialTheme.colorScheme.primaryContainer
+                            message.role == MessageRole.TOOL ->
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
+                        RoundedCornerShape(12.dp),
+                    )
+                    .padding(10.dp),
+            ) {
+                Text(
+                    message.content,
+                    style = if (message.role == MessageRole.TOOL) {
+                        MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                    } else {
+                        MaterialTheme.typography.bodyMedium
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.takeIf { !user }
+                        ?: MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }

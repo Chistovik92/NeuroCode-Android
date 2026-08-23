@@ -47,6 +47,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.BuildConfig
+import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
 import com.secrethero.neurocode.ui.ProviderModelsState
@@ -61,6 +62,8 @@ fun SettingsScreen(vm: SettingsViewModel) {
     var editingProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var providerDialog by remember { mutableStateOf(false) }
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
+    var editingSkill by remember { mutableStateOf<AgentSkill?>(null) }
+    var skillDialog by remember { mutableStateOf(false) }
     val modelPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -203,6 +206,62 @@ fun SettingsScreen(vm: SettingsViewModel) {
             }
         }
 
+        Text("Скиллы агента", style = MaterialTheme.typography.titleLarge)
+        SettingSwitch(
+            title = "Включить скиллы",
+            description = "Активные скиллы передаются модели в каждом запросе и сохраняются при смене модели",
+            checked = settings.skillsEnabled,
+            onChecked = vm::setSkillsEnabled,
+        )
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Мои скиллы (${settings.skills.size})",
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                onClick = {
+                    editingSkill = null
+                    skillDialog = true
+                },
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Новый скилл")
+            }
+        }
+        settings.skills.forEach { skill ->
+            Card(Modifier.fillMaxWidth()) {
+                Row(
+                    Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(skill.name, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            skill.prompt.take(80),
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                        )
+                    }
+                    Switch(
+                        checked = skill.enabled,
+                        onCheckedChange = { vm.toggleSkill(skill.id, it) },
+                    )
+                    IconButton(onClick = {
+                        editingSkill = skill
+                        skillDialog = true
+                    }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Изменить")
+                    }
+                    IconButton(onClick = { vm.deleteSkill(skill.id) }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Удалить")
+                    }
+                }
+            }
+        }
+
         Text("Безопасность", style = MaterialTheme.typography.titleLarge)
         Text(
             "Ключи API шифруются Android Keystore и не записываются в настройки, логи или файлы проекта. Сетевые адреса должны использовать HTTPS.",
@@ -227,6 +286,17 @@ fun SettingsScreen(vm: SettingsViewModel) {
         )
     }
 
+    if (skillDialog) {
+        SkillDialog(
+            current = editingSkill,
+            onDismiss = { skillDialog = false },
+            onSave = { skill ->
+                vm.saveSkill(skill)
+                skillDialog = false
+            },
+        )
+    }
+
     deleteProvider?.let { provider ->
         AlertDialog(
             onDismissRequest = { deleteProvider = null },
@@ -245,6 +315,61 @@ fun SettingsScreen(vm: SettingsViewModel) {
             },
         )
     }
+}
+
+@Composable
+private fun SkillDialog(
+    current: AgentSkill?,
+    onDismiss: () -> Unit,
+    onSave: (AgentSkill) -> Unit,
+) {
+    var name by remember { mutableStateOf(current?.name.orEmpty()) }
+    var prompt by remember { mutableStateOf(current?.prompt.orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (current == null) "Новый скилл" else "Изменить скилл") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название") },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    label = { Text("Инструкция для модели") },
+                    placeholder = { Text("Например: всегда пиши тесты после правок") },
+                    minLines = 4,
+                    maxLines = 8,
+                )
+                Text(
+                    "Скилл добавляется в системный промпт и действует во всём диалоге, даже если вы смените модель.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = name.isNotBlank() && prompt.isNotBlank(),
+                onClick = {
+                    onSave(
+                        AgentSkill(
+                            id = current?.id ?: UUID.randomUUID().toString(),
+                            name = name.trim(),
+                            prompt = prompt.trim(),
+                            enabled = current?.enabled ?: true,
+                        ),
+                    )
+                },
+            ) { Text("Сохранить") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        },
+    )
 }
 
 @Composable

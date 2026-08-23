@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
+import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
@@ -50,6 +51,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setAllowAgentShell(enabled: Boolean) = updateSettings { it.copy(allowAgentShell = enabled) }
     fun setMaxAgentSteps(value: Int) = updateSettings { it.copy(maxAgentSteps = value.coerceIn(1, 20)) }
     fun setThemeMode(mode: ThemeMode) = updateSettings { it.copy(themeMode = mode) }
+
+    fun setSkillsEnabled(enabled: Boolean) = updateSettings { it.copy(skillsEnabled = enabled) }
+
+    fun saveSkill(skill: AgentSkill) = updateSettings { current ->
+        current.copy(skills = current.skills.filterNot { it.id == skill.id } + skill)
+    }
+
+    fun deleteSkill(skillId: String) = updateSettings { current ->
+        current.copy(skills = current.skills.filterNot { it.id == skillId })
+    }
+
+    fun toggleSkill(skillId: String, enabled: Boolean) = updateSettings { current ->
+        current.copy(
+            skills = current.skills.map {
+                if (it.id == skillId) it.copy(enabled = enabled) else it
+            },
+        )
+    }
 
     fun saveProvider(provider: ProviderConfig, apiKey: String?) = viewModelScope.launch {
         runCatching { container.settings.upsertProvider(provider, apiKey) }

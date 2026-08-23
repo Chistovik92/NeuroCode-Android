@@ -5,9 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.ai.AgentEvent
+import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatRunState
 import com.secrethero.neurocode.model.MessageRole
+import com.secrethero.neurocode.model.ProviderConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -128,6 +130,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val key = container.settings.apiKey(provider)
             ?: error("Добавьте API-ключ для ${provider.name}")
         val project = container.projects.get(current.selectedProjectId)
+        val skills = if (current.skillsEnabled) {
+            current.skills.filter { it.enabled }.map { "${it.name}: ${it.prompt}" }
+        } else {
+            emptyList()
+        }
         return if (current.agentMode && project != null) {
             container.agent.run(
                 projectId = project.id,
@@ -137,6 +144,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 history = history,
                 maxSteps = current.maxAgentSteps,
                 allowAgentShell = current.allowAgentShell,
+                activeSkills = skills,
                 onEvent = { onAgentEvent(sessionId, it) },
             )
         } else {
@@ -147,6 +155,36 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 onEvent = { onAgentEvent(sessionId, it) },
             )
         }
+    }
+
+    fun switchProvider(providerId: String) = updateSettings {
+        it.copy(selectedProviderId = providerId, useLocalModel = false)
+    }
+
+    fun setProviderModel(provider: ProviderConfig, model: String) = viewModelScope.launch {
+        runCatching {
+            container.settings.upsertProvider(provider.copy(model = model), null)
+        }.onFailure(container.bus::showError)
+    }
+
+    private val _switcherModels =
+        MutableStateFlow<ProviderModelsState?>(null)
+    val switcherModels: StateFlow<ProviderModelsState?> = _switcherModels.asStateFlow()
+
+    fun loadSwitcherModels(provider: ProviderConfig) = viewModelScope.launch {
+        _switcherModels.value = ProviderModelsState(emptyList(), null, true)
+        runCatching {
+            container.apiClient.models(provider, container.settings.apiKey(provider).orEmpty())
+        }.onSuccess { models ->
+            _switcherModels.value = ProviderModelsState(models, null, false)
+        }.onFailure { error ->
+            _switcherModels.value =
+                ProviderModelsState(emptyList(), error.message ?: "ошибка", false)
+        }
+    }
+
+    fun clearSwitcherModels() {
+        _switcherModels.value = null
     }
 
     private suspend fun runLocal(
@@ -208,6 +246,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun appendAgentLog(line: String) {
         _agentLog.value = (_agentLog.value + line).takeLast(50)
     }
+
+    private fun updateSettings(transform: (AppSettings) -> AppSettings) =
+        viewModelScope.launch {
+            runCatching { (getApplication<NeuroCodeApplication>().container.settings.update(transform)) }
+                .onFailure(container.bus::showError)
+        }
 }
 
 data class EditorContext(
