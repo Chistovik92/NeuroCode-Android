@@ -76,16 +76,13 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
     val runState by chat.chatRunState.collectAsStateWithLifecycle()
     val streaming by chat.streamingResponse.collectAsStateWithLifecycle()
     val agentLog by chat.agentLog.collectAsStateWithLifecycle()
-    val switcherModels by chat.switcherModels.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     val active = sessions.firstOrNull { it.id == activeId }
     val messages = active?.messages.orEmpty()
     val listState = rememberLazyListState()
     var input by remember { mutableStateOf("") }
     var showLog by remember { mutableStateOf(false) }
-    var showSwitcher by remember { mutableStateOf(false) }
     val busy = runState is ChatRunState.Working
-    val provider = settings.providers.firstOrNull { it.id == settings.selectedProviderId }
 
     LaunchedEffect(messages.size, streaming, agentLog.size) {
         val extra = if (streaming.isNotEmpty() || agentLog.isNotEmpty()) 1 else 0
@@ -94,256 +91,201 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
         }
     }
 
-    LaunchedEffect(showSwitcher, provider?.id) {
-        if (showSwitcher && provider != null) chat.loadSwitcherModels(provider)
-    }
-
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
-                .fillMaxHeight()
-                .fillMaxWidth()
+                .fillMaxSize()
                 .widthIn(max = 840.dp)
-                .align(Alignment.TopCenter)
-                .imePadding(),
+                .align(Alignment.TopCenter),
         ) {
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            item {
-                AssistChip(
-                    onClick = chat::newChat,
-                    label = { Text("Новый") },
-                    leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
-                )
-            }
-            items(sessions, key = { it.id }) { session ->
-                FilterChip(
-                    selected = session.id == activeId,
-                    onClick = { chat.selectChat(session.id) },
-                    label = {
-                        Text(
-                            session.title,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.width(130.dp),
-                        )
-                    },
-                    trailingIcon = if (session.id == activeId) {
-                        {
-                            IconButton(
-                                onClick = { chat.deleteChat(session.id) },
-                                modifier = Modifier.size(24.dp),
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Удалить диалог",
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
-                        }
-                    } else {
-                        null
-                    },
-                )
-            }
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            AssistChip(
-                onClick = { showSwitcher = true },
-                label = {
-                    Text(
-                        if (settings.useLocalModel) {
-                            "Локально · ${settings.localModelName ?: "GGUF"}"
-                        } else {
-                            "${provider?.name ?: "API"} · ${provider?.model ?: "модель"}"
-                        },
-                        maxLines = 1,
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                item {
+                    AssistChip(
+                        onClick = chat::newChat,
+                        label = { Text("Новый") },
+                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                     )
-                },
-            )
-            if (!settings.useLocalModel) {
-                Text(
-                    if (settings.agentMode) "Агент" else "Только чат",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                }
+                items(sessions, key = { it.id }) { session ->
+                    FilterChip(
+                        selected = session.id == activeId,
+                        onClick = { chat.selectChat(session.id) },
+                        label = {
+                            Text(
+                                session.title,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.width(130.dp),
+                            )
+                        },
+                        trailingIcon = if (session.id == activeId) {
+                            {
+                                IconButton(
+                                    onClick = { chat.deleteChat(session.id) },
+                                    modifier = Modifier.size(24.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Удалить диалог",
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                    )
+                }
             }
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = {
-                val text = messages.joinToString("\n\n") { message ->
-                    when (message.role) {
-                        MessageRole.USER -> "Вы: ${message.content}"
-                        MessageRole.ASSISTANT -> "Агент: ${message.content}"
-                        MessageRole.TOOL -> "[инструмент ${message.toolName ?: ""}] ${message.content}"
-                        MessageRole.SYSTEM -> message.content
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (messages.isEmpty() && streaming.isEmpty()) {
+                    item {
+                        EmptyChatHint(local = settings.useLocalModel)
                     }
                 }
-                clipboard.setText(AnnotatedString(text))
-            }) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Копировать диалог")
-            }
-        }
-
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (messages.isEmpty() && streaming.isEmpty()) {
-                item {
-                    EmptyChatHint(local = settings.useLocalModel)
+                items(messages, key = { it.id }) { message ->
+                    MessageBubble(
+                        message = message,
+                        onCopy = {
+                            clipboard.setText(AnnotatedString(message.content))
+                        },
+                    )
                 }
-            }
-            items(messages, key = { it.id }) { message ->
-                MessageBubble(
-                    message = message,
-                    onCopy = {
-                        clipboard.setText(AnnotatedString(message.content))
-                    },
-                )
-            }
-            if (agentLog.isNotEmpty()) {
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                    ) {
-                        Column(Modifier.padding(10.dp)) {
-                            TextButton(onClick = { showLog = !showLog }) {
-                                Text(if (showLog) "Скрыть действия агента" else "Показать действия агента")
-                            }
-                            if (showLog) {
-                                agentLog.forEach {
-                                    Text(
-                                        it,
-                                        fontFamily = FontFamily.Monospace,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(vertical = 2.dp),
-                                    )
+                if (agentLog.isNotEmpty()) {
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                        ) {
+                            Column(Modifier.padding(10.dp)) {
+                                TextButton(onClick = { showLog = !showLog }) {
+                                    Text(if (showLog) "Скрыть действия агента" else "Показать действия агента")
+                                }
+                                if (showLog) {
+                                    agentLog.forEach {
+                                        Text(
+                                            it,
+                                            fontFamily = FontFamily.Monospace,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.padding(vertical = 2.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-            if (streaming.isNotEmpty()) {
-                item {
-                    MessageBubble(
-                        ChatMessage(
-                            id = "streaming",
-                            role = MessageRole.ASSISTANT,
-                            content = streaming,
-                        ),
-                        onCopy = { clipboard.setText(AnnotatedString(streaming)) },
-                    )
+                if (streaming.isNotEmpty()) {
+                    item {
+                        MessageBubble(
+                            ChatMessage(
+                                id = "streaming",
+                                role = MessageRole.ASSISTANT,
+                                content = streaming,
+                            ),
+                            onCopy = { clipboard.setText(AnnotatedString(streaming)) },
+                        )
+                    }
                 }
-            }
-            if (busy && streaming.isEmpty()) {
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Text((runState as ChatRunState.Working).status)
+                if (busy && streaming.isEmpty()) {
+                    item {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Text((runState as ChatRunState.Working).status)
+                        }
                     }
                 }
             }
-        }
-        }
 
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding(),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = input,
-                onValueChange = { input = it },
-                modifier = Modifier.weight(1f),
-                placeholder = {
-                    Text(
-                        if (settings.agentMode && !settings.useLocalModel) {
-                            "Опишите задачу для проекта…"
-                        } else {
-                            "Сообщение…"
-                        },
-                    )
-                },
-                minLines = 1,
-                maxLines = 6,
-            )
-            FilledIconButton(
-                onClick = {
-                    if (busy) {
-                        chat.cancelChat()
-                    } else if (input.isNotBlank()) {
-                        chat.sendMessage(input, editor.currentContext())
-                        input = ""
-                    }
-                },
-                enabled = busy || input.isNotBlank(),
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding(),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             ) {
-                Icon(
-                    if (busy) Icons.Default.Stop else Icons.AutoMirrored.Filled.Send,
-                    contentDescription = if (busy) "Остановить" else "Отправить",
-                )
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    IconButton(
+                        onClick = {
+                            val text = messages.joinToString("\n\n") { message ->
+                                when (message.role) {
+                                    MessageRole.USER -> "Вы: ${message.content}"
+                                    MessageRole.ASSISTANT -> "Агент: ${message.content}"
+                                    MessageRole.TOOL -> "[инструмент ${message.toolName ?: ""}] ${message.content}"
+                                    MessageRole.SYSTEM -> message.content
+                                }
+                            }
+                            clipboard.setText(AnnotatedString(text))
+                        },
+                        enabled = messages.isNotEmpty(),
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Копировать диалог")
+                    }
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = { input = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = {
+                            Text(
+                                if (settings.agentMode && !settings.useLocalModel) {
+                                    "Опишите задачу для проекта…"
+                                } else {
+                                    "Сообщение…"
+                                },
+                            )
+                        },
+                        minLines = 1,
+                        maxLines = 6,
+                    )
+                    FilledIconButton(
+                        onClick = {
+                            if (busy) {
+                                chat.cancelChat()
+                            } else if (input.isNotBlank()) {
+                                chat.sendMessage(input, editor.currentContext())
+                                input = ""
+                            }
+                        },
+                        enabled = busy || input.isNotBlank(),
+                    ) {
+                        Icon(
+                            if (busy) Icons.Default.Stop else Icons.AutoMirrored.Filled.Send,
+                            contentDescription = if (busy) "Остановить" else "Отправить",
+                        )
+                    }
+                }
             }
         }
-        }
-        }
-    }
-
-    if (showSwitcher) {
-        ModelSwitcherDialog(
-            settings = settings,
-            state = switcherModels,
-            onProvider = {
-                chat.switchProvider(it.id)
-                chat.loadSwitcherModels(it)
-            },
-            onRefresh = chat::loadSwitcherModels,
-            onModel = { provider, model -> chat.setProviderModel(provider, model) },
-            onDismiss = {
-                showSwitcher = false
-                chat.clearSwitcherModels()
-            },
-        )
     }
 }
 
 @Suppress("LongMethod", "LongParameterList")
 @Composable
-private fun ModelSwitcherDialog(
+fun ModelSwitcherDialog(
     settings: AppSettings,
     state: ProviderModelsState?,
     onProvider: (ProviderConfig) -> Unit,
@@ -542,5 +484,3 @@ private fun EmptyChatHint(local: Boolean) {
         )
     }
 }
-
-

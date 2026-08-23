@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import android.net.Uri
+import android.content.ContentResolver
+import java.nio.charset.Charsets
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container
@@ -68,6 +72,45 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 if (it.id == skillId) it.copy(enabled = enabled) else it
             },
         )
+    }
+
+    fun setPostChecksEnabled(enabled: Boolean) = updateSettings { it.copy(postChecksEnabled = enabled) }
+
+    fun setPostCheckCommands(raw: String) = updateSettings {
+        it.copy(postCheckCommands = raw.lines().map { line -> line.trim() }.filter { it.isNotEmpty() })
+    }
+
+    fun setFallbackProvider(providerId: String?) = updateSettings { it.copy(fallbackProviderId = providerId) }
+
+    private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
+
+    @Serializable
+    private data class SkillsBackup(val version: Int, val skills: List<AgentSkill>)
+
+    fun exportSkills(uri: Uri) = viewModelScope.launch {
+        runCatching {
+            val backup = SkillsBackup(version = 1, skills = settings.value.skills)
+            val jsonString = json.encodeToString(SkillsBackup.serializer(), backup)
+            getApplication<Application>().contentResolver.openOutputStream(uri)?.use { stream ->
+                stream.write(jsonString.toByteArray(Charsets.UTF_8))
+            } ?: error("Не удалось открыть файл для записи")
+        }.onSuccess { container.bus.showNotice("Скиллы экспортированы") }
+            .onFailure(container.bus::showError)
+    }
+
+    fun importSkills(uri: Uri) = viewModelScope.launch {
+        runCatching {
+            val text = getApplication<Application>().contentResolver.openInputStream(uri)?.use { stream ->
+                stream.readBytes().toString(Charsets.UTF_8)
+            } ?: error("Не удалось открыть файл")
+            val backup = json.decodeFromString(SkillsBackup.serializer(), text)
+            container.settings.update { current ->
+                val byId = current.skills.associateBy { it.id }.toMutableMap()
+                backup.skills.forEach { byId[it.id] = it.copy(enabled = true) }
+                current.copy(skills = byId.values.toList())
+            }
+        }.onSuccess { container.bus.showNotice("Скиллы импортированы") }
+            .onFailure(container.bus::showError)
     }
 
     fun saveProvider(provider: ProviderConfig, apiKey: String?) = viewModelScope.launch {

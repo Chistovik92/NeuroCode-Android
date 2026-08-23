@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -68,6 +69,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.ui.screens.ChatScreen
 import com.secrethero.neurocode.ui.screens.EditorScreen
 import com.secrethero.neurocode.ui.screens.GitScreen
+import com.secrethero.neurocode.ui.screens.ModelSwitcherDialog
 import com.secrethero.neurocode.ui.screens.SettingsScreen
 import com.secrethero.neurocode.ui.screens.TerminalScreen
 
@@ -103,6 +105,7 @@ fun NeuroCodeApp(
     var projectMenu by remember { mutableStateOf(false) }
     var createProjectDialog by remember { mutableStateOf(false) }
     var deleteProjectDialog by remember { mutableStateOf(false) }
+    var showSwitcher by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val importFolder = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
@@ -141,6 +144,12 @@ fun NeuroCodeApp(
         }
     }
 
+    LaunchedEffect(showSwitcher, currentProvider?.id) {
+        if (showSwitcher && !settings.useLocalModel && currentProvider != null) {
+            viewModel.chat.loadSwitcherModels(currentProvider)
+        }
+    }
+
     if (!ready) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -171,31 +180,40 @@ fun NeuroCodeApp(
                     }
                 },
                 actions = {
-                    if (!settings.useLocalModel && currentProvider != null) {
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    RoundedCornerShape(12.dp),
-                                )
-                                .border(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.primary,
-                                    RoundedCornerShape(12.dp),
-                                ),
-                        ) {
-                            Text(
-                            currentProvider.model,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
+                    val switcherProvider = if (settings.useLocalModel) {
+                        null
+                    } else {
+                        currentProvider
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                RoundedCornerShape(12.dp),
+                            )
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary,
+                                RoundedCornerShape(12.dp),
+                            )
+                            .clickable { showSwitcher = true },
+                    ) {
+                        Text(
+                            when {
+                                settings.useLocalModel ->
+                                    settings.localModelName ?: "GGUF"
+                                switcherProvider != null -> switcherProvider.model
+                                else -> "Выбрать модель"
+                            },
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
-                                .widthIn(max = 128.dp)
+                                .widthIn(max = 160.dp)
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
-                            )
-                        }
+                        )
                     }
                     Box {
                         IconButton(onClick = { projectMenu = true }) {
@@ -476,6 +494,23 @@ fun NeuroCodeApp(
                 TextButton(onClick = { deleteProjectDialog = false }) {
                     Text("Отмена")
                 }
+            },
+        )
+    }
+
+    if (showSwitcher) {
+        ModelSwitcherDialog(
+            settings = settings,
+            state = viewModel.chat.switcherModels.collectAsStateWithLifecycle().value,
+            onProvider = {
+                viewModel.chat.switchProvider(it.id)
+                viewModel.chat.loadSwitcherModels(it)
+            },
+            onRefresh = viewModel.chat::loadSwitcherModels,
+            onModel = { provider, model -> viewModel.chat.setProviderModel(provider, model) },
+            onDismiss = {
+                showSwitcher = false
+                viewModel.chat.clearSwitcherModels()
             },
         )
     }

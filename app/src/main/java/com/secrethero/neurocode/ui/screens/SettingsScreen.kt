@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
@@ -52,6 +53,7 @@ import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
 import com.secrethero.neurocode.ui.ProviderModelsState
 import com.secrethero.neurocode.ui.SettingsViewModel
+import android.net.Uri
 import java.util.UUID
 
 @Composable
@@ -64,10 +66,22 @@ fun SettingsScreen(vm: SettingsViewModel) {
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var editingSkill by remember { mutableStateOf<AgentSkill?>(null) }
     var skillDialog by remember { mutableStateOf(false) }
+    var fallbackMenu by remember { mutableStateOf(false) }
+    var commandsText by remember { mutableStateOf(settings.postCheckCommands.joinToString("\n")) }
     val modelPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
         uri?.let(vm::importLocalModel)
+    }
+    val exportSkills = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        uri?.let(vm::exportSkills)
+    }
+    val importSkills = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument("application/json"),
+    ) { uri ->
+        uri?.let(vm::importSkills)
     }
 
     Column(
@@ -155,6 +169,37 @@ fun SettingsScreen(vm: SettingsViewModel) {
             enabled = !settings.useLocalModel,
         )
 
+        Text("Пост-проверки агента", style = MaterialTheme.typography.titleMedium)
+        SettingSwitch(
+            title = "Запускать проверки после правок",
+            description = "Команды выполняются в корне проекта после ответа агента (например: npm run lint, npm test)",
+            checked = settings.postChecksEnabled,
+            enabled = settings.agentMode && !settings.useLocalModel,
+            onChecked = vm::setPostChecksEnabled,
+        )
+        if (settings.postChecksEnabled) {
+            OutlinedTextField(
+                value = commandsText,
+                onValueChange = { commandsText = it },
+                label = { Text("Команды, по одной на строку") },
+                placeholder = { Text("npm run lint\nnpm test") },
+                minLines = 2,
+                maxLines = 6,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                supportingText = { Text("Выполняются через Android shell; результат попадает в лог агента") },
+            )
+            FilledTonalButton(
+                onClick = {
+                    vm.setPostCheckCommands(commandsText)
+                },
+                enabled = commandsText.trim() != settings.postCheckCommands.joinToString("\n"),
+            ) {
+                Text("Сохранить команды")
+            }
+        }
+
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -206,6 +251,49 @@ fun SettingsScreen(vm: SettingsViewModel) {
             }
         }
 
+        if (!settings.useLocalModel && settings.providers.size > 1) {
+            Text("Резервный провайдер", style = MaterialTheme.typography.titleMedium)
+            val fallback = settings.providers.firstOrNull { it.id == settings.fallbackProviderId }
+            val fallbackName = fallback?.name ?: "Не выбран"
+            Box {
+                OutlinedButton(
+                    onClick = { fallbackMenu = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(fallbackName)
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    }
+                }
+                DropdownMenu(
+                    expanded = fallbackMenu,
+                    onDismissRequest = { fallbackMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Не выбран") },
+                        onClick = {
+                            vm.setFallbackProvider(null)
+                            fallbackMenu = false
+                        },
+                    )
+                    settings.providers
+                        .filter { it.id != settings.selectedProviderId }
+                        .forEach { provider ->
+                            DropdownMenuItem(
+                                text = { Text(provider.name) },
+                                onClick = {
+                                    vm.setFallbackProvider(provider.id)
+                                    fallbackMenu = false
+                                },
+                            )
+                        }
+                }
+            }
+        }
+
         Text("Скиллы агента", style = MaterialTheme.typography.titleLarge)
         SettingSwitch(
             title = "Включить скиллы",
@@ -222,6 +310,12 @@ fun SettingsScreen(vm: SettingsViewModel) {
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.weight(1f),
             )
+            FilledTonalButton(onClick = { exportSkills.launch("neurocode-skills.json") }) {
+                Text("Экспорт")
+            }
+            FilledTonalButton(onClick = { importSkills.launch(arrayOf("application/json")) }) {
+                Text("Импорт")
+            }
             IconButton(
                 onClick = {
                     editingSkill = null

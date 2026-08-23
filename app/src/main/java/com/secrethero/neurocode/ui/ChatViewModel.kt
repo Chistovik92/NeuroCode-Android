@@ -15,8 +15,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runCatching
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container
@@ -135,29 +135,85 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             emptyList()
         }
-        return if (current.agentMode && project != null) {
-            val projectSummary = runCatching {
-                container.projects.contextSummary(project.id)
-            }.getOrDefault("")
-            container.agent.run(
-                projectId = project.id,
-                projectName = project.name,
-                projectSummary = projectSummary,
-                provider = provider,
-                apiKey = key,
-                history = history,
-                maxSteps = current.maxAgentSteps,
-                allowAgentShell = current.allowAgentShell,
-                activeSkills = skills,
-                onEvent = { onAgentEvent(sessionId, it) },
+
+        val answer = try {
+            runCloudAttempt(current, project, provider, key, history, skills, sessionId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (primaryError: Throwable) {
+            val fallback = fallbackProvider(current, provider.id) ?: throw primaryError
+            val fallbackKey = container.settings.apiKey(fallback) ?: throw primaryError
+            appendAgentLog(
+                "Основной провайдер «${provider.name}» недоступен: " +
+                    "${primaryError.message ?: primaryError::class.java.simpleName}. " +
+                    "Повторяю запрос через «${fallback.name}».",
             )
-        } else {
-            container.agent.chat(
-                provider,
-                key,
-                history,
-                onEvent = { onAgentEvent(sessionId, it) },
-            )
+            _chatRunState.value = ChatRunState.Working("Резервный провайдер: ${fallback.name}")
+            runCloudAttempt(current, project, fallback, fallbackKey, history, skills, sessionId)
+        }
+        runPostChecks(current, project, sessionId)
+        return answer
+    }
+
+    private fun fallbackProvider(current: AppSettings, primaryId: String?): ProviderConfig? {
+        if (current.useLocalModel) return null
+        val fallbackId = current.fallbackProviderId ?: return null
+        if (fallbackId == primaryId) return null
+        val fallback = current.providers.firstOrNull { it.id == fallbackId } ?: return null
+        if (!fallback.enabled) return null
+        return fallback
+    }
+
+    private suspend fun runCloudAttempt(
+        current: AppSettings,
+        project: com.secrethero.neurocode.model.Project?,
+        provider: ProviderConfig,
+        key: String,
+        history: List<ChatMessage>,
+        skills: List<String>,
+        sessionId: String,
+    ): String = if (current.agentMode && project != null) {
+        val projectSummary = runCatching {
+            container.projects.contextSummary(project.id)
+        }.getOrDefault("")
+        container.agent.run(
+            projectId = project.id,
+            projectName = project.name,
+            projectSummary = projectSummary,
+            provider = provider,
+            apiKey = key,
+            history = history,
+            maxSteps = current.maxAgentSteps,
+            allowAgentShell = current.allowAgentShell,
+            activeSkills = skills,
+            onEvent = { onAgentEvent(sessionId, it) },
+        )
+    } else {
+        container.agent.chat(
+            provider,
+            key,
+            history,
+            onEvent = { onAgentEvent(sessionId, it) },
+        )
+    }
+
+    private suspend fun runPostChecks(current: AppSettings, project: com.secrethero.neurocode.model.Project?, sessionId: String) {
+        if (!current.postChecksEnabled || !current.agentMode) return
+        val commands = current.postCheckCommands
+        if (commands.isEmpty() || project == null) return
+        _chatRunState.value = ChatRunState.Working("Пост-проверки (${commands.size})")
+        appendAgentLog("Запуск пост-проверок после правок агента")
+        commands.forEach { command ->
+            appendAgentLog("→ пост-проверка: $command")
+            val result = runCatching {
+                container.shell.runOnce(project.id, command, 120_000)
+            }.getOrElse { error ->
+                "Ошибка запуска: ${error.message ?: error::class.java.simpleName}"
+            }
+            val failed = listOf("error", "failed", "failure").any { marker ->
+                result.contains(marker, ignoreCase = true)
+            }
+            appendAgentLog("← пост-проверка ${if (failed) "ПРОВАЛ" else "ок"}: ${result.take(800)}")
         }
     }
 
