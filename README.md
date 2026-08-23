@@ -6,7 +6,7 @@ NeuroCode — автономная среда для работы с AI-коди
 
 ## Дорожная карта
 
-Актуальный план и статусы: [ROADMAP.md](ROADMAP.md).
+Актуальный план и статусы: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 | Версия | Тема | Статус |
 |--------|------|--------|
@@ -19,7 +19,9 @@ NeuroCode — автономная среда для работы с AI-коди
 | 0.2.3 | Надёжный список моделей (/v1 фолбэк), ZIP-экспорт | ✅ готово |
 | 0.2.5 | Фикс эндпоинта чата, rename/delete, недавние файлы, привязка папки | ✅ готово |
 | 0.3.0 | Двусторонняя синхронизация, светлые/тёмные темы, адаптивная раскладка | ✅ готово |
+| 0.3.3 | Полный workspace UI по HTML-референсу, прокручиваемый выбор моделей, перенос docs | ✅ готово |
 | 0.3.1 | Скиллы агента, копирование сообщений, смена модели на лету, палитра GitHub-dark | ✅ готово |
+| 0.3.3 | UI-редизайн AI Code Studio, прокрутка моделей, docs-реорганизация | ✅ готово |
 | 0.4.0 | Контекст проекта, пост-проверки, фолбэк провайдера (см. ROADMAP.md) | 🚧 в работе |
 
 ## Что уже реализовано
@@ -168,7 +170,7 @@ NeuroCode.
 - Перед перезаписью файл копируется в .neurocode/history/.
 - Папка .neurocode добавляется в стандартный Git ignore.
 
-Подробнее: [SECURITY.md](SECURITY.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) и [ROADMAP.md](ROADMAP.md).
+Подробнее: [docs/SECURITY.md](docs/SECURITY.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) и [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Структура
 
@@ -182,4 +184,4 @@ docs/                   архитектура и ограничения
 
 ## Лицензии
 
-Код NeuroCode распространяется по Apache License 2.0. Используемые компоненты сохраняют собственные лицензии; см. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Код NeuroCode распространяется по Apache License 2.0. Используемые компоненты сохраняют собственные лицензии; см. [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).

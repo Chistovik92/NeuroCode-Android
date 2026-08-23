@@ -164,6 +164,7 @@ class ProjectRepository(private val context: Context) {
             val target = File(root, doc.relativePath)
             target.parentFile?.mkdirs()
             val existed = target.exists()
+            if (existed) backup(projectId, doc.relativePath, target)
             context.contentResolver.openInputStream(doc.uri)?.use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
             } ?: run {

@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
@@ -45,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,6 +95,7 @@ fun NeuroCodeApp(
     val exportProgress by viewModel.projects.exportProgress.collectAsStateWithLifecycle()
     val zipProgress by viewModel.projects.zipProgress.collectAsStateWithLifecycle()
     val currentProject = projects.firstOrNull { it.id == settings.selectedProjectId }
+    val currentProvider = settings.providers.firstOrNull { it.id == settings.selectedProviderId }
     var tabName by rememberSaveable { mutableStateOf(MainTab.CHAT.name) }
     val tab = MainTab.entries.firstOrNull { it.name == tabName } ?: MainTab.CHAT
     var projectMenu by remember { mutableStateOf(false) }
@@ -144,16 +150,43 @@ fun NeuroCodeApp(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
                 title = {
                     Column {
-                        Text("NeuroCode", fontWeight = FontWeight.SemiBold)
+                        Text("NeuroCode Workspace", fontWeight = FontWeight.SemiBold)
                         Text(
-                            currentProject?.name ?: "Проект не выбран",
+                            "Проект: ${currentProject?.name ?: "не выбран"}",
                             style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
                 actions = {
+                    if (!settings.useLocalModel && currentProvider != null) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    RoundedCornerShape(12.dp),
+                                )
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(12.dp),
+                                ),
+                        ) {
+                            Text(
+                                currentProvider.model,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
                     Box {
                         IconButton(onClick = { projectMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "Проекты")

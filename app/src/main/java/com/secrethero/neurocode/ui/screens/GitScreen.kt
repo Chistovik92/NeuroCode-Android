@@ -124,8 +124,12 @@ fun GitScreen(git: GitViewModel) {
 
         Text("Изменения", style = MaterialTheme.typography.titleMedium)
         Surface(
-            color = Color(0xFF080B10),
-            shape = MaterialTheme.shapes.medium,
+            color = Color(0xFF0D1117),
+            shape = MaterialTheme.shapes.small,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outline,
+            ),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
@@ -140,10 +144,10 @@ fun GitScreen(git: GitViewModel) {
                         Text(
                             line,
                             color = when {
-                                line.startsWith("+") && !line.startsWith("+++") -> Color(0xFF67E8A5)
+                                line.startsWith("+") && !line.startsWith("+++") -> Color(0xFF7EE787)
                                 line.startsWith("-") && !line.startsWith("---") -> Color(0xFFFF7B72)
-                                line.startsWith("@@") -> Color(0xFFB9AFFF)
-                                else -> Color(0xFFD8DEE9)
+                                line.startsWith("@@") -> Color(0xFF79C0FF)
+                                else -> Color(0xFFE6EDF3)
                             },
                             fontFamily = FontFamily.Monospace,
                             style = MaterialTheme.typography.bodySmall,

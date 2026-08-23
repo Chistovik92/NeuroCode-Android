@@ -2,14 +2,18 @@ package com.secrethero.neurocode.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,7 +30,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
@@ -46,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
@@ -57,8 +61,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatRunState
 import com.secrethero.neurocode.model.MessageRole
+import com.secrethero.neurocode.model.AppSettings
+import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.ui.ChatViewModel
 import com.secrethero.neurocode.ui.EditorViewModel
+import com.secrethero.neurocode.ui.ProviderModelsState
 
 @Composable
 fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
@@ -86,11 +93,15 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
         }
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .imePadding(),
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val contentWidth = if (maxWidth > 900.dp) 980.dp else maxWidth
+        Column(
+            Modifier
+                .width(contentWidth)
+                .fillMaxSize()
+                .align(Alignment.Center)
+                .imePadding(),
+        ) {
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -137,10 +148,15 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
             }
         }
 
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        ) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -249,7 +265,13 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 }
             }
         }
+        }
 
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        ) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -290,85 +312,149 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 )
             }
         }
+        }
+        }
     }
 
     if (showSwitcher) {
-        AlertDialog(
-            onDismissRequest = {
+        ModelSwitcherDialog(
+            settings = settings,
+            state = switcherModels,
+            onProvider = {
+                chat.switchProvider(it.id)
+                chat.loadSwitcherModels(it)
+            },
+            onRefresh = chat::loadSwitcherModels,
+            onModel = { provider, model -> chat.setProviderModel(provider, model) },
+            onDismiss = {
                 showSwitcher = false
                 chat.clearSwitcherModels()
             },
-            title = { Text("Модель для следующего запроса") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Провайдер",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(settings.providers, key = { it.id }) { p ->
-                            FilterChip(
-                                selected = p.id == settings.selectedProviderId,
-                                onClick = {
-                                    chat.switchProvider(p.id)
-                                    chat.loadSwitcherModels(p)
-                                },
-                                label = { Text(p.name) },
-                            )
-                        }
-                    }
-                    val current = settings.providers.firstOrNull {
-                        it.id == settings.selectedProviderId
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text("Модели", style = MaterialTheme.typography.labelMedium)
-                        TextButton(onClick = { current?.let(chat::loadSwitcherModels) }) {
-                            Text(if (switcherModels?.loading == true) "Загрузка…" else "Показать")
-                        }
-                    }
-                    switcherModels?.error?.let { error ->
+        )
+    }
+}
+
+@Suppress("LongMethod", "LongParameterList")
+@Composable
+private fun ModelSwitcherDialog(
+    settings: AppSettings,
+    state: ProviderModelsState?,
+    onProvider: (ProviderConfig) -> Unit,
+    onRefresh: (ProviderConfig) -> Unit,
+    onModel: (ProviderConfig, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    val provider = settings.providers.firstOrNull { it.id == settings.selectedProviderId }
+    val models = state?.models.orEmpty().filter {
+        query.isBlank() || it.contains(query, ignoreCase = true)
+    }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 420.dp, max = 680.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.background,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Выбор модели", fontWeight = FontWeight.SemiBold)
                         Text(
-                            error,
-                            color = MaterialTheme.colorScheme.error,
+                            "Следующий запрос продолжит текущий диалог",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    switcherModels?.models?.take(40)?.forEach { candidate ->
-                        Text(
-                            candidate,
-                            fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodySmall,
+                    TextButton(onClick = onDismiss) { Text("Закрыть") }
+                }
+                LazyRow(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    items(settings.providers, key = { it.id }) { item ->
+                        FilterChip(
+                            selected = item.id == settings.selectedProviderId,
+                            onClick = { onProvider(item) },
+                            label = { Text(item.name) },
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Поиск модели") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                )
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        provider?.model ?: "Модель не выбрана",
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { provider?.let(onRefresh) }) {
+                        Text(if (state?.loading == true) "Загрузка…" else "Обновить")
+                    }
+                }
+                state?.error?.let {
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                }
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    items(models, key = { it }) { model ->
+                        Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    if (current != null) {
-                                        chat.setProviderModel(current, candidate)
-                                    }
-                                    showSwitcher = false
-                                    chat.clearSwitcherModels()
-                                }
-                                .padding(vertical = 4.dp),
-                        )
+                                    provider?.let { onModel(it, model) }
+                                    onDismiss()
+                                },
+                            color = if (model == provider?.model) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            shape = RoundedCornerShape(6.dp),
+                        ) {
+                            Text(
+                                model,
+                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(10.dp),
+                            )
+                        }
                     }
-                    Text(
-                        "История диалога и скиллы сохранятся при смене модели.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = {
-                    showSwitcher = false
-                    chat.clearSwitcherModels()
-                }) { Text("Закрыть") }
-            },
-        )
+            }
+        }
     }
 }
 

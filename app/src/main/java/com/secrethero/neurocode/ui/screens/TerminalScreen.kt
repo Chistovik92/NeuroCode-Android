@@ -51,12 +51,13 @@ fun TerminalScreen(terminal: TerminalViewModel) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF05070A))
+            .background(Color(0xFF000000))
             .imePadding(),
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
+                .background(Color(0xFF161B22))
                 .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.End,
         ) {
@@ -78,9 +79,9 @@ fun TerminalScreen(terminal: TerminalViewModel) {
                 Text(
                     line.text,
                     color = when {
-                        line.error -> Color(0xFFFF6B6B)
-                        line.command -> Color(0xFF65E5C4)
-                        else -> Color(0xFFD8DEE9)
+                        line.error -> Color(0xFFF85149)
+                        line.command -> Color(0xFF7EE787)
+                        else -> Color(0xFFE6EDF3)
                     },
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
@@ -91,13 +92,14 @@ fun TerminalScreen(terminal: TerminalViewModel) {
         Row(
             Modifier
                 .fillMaxWidth()
+                .background(Color(0xFF161B22))
                 .padding(8.dp),
         ) {
             OutlinedTextField(
                 value = command,
                 onValueChange = { command = it },
                 modifier = Modifier.weight(1f),
-                prefix = { Text("$ ", color = Color(0xFF65E5C4)) },
+                prefix = { Text("$ ", color = Color(0xFF7EE787)) },
                 textStyle = TextStyle(
                     color = Color.White,
                     fontFamily = FontFamily.Monospace,
@@ -122,7 +124,7 @@ fun TerminalScreen(terminal: TerminalViewModel) {
                     }
                 },
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Выполнить", tint = Color(0xFF65E5C4))
+                Icon(Icons.Default.PlayArrow, contentDescription = "Выполнить", tint = Color(0xFF7EE787))
             }
         }
     }
