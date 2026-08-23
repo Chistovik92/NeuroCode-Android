@@ -132,7 +132,9 @@ class OpenAiCompatibleClient {
     }
 
     suspend fun models(provider: ProviderConfig, apiKey: String): List<String> {
-        validate(provider, apiKey)
+        require(provider.baseUrl.startsWith("https://")) {
+            "Адрес провайдера должен использовать HTTPS"
+        }
         val base = provider.baseUrl.trim().trimEnd('/')
         val candidates = buildList {
             add("$base/models")
@@ -163,8 +165,10 @@ class OpenAiCompatibleClient {
     ): List<String> = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url(endpoint)
-            .header("Authorization", "Bearer $apiKey")
             .header("Accept", "application/json")
+            .apply {
+                if (apiKey.isNotBlank()) header("Authorization", "Bearer $apiKey")
+            }
             .apply { provider.extraHeaders.forEach { (name, value) -> header(name, value) } }
             .get()
             .build()

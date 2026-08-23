@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,6 +62,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.ui.screens.ChatScreen
@@ -155,7 +157,12 @@ fun NeuroCodeApp(
                 ),
                 title = {
                     Column {
-                        Text("NeuroCode Workspace", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "NeuroCode",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                        )
                         Text(
                             "Проект: ${currentProject?.name ?: "не выбран"}",
                             style = MaterialTheme.typography.labelSmall,
@@ -178,12 +185,15 @@ fun NeuroCodeApp(
                                 ),
                         ) {
                             Text(
-                                currentProvider.model,
+                            currentProvider.model,
                                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .widthIn(max = 128.dp)
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
                     }

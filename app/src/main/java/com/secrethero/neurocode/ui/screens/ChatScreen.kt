@@ -6,15 +6,16 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -93,13 +94,17 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
         }
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val contentWidth = if (maxWidth > 900.dp) 980.dp else maxWidth
+    LaunchedEffect(showSwitcher, provider?.id) {
+        if (showSwitcher && provider != null) chat.loadSwitcherModels(provider)
+    }
+
+    Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
-                .width(contentWidth)
-                .fillMaxSize()
-                .align(Alignment.Center)
+                .fillMaxHeight()
+                .fillMaxWidth()
+                .widthIn(max = 840.dp)
+                .align(Alignment.TopCenter)
                 .imePadding(),
         ) {
         LazyRow(
@@ -268,7 +273,9 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
         }
 
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding(),
             color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
@@ -353,7 +360,7 @@ private fun ModelSwitcherDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 420.dp, max = 680.dp),
+                .fillMaxHeight(0.88f),
             shape = RoundedCornerShape(10.dp),
             color = MaterialTheme.colorScheme.background,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
