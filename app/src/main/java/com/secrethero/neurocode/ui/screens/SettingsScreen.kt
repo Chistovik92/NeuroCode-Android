@@ -79,7 +79,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
         uri?.let(vm::exportSkills)
     }
     val importSkills = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument("application/json"),
+        ActivityResultContracts.OpenDocument(),
     ) { uri ->
         uri?.let(vm::importSkills)
     }

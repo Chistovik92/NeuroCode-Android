@@ -15,8 +15,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runCatching
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container

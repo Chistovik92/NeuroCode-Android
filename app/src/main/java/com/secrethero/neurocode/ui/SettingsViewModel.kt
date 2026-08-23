@@ -13,10 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import android.net.Uri
-import android.content.ContentResolver
-import java.nio.charset.Charsets
+import kotlin.text.Charsets
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container

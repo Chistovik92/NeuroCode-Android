@@ -19,7 +19,7 @@
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable private fun ProviderDialog( current: ProviderConfig?, modelsState: ProviderModelsState, onLoadModels: (ProviderConfig) -&gt; Unit, onDismiss: () -&gt; Unit, onSave: (ProviderConfig, String) -&gt; Unit, )</ID>
     <ID>LongMethod:TerminalScreen.kt$@Composable fun TerminalScreen(terminal: TerminalViewModel)</ID>
-    <ID>LongParameterList:AgentOrchestrator.kt$AgentOrchestrator$( projectId: String, projectName: String, provider: ProviderConfig, apiKey: String, history: List&lt;ChatMessage&gt;, maxSteps: Int, allowAgentShell: Boolean, onEvent: (AgentEvent) -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:ChatViewModel.kt$ChatViewModel$( current: AppSettings, project: com.secrethero.neurocode.model.Project?, provider: ProviderConfig, key: String, history: List&lt;ChatMessage&gt;, skills: List&lt;String&gt;, sessionId: String, )</ID>
     <ID>LongParameterList:NeuroCodeApp.kt$( title: String, label: String, initialValue: String, confirmLabel: String, onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, )</ID>
     <ID>LongParameterList:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$( endpoint: String, apiKey: String, messages: List&lt;ApiMessage&gt;, tools: JsonArray, onChunk: (String) -&gt; Unit, providerForHeaders: ProviderConfig, )</ID>
     <ID>LongParameterList:SettingsScreen.kt$( model: String, onModelChange: (String) -&gt; Unit, modelsState: ProviderModelsState, expanded: Boolean, onExpandedChange: (Boolean) -&gt; Unit, onLoadModels: () -&gt; Boolean, )</ID>
@@ -34,6 +34,7 @@
     <ID>MagicNumber:AgentTools.kt$AgentTools$600</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$60_000L</ID>
     <ID>MagicNumber:ChatRepository.kt$ChatRepository$52</ID>
+    <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$120_000</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$20_000</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$4_000</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$50</ID>
@@ -72,20 +73,25 @@
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Создать или полностью перезаписать текстовый файл проекта. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Удалить файл проекта (папки удалять нельзя). Копия сохраняется в .neurocode/history. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:ChatScreen.kt$"Он может читать файлы, предлагать изменения, запускать команды и проверять Git diff. Опасные действия требуют подтверждения."</ID>
+    <ID>MaxLineLength:ChatViewModel.kt$ChatViewModel$private suspend</ID>
     <ID>MaxLineLength:NeuroCodeApp.kt$"Файлы будут храниться внутри песочницы NeuroCode. Папку с телефона можно импортировать отдельной копией."</ID>
     <ID>MaxLineLength:SettingsScreen.kt$"Ключи API шифруются Android Keystore и не записываются в настройки, логи или файлы проекта. Сетевые адреса должны использовать HTTPS."</ID>
     <ID>MaxLineLength:SettingsScreen.kt$"Рекомендуются квантованные модели 1–3B. GGUF копируется во внутреннее хранилище; для модели 2 ГБ желательно не менее 6 ГБ RAM."</ID>
     <ID>NestedBlockDepth:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
+    <ID>ReturnCount:ChatViewModel.kt$ChatViewModel$private fun fallbackProvider(current: AppSettings, primaryId: String?): ProviderConfig?</ID>
     <ID>ReturnCount:CommandPolicy.kt$CommandPolicy$fun isSafeReadOnly(command: String): Boolean</ID>
     <ID>ReturnCount:EditorViewModel.kt$EditorViewModel$private suspend fun saveOpenFileInternal(projectId: String?)</ID>
+    <ID>ThrowsCount:ChatViewModel.kt$ChatViewModel$private suspend fun runCloud(sessionId: String, history: List&lt;ChatMessage&gt;): String</ID>
     <ID>ThrowsCount:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun tryChatEndpoints( provider: ProviderConfig, shouldRethrow: () -&gt; Boolean = { false }, block: suspend (String) -&gt; AssistantTurn, ): AssistantTurn</ID>
     <ID>ThrowsCount:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
     <ID>TooGenericExceptionCaught:ChatViewModel.kt$ChatViewModel$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ChatViewModel.kt$ChatViewModel$primaryError: Throwable</ID>
     <ID>TooGenericExceptionCaught:GitViewModel.kt$GitViewModel$error: Throwable</ID>
     <ID>TooGenericExceptionCaught:ProjectsViewModel.kt$ProjectsViewModel$error: Throwable</ID>
-    <ID>TooManyFunctions:EditorViewModel.kt$EditorViewModel : AndroidViewModel</ID>
-    <ID>TooManyFunctions:GitRepository.kt$GitRepository</ID>
+    <ID>TooManyFunctions:ChatViewModel.kt$ChatViewModel : AndroidViewModel</ID>
     <ID>TooManyFunctions:OpenAiCompatibleClient.kt$OpenAiCompatibleClient</ID>
     <ID>TooManyFunctions:ProjectRepository.kt$ProjectRepository</ID>
+    <ID>TooManyFunctions:SettingsViewModel.kt$SettingsViewModel : AndroidViewModel</ID>
+    <ID>UnusedParameter:ChatViewModel.kt$ChatViewModel$sessionId: String</ID>
   </CurrentIssues>
 </SmellBaseline>
