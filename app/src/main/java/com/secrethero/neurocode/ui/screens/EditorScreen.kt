@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -44,11 +45,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.secrethero.neurocode.R
+import com.secrethero.neurocode.lsp.LspClient
+import com.secrethero.neurocode.lsp.LspDiagnostic
 import com.secrethero.neurocode.model.FileNode
 import com.secrethero.neurocode.ui.EditorViewModel
 import com.secrethero.neurocode.ui.TextInputDialog
@@ -80,25 +85,25 @@ fun EditorScreen(editor: EditorViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Файлы проекта",
+                        stringResource(R.string.files_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { newFileDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Новый файл")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_file_cd))
                     }
                     IconButton(onClick = { newDirectoryDialog = true }) {
-                        Icon(Icons.Default.CreateNewFolder, contentDescription = "Новая папка")
+                        Icon(Icons.Default.CreateNewFolder, contentDescription = stringResource(R.string.new_folder_cd))
                     }
                     IconButton(onClick = editor::refreshTree) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Обновить")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
                     }
                 }
                 HorizontalDivider()
                 if (recents.isNotEmpty()) {
                     Text(
-                        "Недавние",
+                        stringResource(R.string.recents),
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                     )
@@ -150,11 +155,11 @@ fun EditorScreen(editor: EditorViewModel) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = { scope.launch { drawer.open() } }) {
-                    Icon(Icons.Default.FolderOpen, contentDescription = "Открыть файлы")
+                    Icon(Icons.Default.FolderOpen, contentDescription = stringResource(R.string.open_files_cd))
                 }
                 Text(
                     buildString {
-                        append(openPath ?: "Файл не открыт")
+                        append(openPath ?: stringResource(R.string.no_file_opened))
                         if (dirty) append(" •")
                     },
                     modifier = Modifier.weight(1f),
@@ -167,7 +172,7 @@ fun EditorScreen(editor: EditorViewModel) {
                     onClick = editor::saveOpenFile,
                     enabled = openPath != null && dirty,
                 ) {
-                    Icon(Icons.Default.Save, contentDescription = "Сохранить")
+                    Icon(Icons.Default.Save, contentDescription = stringResource(R.string.save_cd))
                 }
             }
             HorizontalDivider()
@@ -175,25 +180,31 @@ fun EditorScreen(editor: EditorViewModel) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Description, contentDescription = null)
-                        Text("Откройте файл из дерева проекта")
+                        Text(stringResource(R.string.open_file_hint))
                     }
                 }
             } else {
-                CodeEditorView(
-                    text = text,
-                    onTextChange = editor::updateEditorText,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                Column(Modifier.fillMaxSize()) {
+                    CodeEditorView(
+                        text = text,
+                        onTextChange = editor::updateEditorText,
+                        modifier = Modifier.weight(1f),
+                        fileName = openPath,
+                    )
+                    DiagnosticsPanel(
+                        diagnostics = editor.lspDiagnostics.collectAsStateWithLifecycle().value,
+                    )
+                }
             }
         }
     }
 
     if (newFileDialog) {
         TextInputDialog(
-            title = "Новый файл",
-            label = "Путь, например src/main.py",
+            title = stringResource(R.string.new_file_title),
+            label = stringResource(R.string.new_file_label),
             initialValue = "",
-            confirmLabel = "Создать",
+            confirmLabel = stringResource(R.string.action_create),
             onDismiss = { newFileDialog = false },
             onConfirm = {
                 editor.createFile(it)
@@ -203,10 +214,10 @@ fun EditorScreen(editor: EditorViewModel) {
     }
     if (newDirectoryDialog) {
         TextInputDialog(
-            title = "Новая папка",
-            label = "Путь, например src/components",
+            title = stringResource(R.string.new_dir_title),
+            label = stringResource(R.string.new_dir_label),
             initialValue = "",
-            confirmLabel = "Создать",
+            confirmLabel = stringResource(R.string.action_create),
             onDismiss = { newDirectoryDialog = false },
             onConfirm = {
                 editor.createDirectory(it)
@@ -216,10 +227,10 @@ fun EditorScreen(editor: EditorViewModel) {
     }
     renameTarget?.let { target ->
         TextInputDialog(
-            title = "Переименовать/переместить",
-            label = "Новый путь",
+            title = stringResource(R.string.rename_title),
+            label = stringResource(R.string.label_new_path),
             initialValue = target,
-            confirmLabel = "Применить",
+            confirmLabel = stringResource(R.string.action_apply),
             onDismiss = { renameTarget = null },
             onConfirm = { newPath ->
                 editor.renameEntry(target, newPath)
@@ -230,9 +241,9 @@ fun EditorScreen(editor: EditorViewModel) {
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Удалить?") },
+            title = { Text(stringResource(R.string.delete_confirm_title)) },
             text = {
-                Text("$target\n\nКопия сохранится в .neurocode/history.")
+                Text(stringResource(R.string.delete_confirm_text, target))
             },
             confirmButton = {
                 Button(
@@ -240,10 +251,10 @@ fun EditorScreen(editor: EditorViewModel) {
                         editor.deleteEntry(target)
                         deleteTarget = null
                     },
-                ) { Text("Удалить") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("Отмена") }
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -298,14 +309,14 @@ private fun FileTreeNode(
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(
-                text = { Text("Переименовать / переместить") },
+                text = { Text(stringResource(R.string.rename_menu)) },
                 onClick = {
                     menu = false
                     onRename(node.relativePath)
                 },
             )
             DropdownMenuItem(
-                text = { Text("Удалить") },
+                text = { Text(stringResource(R.string.action_delete)) },
                 onClick = {
                     menu = false
                     onDelete(node.relativePath)
@@ -319,6 +330,46 @@ private fun FileTreeNode(
         }
     }
 }
+
+@Composable
+private fun DiagnosticsPanel(diagnostics: List<LspDiagnostic>) {
+    if (diagnostics.isEmpty()) return
+    HorizontalDivider()
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(max = 160.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Text(
+            stringResource(R.string.diagnostics_title),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        diagnostics.take(MAX_VISIBLE_DIAGNOSTICS).forEach { diagnostic ->
+            val color = when (diagnostic.severity) {
+                LspClient.SEVERITY_ERROR -> MaterialTheme.colorScheme.error
+                LspClient.SEVERITY_WARNING -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Text(
+                buildString {
+                    append(diagnostic.line + 1)
+                    append(": ")
+                    append(diagnostic.message)
+                    diagnostic.source?.let { append(" (").append(it).append(")") }
+                },
+                color = color,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(vertical = 1.dp),
+            )
+        }
+    }
+}
+
+private const val MAX_VISIBLE_DIAGNOSTICS = 20
 
 
 

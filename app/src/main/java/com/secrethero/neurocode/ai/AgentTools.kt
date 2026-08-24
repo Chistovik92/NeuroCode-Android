@@ -1,5 +1,8 @@
 package com.secrethero.neurocode.ai
 
+import android.content.Context
+import androidx.annotation.StringRes
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.data.ProjectRepository
 import com.secrethero.neurocode.git.GitRepository
 import com.secrethero.neurocode.model.ApprovalRisk
@@ -21,12 +24,16 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 class AgentTools(
+    private val context: Context,
     private val projects: ProjectRepository,
     private val git: GitRepository,
     private val shell: ShellSession,
     private val approvals: ApprovalGate,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+
+    private fun str(@StringRes resId: Int, vararg args: Any?): String =
+        context.getString(resId, *args)
 
     fun definitions(externalTools: List<ExternalAgentTool> = emptyList()): JsonArray = buildJsonArray {
         add(tool(
@@ -80,7 +87,9 @@ class AgentTools(
         ))
         add(tool(
             name = "run_command",
-            description = "Выполнить команду Android shell в корне проекта. Это ограниченная /system/bin оболочка, не полноценный Linux.",
+            description = "Выполнить команду shell в корне проекта. Если установлено Linux-окружение " +
+                "(proot), команда выполняется внутри Alpine Linux; иначе доступен ограниченный " +
+                "/system/bin без пакетного менеджера.",
             properties = mapOf(
                 "command" to property("string", "Команда shell"),
                 "timeout_seconds" to property("integer", "Тайм-аут от 1 до 120 секунд"),
@@ -126,14 +135,14 @@ class AgentTools(
                 val content = arguments.string("content")
                 val approved = approvals.ask(
                     ToolApprovalRequest(
-                        title = "Разрешить изменение файла?",
+                        title = str(R.string.approve_write_file),
                         details = "$path\n\n${content.take(1_200)}",
                         risk = ApprovalRisk.FILE_WRITE,
                     ),
                 )
-                if (!approved) return "Пользователь запретил изменение $path"
+                if (!approved) return str(R.string.deny_write_format, path)
                 projects.writeText(projectId, path, content)
-                "Файл $path сохранён (${content.length} символов)"
+                str(R.string.saved_format, path, content.length)
             }
             "replace_in_file" -> {
                 val path = arguments.string("path")
@@ -147,27 +156,27 @@ class AgentTools(
                 }
                 val approved = approvals.ask(
                     ToolApprovalRequest(
-                        title = "Разрешить правку файла?",
+                        title = str(R.string.approve_replace_file),
                         details = "$path\n\n− ${search.take(600)}\n+ ${replacement.take(600)}",
                         risk = ApprovalRisk.FILE_WRITE,
                     ),
                 )
-                if (!approved) return "Пользователь запретил правку $path"
+                if (!approved) return str(R.string.deny_edit_format, path)
                 projects.writeText(projectId, path, original.replaceFirst(search, replacement))
-                "Файл $path изменён (${search.length} → ${replacement.length} символов)"
+                str(R.string.edited_format, path, search.length, replacement.length)
             }
             "delete_file" -> {
                 val path = arguments.string("path")
                 val approved = approvals.ask(
                     ToolApprovalRequest(
-                        title = "Удалить файл?",
-                        details = "$path\n\nКопия сохранится в .neurocode/history.",
+                        title = str(R.string.approve_delete_file),
+                        details = path + str(R.string.approve_keep_history),
                         risk = ApprovalRisk.DESTRUCTIVE,
                     ),
                 )
-                if (!approved) return "Пользователь запретил удаление $path"
+                if (!approved) return str(R.string.deny_delete_format, path)
                 projects.deleteFile(projectId, path)
-                "Файл $path удалён, копия в .neurocode/history"
+                str(R.string.deleted_format, path)
             }
             "search_text" -> {
                 val query = arguments.string("query")
@@ -183,16 +192,20 @@ class AgentTools(
                 if (!unattended) {
                     val approved = approvals.ask(
                         ToolApprovalRequest(
-                            title = if (risky != null) "Опасная команда" else "Разрешить команду?",
+                            title = if (risky != null) {
+                                str(R.string.dangerous_command)
+                            } else {
+                                str(R.string.approve_command)
+                            },
                             details = buildString {
                                 append("$ ")
                                 append(command)
-                                risky?.let { append("\n\nПричина: ").append(it) }
+                                risky?.let { append(str(R.string.reason_format, it)) }
                             },
                             risk = if (risky != null) ApprovalRisk.DESTRUCTIVE else ApprovalRisk.SHELL,
                         ),
                     )
-                    if (!approved) return "Пользователь запретил выполнение команды"
+                    if (!approved) return str(R.string.deny_command)
                 }
                 shell.runOnce(projectId, command, timeout).take(MAX_TOOL_OUTPUT)
             }
@@ -204,7 +217,7 @@ class AgentTools(
             else -> executeExternal(projectId, call, externalTools)
         }
     }.getOrElse { error ->
-        "Ошибка инструмента ${call.name}: ${error.message ?: error::class.java.simpleName}"
+        str(R.string.tool_error_format, call.name, error.message ?: error::class.java.simpleName)
     }
 
     private suspend fun executeExternal(
@@ -214,21 +227,25 @@ class AgentTools(
     ): String {
         val tool = externalTools.firstOrNull {
             it.enabled && externalName(it) == call.name
-        } ?: return "Неизвестный инструмент: ${call.name}"
+        } ?: return str(R.string.unknown_tool_format, call.name)
         val command = tool.command.trim().take(2_000)
         require(command.isNotBlank()) { "Внешний инструмент ${tool.name} не содержит команду" }
         val risk = CommandPolicy.risk(command)
         val approved = approvals.ask(
             ToolApprovalRequest(
-                title = if (risk == null) "Запустить внешний инструмент?" else "Опасный внешний инструмент",
+                title = if (risk == null) {
+                    str(R.string.external_tool_title)
+                } else {
+                    str(R.string.dangerous_external_tool)
+                },
                 details = buildString {
                     append(tool.name).append("\n$ ").append(command)
-                    risk?.let { append("\n\nПричина: ").append(it) }
+                    risk?.let { append(str(R.string.reason_format, it)) }
                 },
                 risk = if (risk == null) ApprovalRisk.SHELL else ApprovalRisk.DESTRUCTIVE,
             ),
         )
-        if (!approved) return "Пользователь запретил запуск ${tool.name}"
+        if (!approved) return str(R.string.deny_external_format, tool.name)
         return shell.runOnce(projectId, command, 120_000).take(MAX_TOOL_OUTPUT)
     }
 

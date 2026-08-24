@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NeuroCode</string>
+
+    <!-- Tabs -->
+    <string name="tab_chat">Чат</string>
+    <string name="tab_editor">Код</string>
+    <string name="tab_terminal">Терминал</string>
+    <string name="tab_git">Git</string>
+    <string name="tab_settings">Настройки</string>
+
+    <!-- Top bar -->
+    <string name="project_label">Проект: %1$s</string>
+    <string name="project_none">не выбран</string>
+    <string name="select_model">Выбрать модель</string>
+    <string name="menu_projects">Проекты</string>
+
+    <!-- Project menu -->
+    <string name="menu_new_project">Новый проект</string>
+    <string name="menu_import_folder">Импорт папки</string>
+    <string name="menu_export_project">Экспортировать проект</string>
+    <string name="menu_export_zip">Экспорт в ZIP-архив</string>
+    <string name="menu_link_folder">Привязать папку синхронизации</string>
+    <string name="menu_sync_to">Синхронизировать в папку</string>
+    <string name="menu_sync_from">Синхронизировать из папки</string>
+    <string name="menu_delete_project">Удалить текущий проект</string>
+
+    <!-- Common actions -->
+    <string name="action_allow">Разрешить</string>
+    <string name="action_deny">Запретить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_create">Создать</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_apply">Применить</string>
+    <string name="action_refresh">Обновить</string>
+
+    <!-- Progress dialogs -->
+    <string name="export_title">Экспорт проекта</string>
+    <string name="zip_title">Создание ZIP-архива</string>
+    <string name="sync_from_title">Синхронизация из папки</string>
+    <string name="files_progress">%1$d из %2$d файлов</string>
+    <string name="mb_progress">%1$d из %2$d МБ</string>
+    <string name="preparing">Подготовка…</string>
+
+    <!-- Dialogs -->
+    <string name="new_project_title">Новый проект</string>
+    <string name="label_name">Название</string>
+    <string name="delete_project_title">Удалить проект?</string>
+    <string name="delete_project_text">Проект «%1$s» и его внутренняя копия файлов будут удалены.</string>
+
+    <!-- Empty project -->
+    <string name="empty_project_title">Создайте первый проект</string>
+    <string name="empty_project_text">Файлы будут храниться внутри песочницы NeuroCode. Папку с телефона можно импортировать отдельной копией.</string>
+    <string name="empty_project_import">Импортировать папку</string>
+
+    <!-- Chat screen -->
+    <string name="chip_new">Новый</string>
+    <string name="delete_chat_cd">Удалить диалог</string>
+    <string name="show_agent_actions">Показать действия агента</string>
+    <string name="hide_agent_actions">Скрыть действия агента</string>
+    <string name="copy_dialog_cd">Копировать диалог</string>
+    <string name="hint_agent_input">Опишите задачу для проекта…</string>
+    <string name="hint_message">Сообщение…</string>
+    <string name="stop_cd">Остановить</string>
+    <string name="send_cd">Отправить</string>
+    <string name="copy_message_cd">Копировать сообщение</string>
+    <string name="prefix_user">Вы: %1$s</string>
+    <string name="prefix_agent">Агент: %1$s</string>
+    <string name="prefix_tool">[инструмент %1$s] %2$s</string>
+
+    <!-- Model switcher -->
+    <string name="model_picker_title">Выбор модели</string>
+    <string name="model_picker_subtitle">Следующий запрос продолжит текущий диалог</string>
+    <string name="search_model">Поиск модели</string>
+    <string name="model_not_selected">Модель не выбрана</string>
+    <string name="loading">Загрузка…</string>
+
+    <!-- Empty chat hints -->
+    <string name="empty_local_title">Локальная модель готова к диалогу</string>
+    <string name="empty_local_body">Текущий открытый файл автоматически добавляется в контекст. Локальный режим не использует интернет.</string>
+    <string name="empty_agent_title">Агент готов работать с проектом</string>
+    <string name="empty_agent_body">Он может читать файлы, предлагать изменения, запускать команды и проверять Git diff. Опасные действия требуют подтверждения.</string>
+
+    <!-- Terminal screen -->
+    <string name="clear_cd">Очистить</string>
+    <string name="run_cd">Выполнить</string>
+
+    <!-- Editor screen -->
+    <string name="files_title">Файлы проекта</string>
+    <string name="new_file_cd">Новый файл</string>
+    <string name="new_folder_cd">Новая папка</string>
+    <string name="recents">Недавние</string>
+    <string name="open_files_cd">Открыть файлы</string>
+    <string name="no_file_opened">Файл не открыт</string>
+    <string name="save_cd">Сохранить</string>
+    <string name="open_file_hint">Откройте файл из дерева проекта</string>
+    <string name="new_file_title">Новый файл</string>
+    <string name="new_file_label">Путь, например src/main.py</string>
+    <string name="new_dir_title">Новая папка</string>
+    <string name="new_dir_label">Путь, например src/components</string>
+    <string name="rename_title">Переименовать/переместить</string>
+    <string name="label_new_path">Новый путь</string>
+    <string name="delete_confirm_title">Удалить?</string>
+    <string name="delete_confirm_text">%1$s\n\nКопия сохранится в .neurocode/history.</string>
+    <string name="rename_menu">Переименовать / переместить</string>
+
+    <!-- Git screen -->
+    <string name="branch_format">Ветка: %1$s</string>
+    <string name="git_not_initialized">Git не инициализирован</string>
+    <string name="git_init_hint">Создайте локальный Git-репозиторий для истории изменений и diff.</string>
+    <string name="stage_all"> Индексировать всё</string>
+    <string name="commit">Коммит</string>
+    <string name="staged_diff">Staged diff</string>
+    <string name="changes">Изменения</string>
+    <string name="no_changes">Изменений нет</string>
+    <string name="history">История</string>
+    <string name="no_commits_yet">Коммитов пока нет</string>
+    <string name="remote_title">Remote</string>
+    <string name="origin_not_configured">origin не настроен</string>
+    <string name="repo_url_label">HTTPS URL репозитория</string>
+    <string name="username_label">Имя пользователя</string>
+    <string name="token_label">Токен доступа</string>
+    <string name="token_new_label">Новый токен (пусто — не менять)</string>
+    <string name="connect"> Подключить</string>
+    <string name="clone_new_project">Клонировать в новый проект…</string>
+    <string name="clone_title">Клонировать репозиторий</string>
+    <string name="clone_action">Клонировать</string>
+    <string name="clone_note">Создаст новый проект в песочнице NeuroCode. Токен сохраняется в зашифрованном хранилище.</string>
+    <string name="clean_tree">Рабочее дерево чистое</string>
+    <string name="dirty_tree">Есть изменения</string>
+    <string name="status_new">Новые</string>
+    <string name="status_modified">Изменены</string>
+    <string name="status_staged">В индексе</string>
+    <string name="status_deleted">Удалены</string>
+    <string name="status_conflicts">Конфликты</string>
+    <string name="commit_dialog_title">Создать коммит</string>
+    <string name="message_label">Сообщение</string>
+    <string name="author_name_label">Имя автора</string>
+    <string name="author_email_label">Email автора</string>
+
+    <!-- Settings screen -->
+    <string name="appearance">Оформление</string>
+    <string name="theme_system">Системная</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="work_mode">Режим работы</string>
+    <string name="local_gguf_model">Локальная GGUF-модель</string>
+    <string name="model_not_imported">Модель ещё не импортирована</string>
+    <string name="local_model">Локальная модель</string>
+    <string name="import_gguf"> Импортировать GGUF</string>
+    <string name="replace_gguf"> Заменить GGUF</string>
+    <string name="copying_model">Копирование модели…</string>
+    <string name="gguf_recommendation">Рекомендуются квантованные модели 1–3B. GGUF копируется во внутреннее хранилище; для модели 2 ГБ желательно не менее 6 ГБ RAM.</string>
+    <string name="agent_mode">Режим агента</string>
+    <string name="agent_mode_desc">Разрешает облачной модели использовать файлы, терминал и Git</string>
+    <string name="shell_without_ask">Команды без повторного вопроса</string>
+    <string name="shell_without_ask_desc">Опасные команды всё равно потребуют подтверждения</string>
+    <string name="max_steps_format">Максимум шагов агента: %1$d</string>
+    <string name="post_checks_title">Пост-проверки агента</string>
+    <string name="post_checks_switch">Запускать проверки после правок</string>
+    <string name="post_checks_desc">Команды выполняются в корне проекта после ответа агента (например: npm run lint, npm test)</string>
+    <string name="commands_label">Команды, по одной на строку</string>
+    <string name="commands_support">Выполняются через shell; результат попадает в лог агента</string>
+    <string name="save_commands">Сохранить команды</string>
+    <string name="providers">API-провайдеры</string>
+    <string name="add_provider_cd">Добавить провайдера</string>
+    <string name="edit_cd">Изменить</string>
+    <string name="delete_cd">Удалить</string>
+    <string name="fallback_provider">Резервный провайдер</string>
+    <string name="not_selected">Не выбран</string>
+    <string name="skills_title">Скиллы агента</string>
+    <string name="enable_skills">Включить скиллы</string>
+    <string name="enable_skills_desc">Активные скиллы передаются модели в каждом запросе и сохраняются при смене модели</string>
+    <string name="my_skills_format">Мои скиллы (%1$d)</string>
+    <string name="export">Экспорт</string>
+    <string name="import_action">Импорт</string>
+    <string name="new_skill_cd">Новый скилл</string>
+    <string name="security">Безопасность</string>
+    <string name="security_text">Ключи API шифруются Android Keystore и не записываются в настройки, логи или файлы проекта. Сетевые адреса должны использовать HTTPS.</string>
+    <string name="version_format">NeuroCode Android %1$s · минимальная версия Android 13</string>
+    <string name="delete_provider_title">Удалить %1$s?</string>
+    <string name="delete_provider_text">Конфигурация и сохранённый API-ключ будут удалены.</string>
+    <string name="new_skill_title">Новый скилл</string>
+    <string name="edit_skill_title">Изменить скилл</string>
+    <string name="skill_name_label">Название</string>
+    <string name="skill_prompt_label">Инструкция для модели</string>
+    <string name="skill_prompt_placeholder">Например: всегда пиши тесты после правок</string>
+    <string name="skill_note">Скилл добавляется в системный промпт и действует во всём диалоге, даже если вы смените модель.</string>
+    <string name="provider_dialog_new_title">Новый API-провайдер</string>
+    <string name="provider_dialog_edit_title">Изменить провайдера</string>
+    <string name="base_url_label">Base URL, включая /v1</string>
+    <string name="base_url_support">Адрес обычно оканчивается на /v1</string>
+    <string name="model_id_label">Идентификатор модели</string>
+    <string name="models_list_cd">Список моделей</string>
+    <string name="models_error_format">Не удалось получить список моделей: %1$s</string>
+    <string name="api_key_label">API-ключ</string>
+    <string name="api_key_new_label">Новый API-ключ (необязательно)</string>
+
+    <!-- Runtime environment (proot / LSP) -->
+    <string name="runtime_env">Среда выполнения</string>
+    <string name="linux_env_desc">Устанавливает proot с базой Alpine Linux, чтобы терминал и команды агента работали внутри полноценного Linux-окружения.</string>
+    <string name="linux_status_idle">Linux-окружение: не установлено</string>
+    <string name="linux_status_preparing">Linux-окружение: подготовка…</string>
+    <string name="linux_status_ready">Linux-окружение: готово (proot)</string>
+    <string name="linux_status_unavailable">Linux-окружение: недоступно на этом устройстве</string>
+    <string name="install_linux">Установить Linux-окружение</string>
+    <string name="reset_linux">Сбросить Linux-окружение</string>
+    <string name="lsp_switch">Языковой сервер (LSP)</string>
+    <string name="lsp_desc">Запускает LSP-сервер и показывает диагностики открытого файла. Лучше всего работает после установки Linux-окружения.</string>
+    <string name="lsp_command_label">Команда LSP-сервера</string>
+    <string name="lsp_command_placeholder">pyright-langserver --stdio</string>
+    <string name="diagnostics_title">Диагностики</string>
+    <string name="no_diagnostics">Диагностик нет</string>
+
+    <!-- Notices -->
+    <string name="notice_folder_linked">Папка синхронизации привязана</string>
+    <string name="notice_link_folder_first">Сначала привяжите папку синхронизации</string>
+    <string name="notice_synced_files_format">Синхронизировано файлов: %1$d</string>
+    <string name="notice_from_folder_format">Из папки: добавлено %1$d, обновлено %2$d</string>
+    <string name="notice_skipped_suffix">, пропущено %1$d</string>
+    <string name="notice_select_project_first">Сначала выберите проект</string>
+    <string name="notice_exported_files_format">Экспортировано файлов: %1$d</string>
+    <string name="notice_zip_ready_format">Архив готов: %1$d файлов, %2$d МБ</string>
+    <string name="notice_linux_ready">Linux-окружение установлено</string>
+    <string name="notice_linux_failed">Не удалось установить Linux-окружение</string>
+
+    <!-- Chat statuses and logs -->
+    <string name="status_thinking">Модель думает</string>
+    <string name="error_select_provider">Выберите API-провайдера</string>
+    <string name="error_add_key_format">Добавьте API-ключ для %1$s</string>
+    <string name="log_fallback_format">Основной провайдер «%1$s» недоступен: %2$s. Повторяю запрос через «%3$s».</string>
+    <string name="status_fallback_format">Резервный провайдер: %1$s</string>
+    <string name="status_post_checks_format">Пост-проверки (%1$d)</string>
+    <string name="log_post_checks_start">Запуск пост-проверок после правок агента</string>
+    <string name="log_post_check_run_format">→ пост-проверка: %1$s</string>
+    <string name="log_post_check_result_format">← пост-проверка %1$s: %2$s</string>
+    <string name="post_check_failed">ПРОВАЛ</string>
+    <string name="post_check_ok">ок</string>
+    <string name="error_launch_format">Ошибка запуска: %1$s</string>
+    <string name="error_import_model_first">Сначала импортируйте GGUF-модель</string>
+    <string name="status_loading_model">Загрузка локальной модели</string>
+    <string name="status_local_generation">Локальная генерация</string>
+    <string name="default_session_title">Новый диалог</string>
+
+    <!-- Approvals -->
+    <string name="approve_write_file">Разрешить изменение файла?</string>
+    <string name="approve_replace_file">Разрешить правку файла?</string>
+    <string name="approve_delete_file">Удалить файл?</string>
+    <string name="approve_keep_history">\n\nКопия сохранится в .neurocode/history.</string>
+    <string name="deny_write_format">Пользователь запретил изменение %1$s</string>
+    <string name="deny_edit_format">Пользователь запретил правку %1$s</string>
+    <string name="deny_delete_format">Пользователь запретил удаление %1$s</string>
+    <string name="saved_format">Файл %1$s сохранён (%2$d символов)</string>
+    <string name="edited_format">Файл %1$s изменён (%2$d → %3$d символов)</string>
+    <string name="deleted_format">Файл %1$s удалён, копия в .neurocode/history</string>
+    <string name="approve_command">Разрешить команду?</string>
+    <string name="dangerous_command">Опасная команда</string>
+    <string name="reason_format">\n\nПричина: %1$s</string>
+    <string name="deny_command">Пользователь запретил выполнение команды</string>
+    <string name="unknown_tool_format">Неизвестный инструмент: %1$s</string>
+    <string name="tool_error_format">Ошибка инструмента %1$s: %2$s</string>
+    <string name="external_tool_title">Запустить внешний инструмент?</string>
+    <string name="dangerous_external_tool">Опасный внешний инструмент</string>
+    <string name="deny_external_format">Пользователь запретил запуск %1$s</string>
+
+    <!-- Terminal banners -->
+    <string name="banner_linux_ready">Linux-окружение готово (proot + Alpine).</string>
+    <string name="banner_linux_unavailable">Linux-окружение недоступно, используется Android shell.</string>
+    <string name="banner_linux_active">Linux-окружение: proot готов</string>
+</resources>

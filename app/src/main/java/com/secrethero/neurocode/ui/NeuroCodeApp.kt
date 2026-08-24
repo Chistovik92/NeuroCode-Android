@@ -2,6 +2,7 @@ package com.secrethero.neurocode.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,10 +63,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.ui.screens.ChatScreen
 import com.secrethero.neurocode.ui.screens.EditorScreen
 import com.secrethero.neurocode.ui.screens.GitScreen
@@ -74,14 +77,14 @@ import com.secrethero.neurocode.ui.screens.SettingsScreen
 import com.secrethero.neurocode.ui.screens.TerminalScreen
 
 private enum class MainTab(
-    val title: String,
+    @StringRes val titleRes: Int,
     val icon: ImageVector,
 ) {
-    CHAT("Чат", Icons.AutoMirrored.Filled.Chat),
-    EDITOR("Код", Icons.Default.Code),
-    TERMINAL("Терминал", Icons.Default.Terminal),
-    GIT("Git", Icons.Default.Source),
-    SETTINGS("Настройки", Icons.Default.Settings),
+    CHAT(R.string.tab_chat, Icons.AutoMirrored.Filled.Chat),
+    EDITOR(R.string.tab_editor, Icons.Default.Code),
+    TERMINAL(R.string.tab_terminal, Icons.Default.Terminal),
+    GIT(R.string.tab_git, Icons.Default.Source),
+    SETTINGS(R.string.tab_settings, Icons.Default.Settings),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -173,7 +176,10 @@ fun NeuroCodeApp(
                             maxLines = 1,
                         )
                         Text(
-                            "Проект: ${currentProject?.name ?: "не выбран"}",
+                            stringResource(
+                                R.string.project_label,
+                                currentProject?.name ?: stringResource(R.string.project_none),
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -203,7 +209,7 @@ fun NeuroCodeApp(
                                 settings.useLocalModel ->
                                     settings.localModelName ?: "GGUF"
                                 switcherProvider != null -> switcherProvider.model
-                                else -> "Выбрать модель"
+                                else -> stringResource(R.string.select_model)
                             },
                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                             style = MaterialTheme.typography.labelSmall,
@@ -217,7 +223,7 @@ fun NeuroCodeApp(
                     }
                     Box {
                         IconButton(onClick = { projectMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Проекты")
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.menu_projects))
                         }
                         DropdownMenu(
                             expanded = projectMenu,
@@ -236,7 +242,7 @@ fun NeuroCodeApp(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Новый проект") },
+                                text = { Text(stringResource(R.string.menu_new_project)) },
                                 onClick = {
                                     projectMenu = false
                                     createProjectDialog = true
@@ -244,7 +250,7 @@ fun NeuroCodeApp(
                                 leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                             )
                             DropdownMenuItem(
-                                text = { Text("Импорт папки") },
+                                text = { Text(stringResource(R.string.menu_import_folder)) },
                                 onClick = {
                                     projectMenu = false
                                     importFolder.launch(null)
@@ -255,7 +261,7 @@ fun NeuroCodeApp(
                             )
                             if (currentProject != null) {
                                 DropdownMenuItem(
-                                    text = { Text("Экспортировать проект") },
+                                    text = { Text(stringResource(R.string.menu_export_project)) },
                                     onClick = {
                                         projectMenu = false
                                         exportFolder.launch(null)
@@ -265,7 +271,7 @@ fun NeuroCodeApp(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Экспорт в ZIP-архив") },
+                                    text = { Text(stringResource(R.string.menu_export_zip)) },
                                     onClick = {
                                         projectMenu = false
                                         exportZip.launch("neurocode-project.zip")
@@ -275,7 +281,7 @@ fun NeuroCodeApp(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Привязать папку синхронизации") },
+                                    text = { Text(stringResource(R.string.menu_link_folder)) },
                                     onClick = {
                                         projectMenu = false
                                         linkFolder.launch(null)
@@ -285,7 +291,7 @@ fun NeuroCodeApp(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Синхронизировать в папку") },
+                                    text = { Text(stringResource(R.string.menu_sync_to)) },
                                     onClick = {
                                         projectMenu = false
                                         viewModel.projects.syncToLinkedFolder()
@@ -297,7 +303,7 @@ fun NeuroCodeApp(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Синхронизировать из папки") },
+                                    text = { Text(stringResource(R.string.menu_sync_from)) },
                                     onClick = {
                                         projectMenu = false
                                         viewModel.projects.syncFromLinkedFolder()
@@ -309,7 +315,7 @@ fun NeuroCodeApp(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Удалить текущий проект") },
+                                    text = { Text(stringResource(R.string.menu_delete_project)) },
                                     onClick = {
                                         projectMenu = false
                                         deleteProjectDialog = true
@@ -325,11 +331,12 @@ fun NeuroCodeApp(
             if (!expanded) {
                 NavigationBar {
                     MainTab.entries.forEach { item ->
+                        val label = stringResource(item.titleRes)
                         NavigationBarItem(
                             selected = item == tab,
                             onClick = { tabName = item.name },
-                            icon = { Icon(item.icon, contentDescription = item.title) },
-                            label = { Text(item.title) },
+                            icon = { Icon(item.icon, contentDescription = label) },
+                            label = { Text(label) },
                         )
                     }
                 }
@@ -356,11 +363,12 @@ fun NeuroCodeApp(
                 Row(Modifier.fillMaxSize().padding(padding)) {
                     NavigationRail {
                         MainTab.entries.forEach { item ->
+                            val label = stringResource(item.titleRes)
                             NavigationRailItem(
                                 selected = item == tab,
                                 onClick = { tabName = item.name },
-                                icon = { Icon(item.icon, contentDescription = item.title) },
-                                label = { Text(item.title) },
+                                icon = { Icon(item.icon, contentDescription = label) },
+                                label = { Text(label) },
                             )
                         }
                     }
@@ -383,12 +391,12 @@ fun NeuroCodeApp(
             text = { Text(request.details) },
             confirmButton = {
                 Button(onClick = { viewModel.chat.approveTool(true) }) {
-                    Text("Разрешить")
+                    Text(stringResource(R.string.action_allow))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.chat.approveTool(false) }) {
-                    Text("Запретить")
+                    Text(stringResource(R.string.action_deny))
                 }
             },
         )
@@ -397,7 +405,7 @@ fun NeuroCodeApp(
     exportProgress?.let { (copied, total) ->
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("Экспорт проекта") },
+            title = { Text(stringResource(R.string.export_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (total > 0) {
@@ -405,10 +413,10 @@ fun NeuroCodeApp(
                             progress = { copied.toFloat() / total },
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Text("$copied из $total файлов")
+                        Text(stringResource(R.string.files_progress, copied, total))
                     } else {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
-                        Text("Подготовка…")
+                        Text(stringResource(R.string.preparing))
                     }
                 }
             },
@@ -419,7 +427,7 @@ fun NeuroCodeApp(
     zipProgress?.let { (written, total) ->
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("Создание ZIP-архива") },
+            title = { Text(stringResource(R.string.zip_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (total > 0) {
@@ -429,10 +437,10 @@ fun NeuroCodeApp(
                             },
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Text("${written / 1024 / 1024} из ${total / 1024 / 1024} МБ")
+                        Text(stringResource(R.string.mb_progress, written / 1024 / 1024, total / 1024 / 1024))
                     } else {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
-                        Text("Подготовка…")
+                        Text(stringResource(R.string.preparing))
                     }
                 }
             },
@@ -443,7 +451,7 @@ fun NeuroCodeApp(
     syncProgress?.let { (done, total) ->
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("Синхронизация из папки") },
+            title = { Text(stringResource(R.string.sync_from_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (total > 0) {
@@ -451,7 +459,7 @@ fun NeuroCodeApp(
                             progress = { done.toFloat() / total },
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Text("$done из $total файлов")
+                        Text(stringResource(R.string.files_progress, done, total))
                     } else {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
                     }
@@ -463,10 +471,10 @@ fun NeuroCodeApp(
 
     if (createProjectDialog) {
         TextInputDialog(
-            title = "Новый проект",
-            label = "Название",
+            title = stringResource(R.string.new_project_title),
+            label = stringResource(R.string.label_name),
             initialValue = "",
-            confirmLabel = "Создать",
+            confirmLabel = stringResource(R.string.action_create),
             onDismiss = { createProjectDialog = false },
             onConfirm = {
                 viewModel.projects.createProject(it)
@@ -478,9 +486,9 @@ fun NeuroCodeApp(
     if (deleteProjectDialog && currentProject != null) {
         AlertDialog(
             onDismissRequest = { deleteProjectDialog = false },
-            title = { Text("Удалить проект?") },
+            title = { Text(stringResource(R.string.delete_project_title)) },
             text = {
-                Text("Проект «${currentProject.name}» и его внутренняя копия файлов будут удалены.")
+                Text(stringResource(R.string.delete_project_text, currentProject.name))
             },
             confirmButton = {
                 Button(
@@ -488,11 +496,11 @@ fun NeuroCodeApp(
                         viewModel.projects.deleteProject(currentProject.id)
                         deleteProjectDialog = false
                     },
-                ) { Text("Удалить") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
                 TextButton(onClick = { deleteProjectDialog = false }) {
-                    Text("Отмена")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
@@ -534,13 +542,13 @@ private fun EmptyProjectScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Icon(Icons.Default.Code, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Text("Создайте первый проект", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.empty_project_title), style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Файлы будут храниться внутри песочницы NeuroCode. Папку с телефона можно импортировать отдельной копией.",
+                stringResource(R.string.empty_project_text),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(onClick = onCreate) { Text("Новый проект") }
-            FilledTonalButton(onClick = onImport) { Text("Импортировать папку") }
+            Button(onClick = onCreate) { Text(stringResource(R.string.menu_new_project)) }
+            FilledTonalButton(onClick = onImport) { Text(stringResource(R.string.empty_project_import)) }
         }
     }
 }
@@ -573,9 +581,10 @@ fun TextInputDialog(
             ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
+
 
 

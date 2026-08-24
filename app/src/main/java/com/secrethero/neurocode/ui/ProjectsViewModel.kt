@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.model.Project
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,7 +74,7 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
             container.settings.update {
                 it.copy(linkedFolderByProject = it.linkedFolderByProject + (projectId to uri.toString()))
             }
-            container.bus.showNotice("Папка синхронизации привязана")
+            container.bus.showNotice(str(R.string.notice_folder_linked))
         }.onFailure(container.bus::showError)
     }
 
@@ -81,13 +82,13 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
         val projectId = settings.value.selectedProjectId ?: return@launch
         val stored = settings.value.linkedFolderByProject[projectId]
         if (stored == null) {
-            container.bus.showNotice("Сначала привяжите папку синхронизации")
+            container.bus.showNotice(str(R.string.notice_link_folder_first))
             return@launch
         }
         try {
             _syncBusy.value = true
             val count = container.projects.exportTree(projectId, Uri.parse(stored)) { _, _ -> }
-            container.bus.showNotice("Синхронизировано файлов: $count")
+            container.bus.showNotice(str(R.string.notice_synced_files_format, count))
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
@@ -101,7 +102,7 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
         val projectId = settings.value.selectedProjectId ?: return@launch
         val stored = settings.value.linkedFolderByProject[projectId]
         if (stored == null) {
-            container.bus.showNotice("Сначала привяжите папку синхронизации")
+            container.bus.showNotice(str(R.string.notice_link_folder_first))
             return@launch
         }
         try {
@@ -111,8 +112,12 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
                 _syncProgress.value = done to total
             }
             container.bus.showNotice(
-                "Из папки: добавлено ${result.added}, обновлено ${result.updated}" +
-                    if (result.skipped > 0) ", пропущено ${result.skipped}" else "",
+                str(R.string.notice_from_folder_format, result.added, result.updated) +
+                    if (result.skipped > 0) {
+                        str(R.string.notice_skipped_suffix, result.skipped)
+                    } else {
+                        ""
+                    },
             )
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
@@ -127,7 +132,7 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
     fun exportProject(uri: Uri) = viewModelScope.launch {
         val projectId = settings.value.selectedProjectId
         if (projectId == null) {
-            container.bus.showNotice("Сначала выберите проект")
+            container.bus.showNotice(str(R.string.notice_select_project_first))
             return@launch
         }
         runCatching {
@@ -135,7 +140,7 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
             val count = container.projects.exportTree(projectId, uri) { copied, total ->
                 _exportProgress.value = copied to total
             }
-            container.bus.showNotice("Экспортировано файлов: $count")
+            container.bus.showNotice(str(R.string.notice_exported_files_format, count))
         }.onFailure(container.bus::showError)
         _exportProgress.value = null
     }
@@ -143,7 +148,7 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
     fun exportProjectZip(uri: Uri) = viewModelScope.launch {
         val projectId = settings.value.selectedProjectId
         if (projectId == null) {
-            container.bus.showNotice("Сначала выберите проект")
+            container.bus.showNotice(str(R.string.notice_select_project_first))
             return@launch
         }
         runCatching {
@@ -152,11 +157,14 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
                 _zipProgress.value = written to total
             }
             container.bus.showNotice(
-                "Архив готов: ${result.files} файлов, ${result.bytes / BYTES_PER_MB} МБ",
+                str(R.string.notice_zip_ready_format, result.files, result.bytes / BYTES_PER_MB),
             )
         }.onFailure(container.bus::showError)
         _zipProgress.value = null
     }
+
+    private fun str(resId: Int, vararg args: Any?): String =
+        context.getString(resId, *args)
 
     private companion object {
         private const val BYTES_PER_MB = 1024L * 1024L

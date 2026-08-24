@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ExternalAgentTool
@@ -97,6 +98,35 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setFallbackProvider(providerId: String?) = updateSettings { it.copy(fallbackProviderId = providerId) }
+
+    val prootState = container.prootManager.state
+
+    val lspDiagnostics = container.lsp.diagnostics
+
+    fun setLspEnabled(enabled: Boolean) = updateSettings { it.copy(lspEnabled = enabled) }
+
+    fun setLspCommand(raw: String) = updateSettings {
+        it.copy(lspCommand = raw.trim())
+    }
+
+    fun installLinuxEnvironment() = viewModelScope.launch {
+        runCatching {
+            val ok = container.prootManager.initialize()
+            if (ok) {
+                container.bus.showNotice(
+                    getApplication<Application>().getString(R.string.notice_linux_ready),
+                )
+            } else {
+                container.bus.showNotice(
+                    getApplication<Application>().getString(R.string.notice_linux_failed),
+                )
+            }
+        }.onFailure(container.bus::showError)
+    }
+
+    fun resetLinuxEnvironment() {
+        container.prootManager.reset()
+    }
 
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 

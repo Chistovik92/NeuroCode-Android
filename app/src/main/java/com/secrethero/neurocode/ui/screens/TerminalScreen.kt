@@ -29,12 +29,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.ui.TerminalViewModel
 
 @Composable
@@ -62,10 +64,10 @@ fun TerminalScreen(terminal: TerminalViewModel) {
             horizontalArrangement = Arrangement.End,
         ) {
             IconButton(onClick = terminal::interruptTerminal) {
-                Icon(Icons.Default.Stop, contentDescription = "Остановить", tint = Color(0xFFFF6B6B))
+                Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop_cd), tint = Color(0xFFFF6B6B))
             }
             IconButton(onClick = terminal::clearTerminal) {
-                Icon(Icons.Default.ClearAll, contentDescription = "Очистить", tint = Color(0xFFB9C2CF))
+                Icon(Icons.Default.ClearAll, contentDescription = stringResource(R.string.clear_cd), tint = Color(0xFFB9C2CF))
             }
         }
         LazyColumn(
@@ -124,7 +126,7 @@ fun TerminalScreen(terminal: TerminalViewModel) {
                     }
                 },
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Выполнить", tint = Color(0xFF7EE787))
+                Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.run_cd), tint = Color(0xFF7EE787))
             }
         }
     }

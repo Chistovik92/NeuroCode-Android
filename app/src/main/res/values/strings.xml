@@ -1,3 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NeuroCode</string>
+
+    <!-- Tabs -->
+    <string name="tab_chat">Chat</string>
+    <string name="tab_editor">Code</string>
+    <string name="tab_terminal">Terminal</string>
+    <string name="tab_git">Git</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Top bar -->
+    <string name="project_label">Project: %1$s</string>
+    <string name="project_none">no project selected</string>
+    <string name="select_model">Select model</string>
+    <string name="menu_projects">Projects</string>
+
+    <!-- Project menu -->
+    <string name="menu_new_project">New project</string>
+    <string name="menu_import_folder">Import folder</string>
+    <string name="menu_export_project">Export project</string>
+    <string name="menu_export_zip">Export as ZIP archive</string>
+    <string name="menu_link_folder">Link sync folder</string>
+    <string name="menu_sync_to">Sync to folder</string>
+    <string name="menu_sync_from">Sync from folder</string>
+    <string name="menu_delete_project">Delete current project</string>
+
+    <!-- Common actions -->
+    <string name="action_allow">Allow</string>
+    <string name="action_deny">Deny</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_create">Create</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_save">Save</string>
+    <string name="action_close">Close</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_refresh">Refresh</string>
+
+    <!-- Progress dialogs -->
+    <string name="export_title">Project export</string>
+    <string name="zip_title">Creating ZIP archive</string>
+    <string name="sync_from_title">Syncing from folder</string>
+    <string name="files_progress">%1$d of %2$d files</string>
+    <string name="mb_progress">%1$d of %2$d MB</string>
+    <string name="preparing">Preparing…</string>
+
+    <!-- Dialogs -->
+    <string name="new_project_title">New project</string>
+    <string name="label_name">Name</string>
+    <string name="delete_project_title">Delete project?</string>
+    <string name="delete_project_text">Project “%1$s” and its internal copy of files will be deleted.</string>
+
+    <!-- Empty project -->
+    <string name="empty_project_title">Create your first project</string>
+    <string name="empty_project_text">Files will be stored inside the NeuroCode sandbox. A phone folder can be imported as a separate copy.</string>
+    <string name="empty_project_import">Import folder</string>
+
+    <!-- Chat screen -->
+    <string name="chip_new">New</string>
+    <string name="delete_chat_cd">Delete chat</string>
+    <string name="show_agent_actions">Show agent actions</string>
+    <string name="hide_agent_actions">Hide agent actions</string>
+    <string name="copy_dialog_cd">Copy conversation</string>
+    <string name="hint_agent_input">Describe a task for the project…</string>
+    <string name="hint_message">Message…</string>
+    <string name="stop_cd">Stop</string>
+    <string name="send_cd">Send</string>
+    <string name="copy_message_cd">Copy message</string>
+    <string name="prefix_user">You: %1$s</string>
+    <string name="prefix_agent">Agent: %1$s</string>
+    <string name="prefix_tool">[tool %1$s] %2$s</string>
+
+    <!-- Model switcher -->
+    <string name="model_picker_title">Model selection</string>
+    <string name="model_picker_subtitle">The next request will continue the current conversation</string>
+    <string name="search_model">Search models</string>
+    <string name="model_not_selected">No model selected</string>
+    <string name="loading">Loading…</string>
+
+    <!-- Empty chat hints -->
+    <string name="empty_local_title">Local model is ready to chat</string>
+    <string name="empty_local_body">The currently open file is added to the context automatically. Local mode does not use the network.</string>
+    <string name="empty_agent_title">The agent is ready to work on your project</string>
+    <string name="empty_agent_body">It can read files, propose edits, run commands and inspect Git diffs. Dangerous actions require confirmation.</string>
+
+    <!-- Terminal screen -->
+    <string name="clear_cd">Clear</string>
+    <string name="run_cd">Run</string>
+
+    <!-- Editor screen -->
+    <string name="files_title">Project files</string>
+    <string name="new_file_cd">New file</string>
+    <string name="new_folder_cd">New folder</string>
+    <string name="recents">Recent</string>
+    <string name="open_files_cd">Open files</string>
+    <string name="no_file_opened">No file opened</string>
+    <string name="save_cd">Save</string>
+    <string name="open_file_hint">Open a file from the project tree</string>
+    <string name="new_file_title">New file</string>
+    <string name="new_file_label">Path, e.g. src/main.py</string>
+    <string name="new_dir_title">New folder</string>
+    <string name="new_dir_label">Path, e.g. src/components</string>
+    <string name="rename_title">Rename/move</string>
+    <string name="label_new_path">New path</string>
+    <string name="delete_confirm_title">Delete?</string>
+    <string name="delete_confirm_text">%1$s\n\nA copy will be kept in .neurocode/history.</string>
+    <string name="rename_menu">Rename / move</string>
+
+    <!-- Git screen -->
+    <string name="branch_format">Branch: %1$s</string>
+    <string name="git_not_initialized">Git is not initialized</string>
+    <string name="git_init_hint">Create a local Git repository for history and diffs.</string>
+    <string name="stage_all"> Stage all</string>
+    <string name="commit">Commit</string>
+    <string name="staged_diff">Staged diff</string>
+    <string name="changes">Changes</string>
+    <string name="no_changes">No changes</string>
+    <string name="history">History</string>
+    <string name="no_commits_yet">No commits yet</string>
+    <string name="remote_title">Remote</string>
+    <string name="origin_not_configured">origin is not configured</string>
+    <string name="repo_url_label">Repository HTTPS URL</string>
+    <string name="username_label">Username</string>
+    <string name="token_label">Access token</string>
+    <string name="token_new_label">New token (leave empty to keep)</string>
+    <string name="connect"> Connect</string>
+    <string name="clone_new_project">Clone into a new project…</string>
+    <string name="clone_title">Clone repository</string>
+    <string name="clone_action">Clone</string>
+    <string name="clone_note">Creates a new project inside the NeuroCode sandbox. The token is stored in encrypted storage.</string>
+    <string name="clean_tree">Working tree is clean</string>
+    <string name="dirty_tree">There are changes</string>
+    <string name="status_new">New</string>
+    <string name="status_modified">Modified</string>
+    <string name="status_staged">Staged</string>
+    <string name="status_deleted">Deleted</string>
+    <string name="status_conflicts">Conflicts</string>
+    <string name="commit_dialog_title">Create commit</string>
+    <string name="message_label">Message</string>
+    <string name="author_name_label">Author name</string>
+    <string name="author_email_label">Author email</string>
+
+    <!-- Settings screen -->
+    <string name="appearance">Appearance</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="work_mode">Work mode</string>
+    <string name="local_gguf_model">Local GGUF model</string>
+    <string name="model_not_imported">Model has not been imported yet</string>
+    <string name="local_model">Local model</string>
+    <string name="import_gguf"> Import GGUF</string>
+    <string name="replace_gguf"> Replace GGUF</string>
+    <string name="copying_model">Copying model…</string>
+    <string name="gguf_recommendation">Quantized 1–3B models are recommended. GGUF is copied to internal storage; for a 2 GB model at least 6 GB RAM is desirable.</string>
+    <string name="agent_mode">Agent mode</string>
+    <string name="agent_mode_desc">Lets the cloud model use files, the terminal and Git</string>
+    <string name="shell_without_ask">Commands without re-asking</string>
+    <string name="shell_without_ask_desc">Dangerous commands will still require confirmation</string>
+    <string name="max_steps_format">Max agent steps: %1$d</string>
+    <string name="post_checks_title">Agent post-checks</string>
+    <string name="post_checks_switch">Run checks after edits</string>
+    <string name="post_checks_desc">Commands run in the project root after the agent replies (e.g.: npm run lint, npm test)</string>
+    <string name="commands_label">Commands, one per line</string>
+    <string name="commands_support">Executed through the shell; the result goes to the agent log</string>
+    <string name="save_commands">Save commands</string>
+    <string name="providers">API providers</string>
+    <string name="add_provider_cd">Add provider</string>
+    <string name="edit_cd">Edit</string>
+    <string name="delete_cd">Delete</string>
+    <string name="fallback_provider">Fallback provider</string>
+    <string name="not_selected">Not selected</string>
+    <string name="skills_title">Agent skills</string>
+    <string name="enable_skills">Enable skills</string>
+    <string name="enable_skills_desc">Active skills are sent to the model with every request and survive model switches</string>
+    <string name="my_skills_format">My skills (%1$d)</string>
+    <string name="export">Export</string>
+    <string name="import_action">Import</string>
+    <string name="new_skill_cd">New skill</string>
+    <string name="security">Security</string>
+    <string name="security_text">API keys are encrypted by Android Keystore and never written to settings, logs or project files. Network addresses must use HTTPS.</string>
+    <string name="version_format">NeuroCode Android %1$s · requires Android 13+</string>
+    <string name="delete_provider_title">Delete %1$s?</string>
+    <string name="delete_provider_text">The configuration and saved API key will be removed.</string>
+    <string name="new_skill_title">New skill</string>
+    <string name="edit_skill_title">Edit skill</string>
+    <string name="skill_name_label">Name</string>
+    <string name="skill_prompt_label">Instruction for the model</string>
+    <string name="skill_prompt_placeholder">For example: always write tests after edits</string>
+    <string name="skill_note">The skill is appended to the system prompt and applies to the whole conversation, even if you switch models.</string>
+    <string name="provider_dialog_new_title">New API provider</string>
+    <string name="provider_dialog_edit_title">Edit provider</string>
+    <string name="base_url_label">Base URL, including /v1</string>
+    <string name="base_url_support">The address usually ends with /v1</string>
+    <string name="model_id_label">Model identifier</string>
+    <string name="models_list_cd">Model list</string>
+    <string name="models_error_format">Failed to fetch model list: %1$s</string>
+    <string name="api_key_label">API key</string>
+    <string name="api_key_new_label">New API key (optional)</string>
+
+    <!-- Runtime environment (proot / LSP) -->
+    <string name="runtime_env">Runtime environment</string>
+    <string name="linux_env_desc">Installs proot with an Alpine Linux base so the terminal and agent commands run inside a full user-space Linux environment.</string>
+    <string name="linux_status_idle">Linux environment: not installed</string>
+    <string name="linux_status_preparing">Linux environment: preparing…</string>
+    <string name="linux_status_ready">Linux environment: ready (proot)</string>
+    <string name="linux_status_unavailable">Linux environment: unavailable on this device</string>
+    <string name="install_linux">Install Linux environment</string>
+    <string name="reset_linux">Reset Linux environment</string>
+    <string name="lsp_switch">Language Server Protocol (LSP)</string>
+    <string name="lsp_desc">Runs an LSP server command and shows diagnostics for the open file. Works best when the Linux environment is installed.</string>
+    <string name="lsp_command_label">LSP server command</string>
+    <string name="lsp_command_placeholder">pyright-langserver --stdio</string>
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="no_diagnostics">No diagnostics</string>
+
+    <!-- Notices -->
+    <string name="notice_folder_linked">Sync folder linked</string>
+    <string name="notice_link_folder_first">Link a sync folder first</string>
+    <string name="notice_synced_files_format">Files synced: %1$d</string>
+    <string name="notice_from_folder_format">From folder: added %1$d, updated %2$d</string>
+    <string name="notice_skipped_suffix">, skipped %1$d</string>
+    <string name="notice_select_project_first">Select a project first</string>
+    <string name="notice_exported_files_format">Files exported: %1$d</string>
+    <string name="notice_zip_ready_format">Archive ready: %1$d files, %2$d MB</string>
+    <string name="notice_linux_ready">Linux environment installed</string>
+    <string name="notice_linux_failed">Could not install the Linux environment</string>
+
+    <!-- Chat statuses and logs -->
+    <string name="status_thinking">Model is thinking</string>
+    <string name="error_select_provider">Select an API provider</string>
+    <string name="error_add_key_format">Add an API key for %1$s</string>
+    <string name="log_fallback_format">Primary provider “%1$s” is unavailable: %2$s. Retrying via “%3$s”.</string>
+    <string name="status_fallback_format">Fallback provider: %1$s</string>
+    <string name="status_post_checks_format">Post-checks (%1$d)</string>
+    <string name="log_post_checks_start">Running post-checks after agent edits</string>
+    <string name="log_post_check_run_format">→ post-check: %1$s</string>
+    <string name="log_post_check_result_format">← post-check %1$s: %2$s</string>
+    <string name="post_check_failed">FAILED</string>
+    <string name="post_check_ok">ok</string>
+    <string name="error_launch_format">Launch error: %1$s</string>
+    <string name="error_import_model_first">Import a GGUF model first</string>
+    <string name="status_loading_model">Loading local model</string>
+    <string name="status_local_generation">Local generation</string>
+    <string name="default_session_title">New chat</string>
+
+    <!-- Approvals -->
+    <string name="approve_write_file">Allow file modification?</string>
+    <string name="approve_replace_file">Allow file edit?</string>
+    <string name="approve_delete_file">Delete file?</string>
+    <string name="approve_keep_history">\n\nA copy will be kept in .neurocode/history.</string>
+    <string name="deny_write_format">User denied modification of %1$s</string>
+    <string name="deny_edit_format">User denied editing %1$s</string>
+    <string name="deny_delete_format">User denied deletion of %1$s</string>
+    <string name="saved_format">File %1$s saved (%2$d characters)</string>
+    <string name="edited_format">File %1$s edited (%2$d → %3$d characters)</string>
+    <string name="deleted_format">File %1$s deleted, copy in .neurocode/history</string>
+    <string name="approve_command">Allow command?</string>
+    <string name="dangerous_command">Dangerous command</string>
+    <string name="reason_format">\n\nReason: %1$s</string>
+    <string name="deny_command">User denied command execution</string>
+    <string name="unknown_tool_format">Unknown tool: %1$s</string>
+    <string name="tool_error_format">Tool error %1$s: %2$s</string>
+    <string name="external_tool_title">Run external tool?</string>
+    <string name="dangerous_external_tool">Dangerous external tool</string>
+    <string name="deny_external_format">User denied running %1$s</string>
+
+    <!-- Terminal banners -->
+    <string name="banner_linux_ready">Linux environment ready (proot + Alpine).</string>
+    <string name="banner_linux_unavailable">Linux environment unavailable, using the Android shell.</string>
+    <string name="banner_linux_active">Linux environment: proot ready</string>
 </resources>

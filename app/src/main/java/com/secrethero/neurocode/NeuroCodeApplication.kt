@@ -9,7 +9,9 @@ import com.secrethero.neurocode.data.ChatRepository
 import com.secrethero.neurocode.data.ProjectRepository
 import com.secrethero.neurocode.data.SettingsRepository
 import com.secrethero.neurocode.git.GitRepository
+import com.secrethero.neurocode.lsp.LspController
 import com.secrethero.neurocode.terminal.ApprovalGate
+import com.secrethero.neurocode.terminal.ProotManager
 import com.secrethero.neurocode.terminal.ShellSession
 import com.secrethero.neurocode.ui.UiMessageBus
 import kotlinx.coroutines.CoroutineScope
@@ -22,11 +24,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class NeuroCodeApplication : Application() {
+    companion object {
+        var instance: NeuroCodeApplication? = null
+            private set
+    }
+
     lateinit var container: AppContainer
         private set
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         container = AppContainer(this)
     }
 }
@@ -39,12 +47,14 @@ class AppContainer(application: Application) {
     val projects = ProjectRepository(application)
     val chats = ChatRepository(application)
     val git = GitRepository(projects)
-    val shell = ShellSession(projects)
+    val prootManager = ProotManager(application)
+    val shell = ShellSession(projects, prootManager, application)
     val approvals = ApprovalGate()
     val apiClient = OpenAiCompatibleClient()
-    val agentTools = AgentTools(projects, git, shell, approvals)
+    val agentTools = AgentTools(application, projects, git, shell, approvals)
     val agent = AgentOrchestrator(apiClient, agentTools)
     val localLlama = LocalLlamaClient(application)
+    val lsp = LspController(prootManager, settings.settings)
 
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
@@ -64,10 +74,12 @@ class AppContainer(application: Application) {
             }.onFailure(bus::showError)
             _ready.value = true
         }
+        scope.launch { runCatching { prootManager.initialize() } }
     }
 
     fun close() {
         shell.close()
+        lsp.close()
         scope.cancel()
     }
 }

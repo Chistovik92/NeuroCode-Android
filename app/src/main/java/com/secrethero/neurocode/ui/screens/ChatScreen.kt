@@ -50,8 +50,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -59,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatRunState
 import com.secrethero.neurocode.model.MessageRole
@@ -108,7 +111,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 item {
                     AssistChip(
                         onClick = chat::newChat,
-                        label = { Text("Новый") },
+                        label = { Text(stringResource(R.string.chip_new)) },
                         leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                     )
                 }
@@ -132,7 +135,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                                 ) {
                                     Icon(
                                         Icons.Default.Delete,
-                                        contentDescription = "Удалить диалог",
+                                        contentDescription = stringResource(R.string.delete_chat_cd),
                                         modifier = Modifier.size(16.dp),
                                     )
                                 }
@@ -173,7 +176,13 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         ) {
                             Column(Modifier.padding(10.dp)) {
                                 TextButton(onClick = { showLog = !showLog }) {
-                                    Text(if (showLog) "Скрыть действия агента" else "Показать действия агента")
+                                    Text(
+                                        if (showLog) {
+                                            stringResource(R.string.hide_agent_actions)
+                                        } else {
+                                            stringResource(R.string.show_agent_actions)
+                                        },
+                                    )
                                 }
                                 if (showLog) {
                                     agentLog.forEach {
@@ -229,13 +238,20 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                     verticalAlignment = Alignment.Bottom,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    val context = LocalContext.current
                     IconButton(
                         onClick = {
                             val text = messages.joinToString("\n\n") { message ->
                                 when (message.role) {
-                                    MessageRole.USER -> "Вы: ${message.content}"
-                                    MessageRole.ASSISTANT -> "Агент: ${message.content}"
-                                    MessageRole.TOOL -> "[инструмент ${message.toolName ?: ""}] ${message.content}"
+                                    MessageRole.USER ->
+                                        context.getString(R.string.prefix_user, message.content)
+                                    MessageRole.ASSISTANT ->
+                                        context.getString(R.string.prefix_agent, message.content)
+                                    MessageRole.TOOL -> context.getString(
+                                        R.string.prefix_tool,
+                                        message.toolName ?: "",
+                                        message.content,
+                                    )
                                     MessageRole.SYSTEM -> message.content
                                 }
                             }
@@ -243,7 +259,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         },
                         enabled = messages.isNotEmpty(),
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Копировать диалог")
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy_dialog_cd))
                     }
                     OutlinedTextField(
                         value = input,
@@ -252,9 +268,9 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         placeholder = {
                             Text(
                                 if (settings.agentMode && !settings.useLocalModel) {
-                                    "Опишите задачу для проекта…"
+                                    stringResource(R.string.hint_agent_input)
                                 } else {
-                                    "Сообщение…"
+                                    stringResource(R.string.hint_message)
                                 },
                             )
                         },
@@ -274,7 +290,11 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                     ) {
                         Icon(
                             if (busy) Icons.Default.Stop else Icons.AutoMirrored.Filled.Send,
-                            contentDescription = if (busy) "Остановить" else "Отправить",
+                            contentDescription = if (busy) {
+                                stringResource(R.string.stop_cd)
+                            } else {
+                                stringResource(R.string.send_cd)
+                            },
                         )
                     }
                 }
@@ -316,14 +336,14 @@ fun ModelSwitcherDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Выбор модели", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.model_picker_title), fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Следующий запрос продолжит текущий диалог",
+                            stringResource(R.string.model_picker_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    TextButton(onClick = onDismiss) { Text("Закрыть") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
                 }
                 LazyRow(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -340,7 +360,7 @@ fun ModelSwitcherDialog(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("Поиск модели") },
+                    label = { Text(stringResource(R.string.search_model)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -353,13 +373,19 @@ fun ModelSwitcherDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        provider?.model ?: "Модель не выбрана",
+                        provider?.model ?: stringResource(R.string.model_not_selected),
                         fontFamily = FontFamily.Monospace,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.weight(1f),
                     )
                     TextButton(onClick = { provider?.let(onRefresh) }) {
-                        Text(if (state?.loading == true) "Загрузка…" else "Обновить")
+                        Text(
+                            if (state?.loading == true) {
+                                stringResource(R.string.loading)
+                            } else {
+                                stringResource(R.string.action_refresh)
+                            },
+                        )
                     }
                 }
                 state?.error?.let {
@@ -421,7 +447,7 @@ private fun MessageBubble(message: ChatMessage, onCopy: () -> Unit) {
             IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
                 Icon(
                     Icons.Default.ContentCopy,
-                    contentDescription = "Копировать сообщение",
+                    contentDescription = stringResource(R.string.copy_message_cd),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )
@@ -470,15 +496,19 @@ private fun EmptyChatHint(local: Boolean) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            if (local) "Локальная модель готова к диалогу" else "Агент готов работать с проектом",
+            if (local) {
+                stringResource(R.string.empty_local_title)
+            } else {
+                stringResource(R.string.empty_agent_title)
+            },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
             if (local) {
-                "Текущий открытый файл автоматически добавляется в контекст. Локальный режим не использует интернет."
+                stringResource(R.string.empty_local_body)
             } else {
-                "Он может читать файлы, предлагать изменения, запускать команды и проверять Git diff. Опасные действия требуют подтверждения."
+                stringResource(R.string.empty_agent_body)
             },
             style = MaterialTheme.typography.bodyMedium,
         )

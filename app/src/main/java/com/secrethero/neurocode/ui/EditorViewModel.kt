@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
+import com.secrethero.neurocode.lsp.LspDiagnostic
 import com.secrethero.neurocode.model.FileNode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.io.File
 
 class EditorViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container
@@ -28,6 +30,8 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     val editorDirty: StateFlow<Boolean> = _editorDirty.asStateFlow()
     private val recentFiles = MutableStateFlow<List<String>>(emptyList())
 
+    val lspDiagnostics: StateFlow<List<LspDiagnostic>> = container.lsp.diagnostics
+
     private var loadedProjectId: String? = null
 
     init {
@@ -43,6 +47,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         if (loadedProjectId != null && projectId != loadedProjectId && _editorDirty.value) {
             saveOpenFileInternal(loadedProjectId)
         }
+        container.lsp.onProjectChanged()
         loadedProjectId = projectId
         _openPath.value = null
         _editorText.value = ""
@@ -68,7 +73,14 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             _openPath.value = path
             _editorDirty.value = false
             rememberRecent(projectId, path)
+            notifyLspOpened(projectId, path)
         }.onFailure(bus::showError)
+    }
+
+    private suspend fun notifyLspOpened(projectId: String, path: String) {
+        val root = container.projects.get(projectId)?.rootPath ?: return
+        val file = File(root)
+        container.lsp.onFileOpened(file, path, _editorText.value)
     }
 
     private suspend fun rememberRecent(projectId: String, path: String) {
@@ -98,6 +110,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         runCatching {
             container.projects.deleteEntry(projectId, path)
             if (_openPath.value == path || _openPath.value?.startsWith("$path/") == true) {
+                container.lsp.onFileClosed()
                 _openPath.value = null
                 _editorText.value = ""
                 _editorDirty.value = false
@@ -110,6 +123,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         if (_editorText.value != value) {
             _editorText.value = value
             _editorDirty.value = true
+            _openPath.value?.let { container.lsp.onTextChanged(it, value) }
         }
     }
 
@@ -142,6 +156,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         if (!_editorDirty.value) return
         container.projects.writeText(projectId ?: return, path, _editorText.value)
         _editorDirty.value = false
+        container.lsp.onFileSaved(path, _editorText.value)
     }
 
     private suspend fun refreshTree(projectId: String?) {

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.ai.AgentEvent
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ChatMessage
@@ -88,7 +89,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 val history = container.chats.get(sessionId)?.messages.orEmpty()
                 _streamingResponse.value = ""
                 _agentLog.value = emptyList()
-                _chatRunState.value = ChatRunState.Working("Модель думает")
+                _chatRunState.value = ChatRunState.Working(str(R.string.status_thinking))
 
                 val answer = if (settings.value.useLocalModel) {
                     runLocal(sessionId, text.trim(), editorContext)
@@ -126,9 +127,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun runCloud(sessionId: String, history: List<ChatMessage>): String {
         val current = settings.value
         val provider = current.providers.firstOrNull { it.id == current.selectedProviderId }
-            ?: error("Выберите API-провайдера")
+            ?: error(str(R.string.error_select_provider))
         val key = container.settings.apiKey(provider)
-            ?: error("Добавьте API-ключ для ${provider.name}")
+            ?: error(str(R.string.error_add_key_format, provider.name))
         val project = container.projects.get(current.selectedProjectId)
         val skills = if (current.skillsEnabled) {
             current.skills.filter { it.enabled }.map { "${it.name}: ${it.prompt}" }
@@ -145,11 +146,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             val fallback = fallbackProvider(current, provider.id) ?: throw primaryError
             val fallbackKey = container.settings.apiKey(fallback) ?: throw primaryError
             appendAgentLog(
-                "Основной провайдер «${provider.name}» недоступен: " +
-                    "${primaryError.message ?: primaryError::class.java.simpleName}. " +
-                    "Повторяю запрос через «${fallback.name}».",
+                str(
+                    R.string.log_fallback_format,
+                    provider.name,
+                    primaryError.message ?: primaryError::class.java.simpleName,
+                    fallback.name,
+                ),
             )
-            _chatRunState.value = ChatRunState.Working("Резервный провайдер: ${fallback.name}")
+            _chatRunState.value =
+                ChatRunState.Working(str(R.string.status_fallback_format, fallback.name))
             runCloudAttempt(current, project, fallback, fallbackKey, history, skills, externalTools, sessionId)
         }
         runPostChecks(current, project, sessionId)
@@ -204,19 +209,26 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (!current.postChecksEnabled || !current.agentMode) return
         val commands = current.postCheckCommands
         if (commands.isEmpty() || project == null) return
-        _chatRunState.value = ChatRunState.Working("Пост-проверки (${commands.size})")
-        appendAgentLog("Запуск пост-проверок после правок агента")
+        _chatRunState.value =
+            ChatRunState.Working(str(R.string.status_post_checks_format, commands.size))
+        appendAgentLog(str(R.string.log_post_checks_start))
         commands.forEach { command ->
-            appendAgentLog("→ пост-проверка: $command")
+            appendAgentLog(str(R.string.log_post_check_run_format, command))
             val result = runCatching {
                 container.shell.runOnce(project.id, command, 120_000)
             }.getOrElse { error ->
-                "Ошибка запуска: ${error.message ?: error::class.java.simpleName}"
+                str(R.string.error_launch_format, error.message ?: error::class.java.simpleName)
             }
             val failed = listOf("error", "failed", "failure").any { marker ->
                 result.contains(marker, ignoreCase = true)
             }
-            appendAgentLog("← пост-проверка ${if (failed) "ПРОВАЛ" else "ок"}: ${result.take(800)}")
+            appendAgentLog(
+                str(
+                    R.string.log_post_check_result_format,
+                    if (failed) str(R.string.post_check_failed) else str(R.string.post_check_ok),
+                    result.take(800),
+                ),
+            )
         }
     }
 
@@ -256,8 +268,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         editorContext: EditorContext?,
     ): String {
         val current = settings.value
-        val path = current.localModelPath ?: error("Сначала импортируйте GGUF-модель")
-        _chatRunState.value = ChatRunState.Working("Загрузка локальной модели")
+        val path = current.localModelPath ?: error(str(R.string.error_import_model_first))
+        _chatRunState.value = ChatRunState.Working(str(R.string.status_loading_model))
         container.localLlama.load(
             path = path,
             systemPrompt = """
@@ -274,7 +286,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 append("\n```\n").append(editorContext.text).append("\n```")
             }
         }
-        _chatRunState.value = ChatRunState.Working("Локальная генерация")
+        _chatRunState.value = ChatRunState.Working(str(R.string.status_local_generation))
         val answer = StringBuilder()
         container.localLlama.generate(context).collect { token ->
             answer.append(token)
@@ -309,6 +321,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun appendAgentLog(line: String) {
         _agentLog.value = (_agentLog.value + line).takeLast(50)
     }
+
+    private fun str(resId: Int, vararg args: Any?): String =
+        getApplication<Application>().getString(resId, *args)
 
     private fun updateSettings(transform: (AppSettings) -> AppSettings) =
         viewModelScope.launch {

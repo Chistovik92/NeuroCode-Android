@@ -2,6 +2,7 @@ package com.secrethero.neurocode.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,17 +44,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.BuildConfig
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
 import com.secrethero.neurocode.ui.ProviderModelsState
 import com.secrethero.neurocode.ui.SettingsViewModel
-import android.net.Uri
+import com.secrethero.neurocode.terminal.ProotState
 import java.util.UUID
 
 @Composable
@@ -61,13 +64,19 @@ fun SettingsScreen(vm: SettingsViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val progress by vm.modelImportProgress.collectAsStateWithLifecycle()
     val providerModels by vm.providerModels.collectAsStateWithLifecycle()
+    val prootState by vm.prootState.collectAsStateWithLifecycle()
     var editingProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var providerDialog by remember { mutableStateOf(false) }
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var editingSkill by remember { mutableStateOf<AgentSkill?>(null) }
     var skillDialog by remember { mutableStateOf(false) }
     var fallbackMenu by remember { mutableStateOf(false) }
-    var commandsText by remember { mutableStateOf(settings.postCheckCommands.joinToString("\n")) }
+    var commandsText by remember(settings.postCheckCommands) {
+        mutableStateOf(settings.postCheckCommands.joinToString("\n"))
+    }
+    var lspCommandText by remember(settings.lspCommand) {
+        mutableStateOf(settings.lspCommand)
+    }
     val modelPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -91,7 +100,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("Оформление", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.appearance), style = MaterialTheme.typography.titleLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ThemeMode.entries.forEach { mode ->
                 FilterChip(
@@ -100,9 +109,9 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     label = {
                         Text(
                             when (mode) {
-                                ThemeMode.SYSTEM -> "Системная"
-                                ThemeMode.LIGHT -> "Светлая"
-                                ThemeMode.DARK -> "Тёмная"
+                                ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
+                                ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+                                ThemeMode.DARK -> stringResource(R.string.theme_dark)
                             },
                         )
                     },
@@ -110,13 +119,13 @@ fun SettingsScreen(vm: SettingsViewModel) {
             }
         }
 
-        Text("Режим работы", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.work_mode), style = MaterialTheme.typography.titleLarge)
         SettingSwitch(
-            title = "Локальная GGUF-модель",
+            title = stringResource(R.string.local_gguf_model),
             description = if (settings.localModelPath == null) {
-                "Модель ещё не импортирована"
+                stringResource(R.string.model_not_imported)
             } else {
-                settings.localModelName ?: "Локальная модель"
+                settings.localModelName ?: stringResource(R.string.local_model)
             },
             checked = settings.useLocalModel,
             enabled = settings.localModelPath != null,
@@ -127,7 +136,13 @@ fun SettingsScreen(vm: SettingsViewModel) {
             onClick = { modelPicker.launch(arrayOf("*/*")) },
         ) {
             Icon(Icons.Default.Memory, contentDescription = null)
-            Text(if (settings.localModelPath == null) " Импортировать GGUF" else " Заменить GGUF")
+            Text(
+                if (settings.localModelPath == null) {
+                    stringResource(R.string.import_gguf)
+                } else {
+                    stringResource(R.string.replace_gguf)
+                },
+            )
         }
         progress?.let { (copied, total) ->
             if (total > 0) {
@@ -135,32 +150,32 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     progress = { (copied.toFloat() / total).coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Text("${copied / 1024 / 1024} из ${total / 1024 / 1024} МБ")
+                Text(stringResource(R.string.mb_progress, copied / 1024 / 1024, total / 1024 / 1024))
             } else {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text("Копирование модели…")
+                Text(stringResource(R.string.copying_model))
             }
         }
         Text(
-            "Рекомендуются квантованные модели 1–3B. GGUF копируется во внутреннее хранилище; для модели 2 ГБ желательно не менее 6 ГБ RAM.",
+            stringResource(R.string.gguf_recommendation),
             style = MaterialTheme.typography.bodySmall,
         )
 
         SettingSwitch(
-            title = "Режим агента",
-            description = "Разрешает облачной модели использовать файлы, терминал и Git",
+            title = stringResource(R.string.agent_mode),
+            description = stringResource(R.string.agent_mode_desc),
             checked = settings.agentMode,
             enabled = !settings.useLocalModel,
             onChecked = vm::setAgentMode,
         )
         SettingSwitch(
-            title = "Команды без повторного вопроса",
-            description = "Опасные команды всё равно потребуют подтверждения",
+            title = stringResource(R.string.shell_without_ask),
+            description = stringResource(R.string.shell_without_ask_desc),
             checked = settings.allowAgentShell,
             enabled = settings.agentMode && !settings.useLocalModel,
             onChecked = vm::setAllowAgentShell,
         )
-        Text("Максимум шагов агента: ${settings.maxAgentSteps}")
+        Text(stringResource(R.string.max_steps_format, settings.maxAgentSteps))
         Slider(
             value = settings.maxAgentSteps.toFloat(),
             onValueChange = { vm.setMaxAgentSteps(it.toInt()) },
@@ -169,10 +184,10 @@ fun SettingsScreen(vm: SettingsViewModel) {
             enabled = !settings.useLocalModel,
         )
 
-        Text("Пост-проверки агента", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.post_checks_title), style = MaterialTheme.typography.titleMedium)
         SettingSwitch(
-            title = "Запускать проверки после правок",
-            description = "Команды выполняются в корне проекта после ответа агента (например: npm run lint, npm test)",
+            title = stringResource(R.string.post_checks_switch),
+            description = stringResource(R.string.post_checks_desc),
             checked = settings.postChecksEnabled,
             enabled = settings.agentMode && !settings.useLocalModel,
             onChecked = vm::setPostChecksEnabled,
@@ -181,14 +196,14 @@ fun SettingsScreen(vm: SettingsViewModel) {
             OutlinedTextField(
                 value = commandsText,
                 onValueChange = { commandsText = it },
-                label = { Text("Команды, по одной на строку") },
+                label = { Text(stringResource(R.string.commands_label)) },
                 placeholder = { Text("npm run lint\nnpm test") },
                 minLines = 2,
                 maxLines = 6,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 4.dp),
-                supportingText = { Text("Выполняются через Android shell; результат попадает в лог агента") },
+                supportingText = { Text(stringResource(R.string.commands_support)) },
             )
             FilledTonalButton(
                 onClick = {
@@ -196,7 +211,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
                 },
                 enabled = commandsText.trim() != settings.postCheckCommands.joinToString("\n"),
             ) {
-                Text("Сохранить команды")
+                Text(stringResource(R.string.save_commands))
             }
         }
 
@@ -205,7 +220,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "API-провайдеры",
+                stringResource(R.string.providers),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f),
             )
@@ -215,7 +230,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     providerDialog = true
                 },
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить провайдера")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_provider_cd))
             }
         }
 
@@ -242,19 +257,19 @@ fun SettingsScreen(vm: SettingsViewModel) {
                             providerDialog = true
                         },
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Изменить")
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_cd))
                     }
                     IconButton(onClick = { deleteProvider = provider }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Удалить")
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_cd))
                     }
                 }
             }
         }
 
         if (!settings.useLocalModel && settings.providers.size > 1) {
-            Text("Резервный провайдер", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.fallback_provider), style = MaterialTheme.typography.titleMedium)
             val fallback = settings.providers.firstOrNull { it.id == settings.fallbackProviderId }
-            val fallbackName = fallback?.name ?: "Не выбран"
+            val fallbackName = fallback?.name ?: stringResource(R.string.not_selected)
             Box {
                 OutlinedButton(
                     onClick = { fallbackMenu = true },
@@ -273,7 +288,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     onDismissRequest = { fallbackMenu = false },
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Не выбран") },
+                        text = { Text(stringResource(R.string.not_selected)) },
                         onClick = {
                             vm.setFallbackProvider(null)
                             fallbackMenu = false
@@ -294,10 +309,22 @@ fun SettingsScreen(vm: SettingsViewModel) {
             }
         }
 
-        Text("Скиллы агента", style = MaterialTheme.typography.titleLarge)
+        RuntimeEnvironmentSection(
+            prootState = prootState,
+            lspEnabled = settings.lspEnabled,
+            lspCommandText = lspCommandText,
+            savedLspCommand = settings.lspCommand,
+            onInstallLinux = vm::installLinuxEnvironment,
+            onResetLinux = vm::resetLinuxEnvironment,
+            onSetLspEnabled = vm::setLspEnabled,
+            onLspCommandChanged = { lspCommandText = it },
+            onSaveLspCommand = { vm.setLspCommand(lspCommandText) },
+        )
+
+        Text(stringResource(R.string.skills_title), style = MaterialTheme.typography.titleLarge)
         SettingSwitch(
-            title = "Включить скиллы",
-            description = "Активные скиллы передаются модели в каждом запросе и сохраняются при смене модели",
+            title = stringResource(R.string.enable_skills),
+            description = stringResource(R.string.enable_skills_desc),
             checked = settings.skillsEnabled,
             onChecked = vm::setSkillsEnabled,
         )
@@ -306,15 +333,15 @@ fun SettingsScreen(vm: SettingsViewModel) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "Мои скиллы (${settings.skills.size})",
+                stringResource(R.string.my_skills_format, settings.skills.size),
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.weight(1f),
             )
             FilledTonalButton(onClick = { exportSkills.launch("neurocode-skills.json") }) {
-                Text("Экспорт")
+                Text(stringResource(R.string.export))
             }
             FilledTonalButton(onClick = { importSkills.launch(arrayOf("application/json")) }) {
-                Text("Импорт")
+                Text(stringResource(R.string.import_action))
             }
             IconButton(
                 onClick = {
@@ -322,7 +349,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     skillDialog = true
                 },
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Новый скилл")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_skill_cd))
             }
         }
         settings.skills.forEach { skill ->
@@ -347,22 +374,22 @@ fun SettingsScreen(vm: SettingsViewModel) {
                         editingSkill = skill
                         skillDialog = true
                     }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Изменить")
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_cd))
                     }
                     IconButton(onClick = { vm.deleteSkill(skill.id) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Удалить")
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_cd))
                     }
                 }
             }
         }
 
-        Text("Безопасность", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.security), style = MaterialTheme.typography.titleLarge)
         Text(
-            "Ключи API шифруются Android Keystore и не записываются в настройки, логи или файлы проекта. Сетевые адреса должны использовать HTTPS.",
+            stringResource(R.string.security_text),
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
-            "NeuroCode Android ${BuildConfig.VERSION_NAME} · минимальная версия Android 13",
+            stringResource(R.string.version_format, BuildConfig.VERSION_NAME),
             style = MaterialTheme.typography.labelMedium,
         )
     }
@@ -394,20 +421,85 @@ fun SettingsScreen(vm: SettingsViewModel) {
     deleteProvider?.let { provider ->
         AlertDialog(
             onDismissRequest = { deleteProvider = null },
-            title = { Text("Удалить ${provider.name}?") },
-            text = { Text("Конфигурация и сохранённый API-ключ будут удалены.") },
+            title = { Text(stringResource(R.string.delete_provider_title, provider.name)) },
+            text = { Text(stringResource(R.string.delete_provider_text)) },
             confirmButton = {
                 Button(
                     onClick = {
                         vm.removeProvider(provider.id)
                         deleteProvider = null
                     },
-                ) { Text("Удалить") }
+                ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteProvider = null }) { Text("Отмена") }
+                TextButton(onClick = { deleteProvider = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
+    }
+}
+
+@Composable
+private fun RuntimeEnvironmentSection(
+    prootState: ProotState,
+    lspEnabled: Boolean,
+    lspCommandText: String,
+    savedLspCommand: String,
+    onInstallLinux: () -> Unit,
+    onResetLinux: () -> Unit,
+    onSetLspEnabled: (Boolean) -> Unit,
+    onLspCommandChanged: (String) -> Unit,
+    onSaveLspCommand: () -> Unit,
+) {
+    Text(stringResource(R.string.runtime_env), style = MaterialTheme.typography.titleLarge)
+    Text(
+        stringResource(R.string.linux_env_desc),
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Text(
+        text = when (prootState) {
+            ProotState.IDLE -> stringResource(R.string.linux_status_idle)
+            ProotState.PREPARING -> stringResource(R.string.linux_status_preparing)
+            ProotState.READY -> stringResource(R.string.linux_status_ready)
+            ProotState.UNAVAILABLE -> stringResource(R.string.linux_status_unavailable)
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = onInstallLinux,
+            enabled = prootState == ProotState.IDLE || prootState == ProotState.UNAVAILABLE,
+        ) {
+            Text(stringResource(R.string.install_linux))
+        }
+        OutlinedButton(
+            onClick = onResetLinux,
+            enabled = prootState != ProotState.PREPARING,
+        ) {
+            Text(stringResource(R.string.reset_linux))
+        }
+    }
+    SettingSwitch(
+        title = stringResource(R.string.lsp_switch),
+        description = stringResource(R.string.lsp_desc),
+        checked = lspEnabled,
+        onChecked = onSetLspEnabled,
+    )
+    if (lspEnabled) {
+        OutlinedTextField(
+            value = lspCommandText,
+            onValueChange = onLspCommandChanged,
+            label = { Text(stringResource(R.string.lsp_command_label)) },
+            placeholder = { Text(stringResource(R.string.lsp_command_placeholder)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        FilledTonalButton(
+            onClick = onSaveLspCommand,
+            enabled = lspCommandText.trim() != savedLspCommand,
+        ) {
+            Text(stringResource(R.string.action_save))
+        }
     }
 }
 
@@ -421,25 +513,33 @@ private fun SkillDialog(
     var prompt by remember { mutableStateOf(current?.prompt.orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (current == null) "Новый скилл" else "Изменить скилл") },
+        title = {
+            Text(
+                if (current == null) {
+                    stringResource(R.string.new_skill_title)
+                } else {
+                    stringResource(R.string.edit_skill_title)
+                },
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Название") },
+                    label = { Text(stringResource(R.string.skill_name_label)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    label = { Text("Инструкция для модели") },
-                    placeholder = { Text("Например: всегда пиши тесты после правок") },
+                    label = { Text(stringResource(R.string.skill_prompt_label)) },
+                    placeholder = { Text(stringResource(R.string.skill_prompt_placeholder)) },
                     minLines = 4,
                     maxLines = 8,
                 )
                 Text(
-                    "Скилл добавляется в системный промпт и действует во всём диалоге, даже если вы смените модель.",
+                    stringResource(R.string.skill_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -458,10 +558,10 @@ private fun SkillDialog(
                         ),
                     )
                 },
-            ) { Text("Сохранить") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
@@ -502,12 +602,12 @@ private fun ModelSelectorField(
     OutlinedTextField(
         value = model,
         onValueChange = onModelChange,
-        label = { Text("Идентификатор модели") },
+        label = { Text(stringResource(R.string.model_id_label)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         trailingIcon = {
             IconButton(onClick = { if (onLoadModels()) onExpandedChange(true) }) {
-                Icon(Icons.Default.ArrowDropDown, contentDescription = "Список моделей")
+                Icon(Icons.Default.ArrowDropDown, contentDescription = stringResource(R.string.models_list_cd))
             }
         },
     )
@@ -548,21 +648,29 @@ private fun ProviderDialog(
     var modelsMenu by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (current == null) "Новый API-провайдер" else "Изменить провайдера") },
+        title = {
+            Text(
+                if (current == null) {
+                    stringResource(R.string.provider_dialog_new_title)
+                } else {
+                    stringResource(R.string.provider_dialog_edit_title)
+                },
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Название") },
+                    label = { Text(stringResource(R.string.skill_name_label)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = baseUrl,
                     onValueChange = { baseUrl = it },
-                    label = { Text("Base URL, включая /v1") },
+                    label = { Text(stringResource(R.string.base_url_label)) },
                     placeholder = { Text("https://api.example.com/v1") },
-                    supportingText = { Text("Адрес обычно оканчивается на /v1") },
+                    supportingText = { Text(stringResource(R.string.base_url_support)) },
                     singleLine = true,
                 )
                 Box {
@@ -595,7 +703,7 @@ private fun ProviderDialog(
                 }
                 modelsState.error?.let { message ->
                     Text(
-                        "Не удалось получить список моделей: $message",
+                        stringResource(R.string.models_error_format, message),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -604,7 +712,13 @@ private fun ProviderDialog(
                     value = apiKey,
                     onValueChange = { apiKey = it },
                     label = {
-                        Text(if (current == null) "API-ключ" else "Новый API-ключ (необязательно)")
+                        Text(
+                            if (current == null) {
+                                stringResource(R.string.api_key_label)
+                            } else {
+                                stringResource(R.string.api_key_new_label)
+                            },
+                        )
                     },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
@@ -628,10 +742,10 @@ private fun ProviderDialog(
                         apiKey,
                     )
                 },
-            ) { Text("Сохранить") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }

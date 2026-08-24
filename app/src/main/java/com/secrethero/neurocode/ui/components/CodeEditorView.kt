@@ -2,9 +2,11 @@ package com.secrethero.neurocode.ui.components
 
 import android.graphics.Typeface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import io.github.rosemoe.sora.event.ContentChangeEvent
+import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.subscribeAlways
 
@@ -13,7 +15,11 @@ fun CodeEditorView(
     text: String,
     onTextChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    fileName: String? = null,
 ) {
+    val language = remember(fileName) {
+        SimpleCodeLanguage.forFileName(fileName) ?: EmptyLanguage()
+    }
     AndroidView(
         modifier = modifier,
         factory = { context ->
@@ -22,6 +28,7 @@ fun CodeEditorView(
                 setTextSize(14f)
                 setLineNumberEnabled(true)
                 setWordwrap(false)
+                setEditorLanguage(language)
                 setText(text)
                 subscribeAlways<ContentChangeEvent> {
                     if (it.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) {
@@ -31,6 +38,9 @@ fun CodeEditorView(
             }
         },
         update = { editor ->
+            if (editor.editorLanguage !== language) {
+                editor.setEditorLanguage(language)
+            }
             if (editor.text.toString() != text) {
                 val line = editor.cursor.leftLine
                 val column = editor.cursor.leftColumn

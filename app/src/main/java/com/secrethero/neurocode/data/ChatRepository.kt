@@ -1,6 +1,7 @@
 package com.secrethero.neurocode.data
 
 import android.content.Context
+import com.secrethero.neurocode.R
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatSession
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.builtins.ListSerializer
 
-class ChatRepository(context: Context) {
+class ChatRepository(private val context: Context) {
     private val store = JsonFileStore(
         file = context.filesDir.resolve("state/chats.json"),
         serializer = ListSerializer(ChatSession.serializer()),
@@ -22,7 +23,11 @@ class ChatRepository(context: Context) {
     }
 
     suspend fun create(projectId: String?, providerId: String?): ChatSession {
-        val session = ChatSession(projectId = projectId, providerId = providerId)
+        val session = ChatSession(
+            projectId = projectId,
+            providerId = providerId,
+            title = context.getString(R.string.default_session_title),
+        )
         persist(listOf(session) + _sessions.value)
         return session
     }
@@ -32,7 +37,11 @@ class ChatRepository(context: Context) {
             val firstUser = (session.messages + message).firstOrNull {
                 it.role.name == "USER"
             }?.content
-            val title = if (session.title == "Новый диалог" && !firstUser.isNullOrBlank()) {
+            val defaults = setOf(
+                LEGACY_DEFAULT_TITLE,
+                context.getString(R.string.default_session_title),
+            )
+            val title = if (session.title in defaults && !firstUser.isNullOrBlank()) {
                 firstUser.lineSequence().first().take(52)
             } else {
                 session.title
@@ -67,5 +76,9 @@ class ChatRepository(context: Context) {
     private suspend fun persist(sessions: List<ChatSession>) {
         store.write(sessions)
         _sessions.value = sessions
+    }
+
+    private companion object {
+        const val LEGACY_DEFAULT_TITLE = "Новый диалог"
     }
 }

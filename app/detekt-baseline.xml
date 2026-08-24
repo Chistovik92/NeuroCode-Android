@@ -2,12 +2,18 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$current == '@' &amp;&amp; index + 1 &lt; line.length &amp;&amp; (line[index + 1].isLetter() || line[index + 1] == '_')</ID>
+    <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$end &lt; line.length &amp;&amp; (line[end].isLetterOrDigit() || line[end] == '.' || line[end] == '_')</ID>
+    <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$index &lt; line.length &amp;&amp; (line[index].isLetterOrDigit() || line[index] == '/' || line[index] == '!' || line[index] == '?')</ID>
+    <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$spec.useEscape &amp;&amp; index &lt; line.length &amp;&amp; line[index] == '\\' &amp;&amp; !multiline</ID>
     <ID>CyclomaticComplexMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), ): String</ID>
     <ID>CyclomaticComplexMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
     <ID>CyclomaticComplexMethod:GitScreen.kt$@Composable fun GitScreen(git: GitViewModel)</ID>
     <ID>CyclomaticComplexMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp( viewModel: AppViewModel, expanded: Boolean, )</ID>
     <ID>CyclomaticComplexMethod:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun executeStreaming( endpoint: String, apiKey: String, messages: List&lt;ApiMessage&gt;, tools: JsonArray, onChunk: (String) -&gt; Unit, providerForHeaders: ProviderConfig, ): AssistantTurn</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
+    <ID>CyclomaticComplexMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightXml(ref: ContentReference)</ID>
+    <ID>CyclomaticComplexMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun scanCodeLine(lineIndex: Int, line: String)</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$fun definitions(externalTools: List&lt;ExternalAgentTool&gt; = emptyList()): JsonArray</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), ): String</ID>
     <ID>LongMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
@@ -18,12 +24,21 @@
     <ID>LongMethod:NeuroCodeApp.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun NeuroCodeApp( viewModel: AppViewModel, expanded: Boolean, )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable private fun ProviderDialog( current: ProviderConfig?, modelsState: ProviderModelsState, onLoadModels: (ProviderConfig) -&gt; Unit, onDismiss: () -&gt; Unit, onSave: (ProviderConfig, String) -&gt; Unit, )</ID>
+    <ID>LongMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightXml(ref: ContentReference)</ID>
+    <ID>LongMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun scanCodeLine(lineIndex: Int, line: String)</ID>
     <ID>LongMethod:TerminalScreen.kt$@Composable fun TerminalScreen(terminal: TerminalViewModel)</ID>
     <ID>LongParameterList:ChatViewModel.kt$ChatViewModel$( current: AppSettings, project: com.secrethero.neurocode.model.Project?, provider: ProviderConfig, key: String, history: List&lt;ChatMessage&gt;, skills: List&lt;String&gt;, externalTools: List&lt;com.secrethero.neurocode.model.ExternalAgentTool&gt;, sessionId: String, )</ID>
     <ID>LongParameterList:NeuroCodeApp.kt$( title: String, label: String, initialValue: String, confirmLabel: String, onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, )</ID>
     <ID>LongParameterList:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$( endpoint: String, apiKey: String, messages: List&lt;ApiMessage&gt;, tools: JsonArray, onChunk: (String) -&gt; Unit, providerForHeaders: ProviderConfig, )</ID>
     <ID>LongParameterList:SettingsScreen.kt$( model: String, onModelChange: (String) -&gt; Unit, modelsState: ProviderModelsState, expanded: Boolean, onExpandedChange: (Boolean) -&gt; Unit, onLoadModels: () -&gt; Boolean, )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( prootState: ProotState, lspEnabled: Boolean, lspCommandText: String, savedLspCommand: String, onInstallLinux: () -&gt; Unit, onResetLinux: () -&gt; Unit, onSetLspEnabled: (Boolean) -&gt; Unit, onLspCommandChanged: (String) -&gt; Unit, onSaveLspCommand: () -&gt; Unit, )</ID>
     <ID>LoopWithTooManyJumpStatements:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$while</ID>
+    <ID>LoopWithTooManyJumpStatements:ProotManager.kt$ProotManager$while</ID>
+    <ID>LoopWithTooManyJumpStatements:ProotManager.kt$TarReader$while</ID>
+    <ID>LoopWithTooManyJumpStatements:ProotManager.kt$TarReader.Companion$for</ID>
+    <ID>LoopWithTooManyJumpStatements:ProotManager.kt$while</ID>
+    <ID>LoopWithTooManyJumpStatements:SimpleCodeLanguage.kt$CodeHighlighter$for</ID>
+    <ID>LoopWithTooManyJumpStatements:SimpleCodeLanguage.kt$CodeHighlighter$while</ID>
     <ID>MagicNumber:AgentOrchestrator.kt$AgentOrchestrator$20</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$100</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$12</ID>
@@ -63,28 +78,38 @@
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$500</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$8</ID>
     <ID>MagicNumber:ProjectRepository.kt$ProjectRepository$80</ID>
+    <ID>MagicNumber:ProotManager.kt$ProotManager$200</ID>
+    <ID>MagicNumber:ProotManager.kt$ProotManager$299</ID>
+    <ID>MagicNumber:ProotManager.kt$TarReader.Companion$0xFF</ID>
+    <ID>MagicNumber:ProotManager.kt$TarReader.Companion$3</ID>
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$0xff</ID>
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$12</ID>
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$128</ID>
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$16</ID>
     <ID>MagicNumber:SettingsViewModel.kt$SettingsViewModel$20</ID>
     <ID>MagicNumber:ShellSession.kt$ShellSession$2_000</ID>
-    <ID>MagicNumber:ShellSession.kt$ShellSession$5_000</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "${external.name}: ${external.description}. Команда фиксирована настройками и потребует подтверждения."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Выполнить команду Android shell в корне проекта. Это ограниченная /system/bin оболочка, не полноценный Linux."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Заменить уникальный фрагмент текстового файла. Экономнее полной перезаписи. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Создать или полностью перезаписать текстовый файл проекта. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Удалить файл проекта (папки удалять нельзя). Копия сохраняется в .neurocode/history. Требует подтверждения пользователя."</ID>
-    <ID>MaxLineLength:ChatScreen.kt$"Он может читать файлы, предлагать изменения, запускать команды и проверять Git diff. Опасные действия требуют подтверждения."</ID>
     <ID>MaxLineLength:ChatViewModel.kt$ChatViewModel$private suspend</ID>
-    <ID>MaxLineLength:NeuroCodeApp.kt$"Файлы будут храниться внутри песочницы NeuroCode. Папку с телефона можно импортировать отдельной копией."</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$"Ключи API шифруются Android Keystore и не записываются в настройки, логи или файлы проекта. Сетевые адреса должны использовать HTTPS."</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$"Рекомендуются квантованные модели 1–3B. GGUF копируется во внутреннее хранилище; для модели 2 ГБ желательно не менее 6 ГБ RAM."</ID>
+    <ID>MaxLineLength:TerminalScreen.kt$Icon(Icons.Default.ClearAll, contentDescription = stringResource(R.string.clear_cd), tint = Color(0xFFB9C2CF))</ID>
+    <ID>MaxLineLength:TerminalScreen.kt$Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.run_cd), tint = Color(0xFF7EE787))</ID>
+    <ID>MaxLineLength:TerminalScreen.kt$Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop_cd), tint = Color(0xFFFF6B6B))</ID>
     <ID>NestedBlockDepth:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
+    <ID>NestedBlockDepth:ProotManager.kt$ProotManager$private fun resolveProotVersion(arch: String): String?</ID>
+    <ID>NestedBlockDepth:ProotManager.kt$private fun extractTarGz(stream: InputStream, destination: File, include: (String) -&gt; Boolean)</ID>
+    <ID>NestedBlockDepth:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightMarkdown(ref: ContentReference)</ID>
+    <ID>NestedBlockDepth:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightXml(ref: ContentReference)</ID>
     <ID>ReturnCount:AgentTools.kt$AgentTools$private suspend fun executeExternal( projectId: String, call: ToolCall, externalTools: List&lt;ExternalAgentTool&gt;, ): String</ID>
     <ID>ReturnCount:ChatViewModel.kt$ChatViewModel$private fun fallbackProvider(current: AppSettings, primaryId: String?): ProviderConfig?</ID>
     <ID>ReturnCount:CommandPolicy.kt$CommandPolicy$fun isSafeReadOnly(command: String): Boolean</ID>
     <ID>ReturnCount:EditorViewModel.kt$EditorViewModel$private suspend fun saveOpenFileInternal(projectId: String?)</ID>
+    <ID>ReturnCount:LspClient.kt$LspClient$private fun handleMessage(raw: String)</ID>
+    <ID>ReturnCount:LspController.kt$LspController$private fun ensureStarted(root: File): LspClient?</ID>
+    <ID>ReturnCount:ProotManager.kt$ProotManager$private fun resolveBundledBinary(): File?</ID>
+    <ID>SpreadOperator:ProotManager.kt$(destination.absolutePath, *entry.name.split('/').toTypedArray())</ID>
     <ID>ThrowsCount:ChatViewModel.kt$ChatViewModel$private suspend fun runCloud(sessionId: String, history: List&lt;ChatMessage&gt;): String</ID>
     <ID>ThrowsCount:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun tryChatEndpoints( provider: ProviderConfig, shouldRethrow: () -&gt; Boolean = { false }, block: suspend (String) -&gt; AssistantTurn, ): AssistantTurn</ID>
     <ID>ThrowsCount:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
@@ -93,8 +118,10 @@
     <ID>TooGenericExceptionCaught:GitViewModel.kt$GitViewModel$error: Throwable</ID>
     <ID>TooGenericExceptionCaught:ProjectsViewModel.kt$ProjectsViewModel$error: Throwable</ID>
     <ID>TooManyFunctions:ChatViewModel.kt$ChatViewModel : AndroidViewModel</ID>
+    <ID>TooManyFunctions:LspClient.kt$LspClient</ID>
     <ID>TooManyFunctions:OpenAiCompatibleClient.kt$OpenAiCompatibleClient</ID>
     <ID>TooManyFunctions:ProjectRepository.kt$ProjectRepository</ID>
+    <ID>TooManyFunctions:ProotManager.kt$ProotManager</ID>
     <ID>TooManyFunctions:SettingsViewModel.kt$SettingsViewModel : AndroidViewModel</ID>
     <ID>UnusedParameter:ChatViewModel.kt$ChatViewModel$sessionId: String</ID>
   </CurrentIssues>
