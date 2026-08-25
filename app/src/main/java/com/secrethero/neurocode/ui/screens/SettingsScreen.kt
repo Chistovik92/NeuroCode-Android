@@ -54,6 +54,7 @@ import com.secrethero.neurocode.R
 import com.secrethero.neurocode.device.DeviceSnapshot
 import com.secrethero.neurocode.device.ModelTier
 import com.secrethero.neurocode.model.AgentSkill
+import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
 import com.secrethero.neurocode.ui.ProviderModelsState
@@ -115,6 +116,28 @@ fun SettingsScreen(vm: SettingsViewModel) {
                                 ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
                                 ThemeMode.LIGHT -> stringResource(R.string.theme_light)
                                 ThemeMode.DARK -> stringResource(R.string.theme_dark)
+                            },
+                        )
+                    },
+                )
+            }
+        }
+
+        Text(stringResource(R.string.interface_design), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.interface_design_desc),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AppDesign.entries.forEach { design ->
+                FilterChip(
+                    selected = settings.appDesign == design,
+                    onClick = { vm.setAppDesign(design) },
+                    label = {
+                        Text(
+                            when (design) {
+                                AppDesign.CLASSIC -> stringResource(R.string.design_classic)
+                                AppDesign.MODERN -> stringResource(R.string.design_modern)
                             },
                         )
                     },

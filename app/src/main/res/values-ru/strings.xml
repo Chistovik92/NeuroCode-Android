@@ -145,6 +145,10 @@
     <string name="theme_system">Системная</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>
+    <string name="interface_design">Дизайн интерфейса</string>
+    <string name="interface_design_desc">Стандартный — привычный компактный вид; Новый — Material 3 Expressive с палитрой в стиле Gemini, крупными радиусами и градиентными акцентами</string>
+    <string name="design_classic">Стандартный</string>
+    <string name="design_modern">Новый</string>
     <string name="work_mode">Режим работы</string>
     <string name="local_gguf_model">Локальная GGUF-модель</string>
     <string name="model_not_imported">Модель ещё не импортирована</string>

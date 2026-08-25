@@ -47,6 +47,15 @@ enum class ThemeMode {
 }
 
 @Serializable
+enum class AppDesign {
+    /** Classic GitHub-dark inspired look. */
+    CLASSIC,
+
+    /** Material 3 Expressive look with Gemini-style palette and gradient accents. */
+    MODERN,
+}
+
+@Serializable
 data class AgentSkill(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -87,6 +96,7 @@ data class AppSettings(
     val lspEnabled: Boolean = false,
     val lspCommand: String = "",
     val themeMode: ThemeMode = ThemeMode.DARK,
+    val appDesign: AppDesign = AppDesign.CLASSIC,
 )
 
 @Serializable

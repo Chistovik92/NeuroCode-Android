@@ -145,6 +145,10 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="interface_design">Interface design</string>
+    <string name="interface_design_desc">Classic — the familiar compact look; Modern — Material 3 Expressive with a Gemini-style palette, large radii and gradient accents</string>
+    <string name="design_classic">Classic</string>
+    <string name="design_modern">Modern</string>
     <string name="work_mode">Work mode</string>
     <string name="local_gguf_model">Local GGUF model</string>
     <string name="model_not_imported">Model has not been imported yet</string>

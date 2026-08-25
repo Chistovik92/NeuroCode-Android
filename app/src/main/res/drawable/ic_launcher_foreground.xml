@@ -1,0 +1,74 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Abstract neural node (letter N / loop) + code bracket + AI activity dot.
+         Source SVG 512x512 scaled by 0.225 into the adaptive-icon safe zone. -->
+    <group
+        android:scaleX="0.225"
+        android:scaleY="0.225"
+        android:translateX="-6.63"
+        android:translateY="0.45">
+        <path
+            android:pathData="M160,340L160,172C160,152.118 176.118,136 196,136C205.513,136 214.653,139.734 221.373,146.454L334.546,259.627C341.266,266.347 350.407,270.081 359.92,270.081C379.802,270.081 395.92,286.199 395.92,306.081L395.92,340"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="44">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="120"
+                    android:startY="120"
+                    android:endX="390"
+                    android:endY="390">
+                    <item android:offset="0.0" android:color="#FF8AB4F8" />
+                    <item android:offset="0.5" android:color="#FFC58AF9" />
+                    <item android:offset="1.0" android:color="#FFF28B82" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- Second crossing line: depth of the interweaving -->
+        <path
+            android:pathData="M352,172L352,340"
+            android:strokeAlpha="0.4"
+            android:strokeLineCap="round"
+            android:strokeWidth="32">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="120"
+                    android:startY="120"
+                    android:endX="390"
+                    android:endY="390">
+                    <item android:offset="0.0" android:color="#FF8AB4F8" />
+                    <item android:offset="0.5" android:color="#FFC58AF9" />
+                    <item android:offset="1.0" android:color="#FFF28B82" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- Terminal code bracket -->
+        <path
+            android:pathData="M190,205L135,256L190,307"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="28">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="256"
+                    android:startY="200"
+                    android:endX="380"
+                    android:endY="380">
+                    <item android:offset="0.0" android:color="#FF6DD58C" />
+                    <item android:offset="1.0" android:color="#FFA8C7FA" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- Accent dot: AI activity state -->
+        <path
+            android:fillColor="#FF6DD58C"
+            android:pathData="M340,180m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0" />
+    </group>
+</vector>

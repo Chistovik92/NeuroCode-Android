@@ -24,7 +24,10 @@ class MainActivity : ComponentActivity() {
             val viewModel: AppViewModel = viewModel()
             val settings by viewModel.settingsScreen.settings
                 .collectAsStateWithLifecycle()
-            NeuroCodeTheme(themeMode = settings.themeMode) {
+            NeuroCodeTheme(
+                themeMode = settings.themeMode,
+                appDesign = settings.appDesign,
+            ) {
                 NeuroCodeApp(
                     viewModel = viewModel,
                     expanded = windowSize.widthSizeClass >= WindowWidthSizeClass.Medium,

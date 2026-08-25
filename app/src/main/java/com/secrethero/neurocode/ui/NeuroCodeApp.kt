@@ -62,6 +62,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -69,6 +71,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.ui.screens.ChatScreen
 import com.secrethero.neurocode.ui.screens.EditorScreen
 import com.secrethero.neurocode.ui.screens.GitScreen
@@ -86,6 +89,13 @@ private enum class MainTab(
     GIT(R.string.tab_git, Icons.Default.Source),
     SETTINGS(R.string.tab_settings, Icons.Default.Settings),
 }
+
+/** Gemini-style brand gradient used by the modern design (0.7.0 UI reference). */
+private val ModernBrandGradientColors = listOf(
+    Color(0xFF7DACFA),
+    Color(0xFFC58AF9),
+    Color(0xFFE995BB),
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -169,12 +179,23 @@ fun NeuroCodeApp(
                 ),
                 title = {
                     Column {
-                        Text(
-                            "NeuroCode",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                        )
+                        val brandStyle = MaterialTheme.typography.titleMedium
+                            .copy(fontWeight = FontWeight.SemiBold)
+                        if (settings.appDesign == AppDesign.MODERN) {
+                            Text(
+                                "NeuroCode",
+                                style = brandStyle.copy(
+                                    brush = Brush.linearGradient(ModernBrandGradientColors),
+                                ),
+                                maxLines = 1,
+                            )
+                        } else {
+                            Text(
+                                "NeuroCode",
+                                style = brandStyle,
+                                maxLines = 1,
+                            )
+                        }
                         Text(
                             stringResource(
                                 R.string.project_label,

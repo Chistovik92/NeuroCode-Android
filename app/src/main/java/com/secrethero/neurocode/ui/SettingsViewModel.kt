@@ -10,6 +10,7 @@ import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.device.DeviceSnapshot
 import com.secrethero.neurocode.device.DeviceSpecs
 import com.secrethero.neurocode.model.AgentSkill
+import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ExternalAgentTool
 import com.secrethero.neurocode.model.ProviderConfig
@@ -71,6 +72,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setAllowAgentShell(enabled: Boolean) = updateSettings { it.copy(allowAgentShell = enabled) }
     fun setMaxAgentSteps(value: Int) = updateSettings { it.copy(maxAgentSteps = value.coerceIn(1, 20)) }
     fun setThemeMode(mode: ThemeMode) = updateSettings { it.copy(themeMode = mode) }
+    fun setAppDesign(design: AppDesign) = updateSettings { it.copy(appDesign = design) }
 
     fun setSkillsEnabled(enabled: Boolean) = updateSettings { it.copy(skillsEnabled = enabled) }
 
