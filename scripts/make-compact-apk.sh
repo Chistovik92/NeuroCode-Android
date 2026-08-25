@@ -22,12 +22,27 @@ if [[ ! -f "$keystore" ]]; then
 fi
 
 build_tools="$(find "$sdk_dir/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-strip_tool="$(find "$sdk_dir/ndk" -path '*/toolchains/llvm/prebuilt/*/bin/llvm-strip' | sort -V | tail -n 1)"
+strip_tool="$(find "$sdk_dir/ndk" -path '*/toolchains/llvm/prebuilt/*/bin/*' \
+  \( -name llvm-strip -o -name llvm-strip.exe \) 2>/dev/null | sort -V | tail -n 1)"
 zipalign_tool="$build_tools/zipalign"
+if [[ ! -x "$zipalign_tool" && -f "$zipalign_tool.exe" ]]; then
+  zipalign_tool="$zipalign_tool.exe"
+fi
 apksigner_tool="$build_tools/apksigner"
+if [[ ! -x "$apksigner_tool" ]]; then
+  if [[ -f "$apksigner_tool.bat" ]]; then
+    apksigner_tool="$apksigner_tool.bat"
+  elif [[ -f "$apksigner_tool.exe" ]]; then
+    apksigner_tool="$apksigner_tool.exe"
+  fi
+fi
+
+tool_available() {
+  [[ -x "$1" || -f "$1" ]]
+}
 
 for required_tool in "$strip_tool" "$zipalign_tool" "$apksigner_tool"; do
-  if [[ ! -x "$required_tool" ]]; then
+  if ! tool_available "$required_tool"; then
     echo "Не найден инструмент Android SDK: $required_tool" >&2
     exit 1
   fi
@@ -63,11 +78,52 @@ while IFS= read -r -d '' library; do
   fi
 done < <(find "$unpacked_dir/lib" -type f -name '*.so' -print0)
 
-(
-  cd "$unpacked_dir"
-  zip -q -r -9 "$unsigned_apk" . -x 'lib/*'
-  zip -q -r -0 "$unsigned_apk" lib
-)
+pack_apk_zip() {
+  (
+    cd "$unpacked_dir"
+    zip -q -r -9 "$unsigned_apk" . -x 'lib/*'
+    zip -q -r -0 "$unsigned_apk" lib
+  )
+}
+
+pack_apk_python() {
+  python_bin=""
+  if command -v python3 >/dev/null 2>&1 && python3 -c 'import sys' >/dev/null 2>&1; then
+    python_bin="python3"
+  elif command -v python >/dev/null 2>&1 && python -c 'import sys' >/dev/null 2>&1; then
+    python_bin="python"
+  elif command -v py >/dev/null 2>&1 && py -3 -c 'import sys' >/dev/null 2>&1; then
+    python_bin="py -3"
+  fi
+  if [[ -z "$python_bin" ]]; then
+    echo "Не найден ни zip, ни python для упаковки APK." >&2
+    exit 1
+  fi
+  $python_bin - "$unsigned_apk" "$unpacked_dir" <<'PYEOF'
+import os, sys, zipfile
+
+out, src = sys.argv[1], sys.argv[2]
+resources, libs = [], []
+for root, _dirs, files in os.walk(src):
+    for name in files:
+        path = os.path.join(root, name)
+        rel = os.path.relpath(path, src).replace(os.sep, "/")
+        (libs if rel.startswith("lib/") else resources).append((path, rel))
+
+with zipfile.ZipFile(out, "w") as archive:
+    for path, rel in resources:
+        archive.write(path, rel, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+    for path, rel in libs:
+        archive.write(path, rel, compress_type=zipfile.ZIP_STORED)
+PYEOF
+}
+
+if command -v zip >/dev/null 2>&1; then
+  pack_apk_zip
+else
+  echo "zip не найден, используется python для упаковки." >&2
+  pack_apk_python
+fi
 
 "$zipalign_tool" -P 16 -f 4 "$unsigned_apk" "$aligned_apk"
 "$apksigner_tool" sign \
