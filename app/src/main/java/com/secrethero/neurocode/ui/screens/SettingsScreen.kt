@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.BuildConfig
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.device.DeviceSnapshot
+import com.secrethero.neurocode.device.ModelTier
 import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
@@ -65,6 +67,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
     val progress by vm.modelImportProgress.collectAsStateWithLifecycle()
     val providerModels by vm.providerModels.collectAsStateWithLifecycle()
     val prootState by vm.prootState.collectAsStateWithLifecycle()
+    val deviceSnapshot by vm.deviceSnapshot.collectAsStateWithLifecycle()
     var editingProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var providerDialog by remember { mutableStateOf(false) }
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
@@ -160,6 +163,9 @@ fun SettingsScreen(vm: SettingsViewModel) {
             stringResource(R.string.gguf_recommendation),
             style = MaterialTheme.typography.bodySmall,
         )
+        deviceSnapshot?.let { snapshot ->
+            DeviceRecommendationCard(snapshot)
+        }
 
         SettingSwitch(
             title = stringResource(R.string.agent_mode),
@@ -436,6 +442,55 @@ fun SettingsScreen(vm: SettingsViewModel) {
             },
         )
     }
+}
+
+@Composable
+private fun DeviceRecommendationCard(snapshot: DeviceSnapshot) {
+    val recommendation = snapshot.recommendation()
+    val ramGb = remember(snapshot.totalMemoryMb) {
+        String.format(java.util.Locale.US, "%.1f", snapshot.totalMemoryMb / 1024f)
+    }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                stringResource(R.string.device_title),
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                stringResource(
+                    R.string.device_info_format,
+                    snapshot.abi.abiName,
+                    snapshot.cores,
+                    ramGb,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                stringResource(
+                    R.string.recommend_model_format,
+                    recommendation.maxModelSizeMb,
+                    tierHint(recommendation.tier),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            if (recommendation.limitedDevice) {
+                Text(
+                    stringResource(R.string.device_limited_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun tierHint(tier: ModelTier): String = when (tier) {
+    ModelTier.CLOUD_ONLY -> stringResource(R.string.rec_tier_cloud_only)
+    ModelTier.TINY -> stringResource(R.string.rec_tier_tiny)
+    ModelTier.SMALL -> stringResource(R.string.rec_tier_small)
+    ModelTier.MEDIUM -> stringResource(R.string.rec_tier_medium)
+    ModelTier.LARGE -> stringResource(R.string.rec_tier_large)
 }
 
 @Composable

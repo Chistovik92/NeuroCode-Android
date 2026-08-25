@@ -153,6 +153,15 @@
     <string name="replace_gguf"> Заменить GGUF</string>
     <string name="copying_model">Копирование модели…</string>
     <string name="gguf_recommendation">Рекомендуются квантованные модели 1–3B. GGUF копируется во внутреннее хранилище; для модели 2 ГБ желательно не менее 6 ГБ RAM.</string>
+    <string name="device_title">Этот телефон</string>
+    <string name="device_info_format">Архитектура: %1$s · ядер CPU: %2$d · ОЗУ: %3$s ГБ</string>
+    <string name="recommend_model_format">Рекомендуемая локальная GGUF: до ~%1$d МБ (%2$s)</string>
+    <string name="device_limited_note">Ограниченное устройство: 32-битная сборка или мало ОЗУ — выбирайте модели поменьше и короткие ответы.</string>
+    <string name="rec_tier_cloud_only">лучше облачные модели, локально только крошечные 0.5B Q4</string>
+    <string name="rec_tier_tiny">компактные модели 0.5–1B в Q4</string>
+    <string name="rec_tier_small">модели 1–3B в Q4</string>
+    <string name="rec_tier_medium">модели до 7B в Q4</string>
+    <string name="rec_tier_large">модели 7B+ в Q4</string>
     <string name="agent_mode">Режим агента</string>
     <string name="agent_mode_desc">Разрешает облачной модели использовать файлы, терминал и Git</string>
     <string name="shell_without_ask">Команды без повторного вопроса</string>
@@ -225,6 +234,7 @@
     <string name="notice_zip_ready_format">Архив готов: %1$d файлов, %2$d МБ</string>
     <string name="notice_linux_ready">Linux-окружение установлено</string>
     <string name="notice_linux_failed">Не удалось установить Linux-окружение</string>
+    <string name="notice_model_oversize_format">Модель занимает %1$d МБ — больше рекомендованных для устройства %2$d МБ, возможны замедления</string>
 
     <!-- Chat statuses and logs -->
     <string name="status_thinking">Модель думает</string>

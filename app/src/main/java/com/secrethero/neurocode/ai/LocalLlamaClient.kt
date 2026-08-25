@@ -8,6 +8,7 @@ import com.arm.aichat.AiChat
 import com.arm.aichat.InferenceEngine
 import com.arm.aichat.gguf.GgufMetadataReader
 import com.arm.aichat.isModelLoaded
+import com.secrethero.neurocode.device.DeviceProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -21,11 +22,16 @@ data class ImportedModel(
     val size: Long,
 )
 
-class LocalLlamaClient(private val context: Context) {
+class LocalLlamaClient(
+    private val context: Context,
+    limitedDevice: Boolean = false,
+) {
     private val engine by lazy { AiChat.getInferenceEngine(context) }
     private val modelsDirectory = File(context.filesDir, "models").apply { mkdirs() }
     private var loadedPath: String? = null
     private var loadedConversationKey: String? = null
+    private val defaultPredictTokens =
+        DeviceProfile.defaultLocalPredictTokens(limitedDevice)
 
     val state get() = engine.state
 
@@ -86,7 +92,7 @@ class LocalLlamaClient(private val context: Context) {
         loadedConversationKey = conversationKey
     }
 
-    fun generate(message: String, maxTokens: Int = 768): Flow<String> =
+    fun generate(message: String, maxTokens: Int = defaultPredictTokens): Flow<String> =
         engine.sendUserPrompt(message, maxTokens.coerceIn(32, 2_048))
 
     fun unload() {

@@ -21,6 +21,15 @@ if(DEFINED ANDROID_ABI)
         set(GGML_SYSTEM_ARCH "ARM")
         set(GGML_CPU_KLEIDIAI ON)
         set(GGML_OPENMP ON)
+    elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+        # 32-bit ARM: upstream CPU variants use armv8-a baselines which do not
+        # compile for AArch32, so build a single generic armv7-a variant.
+        # NEON is guaranteed by the Android armeabi-v7a ABI.
+        set(GGML_SYSTEM_ARCH "ARM")
+        set(GGML_CPU_KLEIDIAI OFF)
+        set(GGML_OPENMP OFF)
+        set(GGML_CPU_ALL_VARIANTS OFF CACHE BOOL "" FORCE)
+        set(GGML_CPU_ARM_ARCH "armv7-a" CACHE STRING "" FORCE)
     elseif(ANDROID_ABI STREQUAL "x86_64")
         set(GGML_SYSTEM_ARCH "x86")
         set(GGML_CPU_KLEIDIAI OFF)

@@ -6,6 +6,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.device.DeviceProfile
+import com.secrethero.neurocode.device.DeviceSnapshot
+import com.secrethero.neurocode.device.DeviceSpecs
 import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ExternalAgentTool
@@ -23,6 +26,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val container = (application as NeuroCodeApplication).container
 
     val settings = container.settings.settings
+
+    private val deviceSpecs by lazy { DeviceSpecs(application) }
+
+    private val _deviceSnapshot = MutableStateFlow<DeviceSnapshot?>(null)
+    val deviceSnapshot: StateFlow<DeviceSnapshot?> = _deviceSnapshot.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            runCatching { deviceSpecs.snapshot() }
+                .onSuccess { _deviceSnapshot.value = it }
+        }
+    }
 
     private val _modelImportProgress = MutableStateFlow<Pair<Long, Long>?>(null)
     val modelImportProgress: StateFlow<Pair<Long, Long>?> = _modelImportProgress.asStateFlow()
@@ -181,6 +196,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     localModelName = imported.name,
                     useLocalModel = true,
                 )
+            }
+            _deviceSnapshot.value?.let { snapshot ->
+                val recommendation = snapshot.recommendation()
+                val sizeMb = imported.size / DeviceProfile.MB
+                if (sizeMb > recommendation.maxModelSizeMb) {
+                    container.bus.showNotice(
+                        getApplication<Application>().getString(
+                            R.string.notice_model_oversize_format,
+                            sizeMb,
+                            recommendation.maxModelSizeMb,
+                        ),
+                    )
+                }
             }
         }.onFailure(container.bus::showError)
         _modelImportProgress.value = null

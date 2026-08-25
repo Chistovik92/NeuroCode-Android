@@ -153,6 +153,15 @@
     <string name="replace_gguf"> Replace GGUF</string>
     <string name="copying_model">Copying model…</string>
     <string name="gguf_recommendation">Quantized 1–3B models are recommended. GGUF is copied to internal storage; for a 2 GB model at least 6 GB RAM is desirable.</string>
+    <string name="device_title">This device</string>
+    <string name="device_info_format">Architecture: %1$s · CPU cores: %2$d · RAM: %3$s GB</string>
+    <string name="recommend_model_format">Recommended local GGUF: up to ~%1$d MB (%2$s)</string>
+    <string name="device_limited_note">Limited device: 32-bit build or low RAM — prefer smaller models and shorter answers.</string>
+    <string name="rec_tier_cloud_only">cloud models are preferred, locally only tiny 0.5B Q4</string>
+    <string name="rec_tier_tiny">compact 0.5–1B models in Q4</string>
+    <string name="rec_tier_small">1–3B models in Q4</string>
+    <string name="rec_tier_medium">up to 7B models in Q4</string>
+    <string name="rec_tier_large">7B+ models in Q4</string>
     <string name="agent_mode">Agent mode</string>
     <string name="agent_mode_desc">Lets the cloud model use files, the terminal and Git</string>
     <string name="shell_without_ask">Commands without re-asking</string>
@@ -225,6 +234,7 @@
     <string name="notice_zip_ready_format">Archive ready: %1$d files, %2$d MB</string>
     <string name="notice_linux_ready">Linux environment installed</string>
     <string name="notice_linux_failed">Could not install the Linux environment</string>
+    <string name="notice_model_oversize_format">Model is %1$d MB, above the recommended %2$d MB for this device — slowdowns are likely</string>
 
     <!-- Chat statuses and logs -->
     <string name="status_thinking">Model is thinking</string>

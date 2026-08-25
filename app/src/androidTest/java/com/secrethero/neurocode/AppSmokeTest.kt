@@ -17,13 +17,17 @@ class AppSmokeTest {
 
     @Test
     fun appStartsAndSettingsTabOpens() {
+        val settingsTab = composeRule.activity.getString(R.string.tab_settings)
         composeRule.waitUntil(timeoutMillis = 30_000) {
-            composeRule.onAllNodesWithText("Настройки").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText(settingsTab).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("Настройки").performClick()
+        composeRule.onNodeWithText(settingsTab).performClick()
+        val workMode = composeRule.activity.getString(R.string.work_mode)
         composeRule.waitUntil(timeoutMillis = 15_000) {
-            composeRule.onAllNodesWithText("Режим работы").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText(workMode).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("API-провайдеры").assertExists()
+        composeRule
+            .onNodeWithText(composeRule.activity.getString(R.string.providers))
+            .assertExists()
     }
 }
