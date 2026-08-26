@@ -22,6 +22,19 @@ class ChatRepository(private val context: Context) {
         _sessions.value = store.read().sortedByDescending { it.updatedAt }
     }
 
+    /**
+     * Привязывает диалоги без проекта к [projectId]. Разовая миграция: раньше сессии
+     * не фильтровались по проекту и показывались сразу во всех.
+     */
+    suspend fun adoptOrphanSessions(projectId: String) {
+        if (_sessions.value.none { it.projectId == null }) return
+        persist(
+            _sessions.value.map { session ->
+                if (session.projectId == null) session.copy(projectId = projectId) else session
+            },
+        )
+    }
+
     suspend fun create(projectId: String?, providerId: String?): ChatSession {
         val session = ChatSession(
             projectId = projectId,

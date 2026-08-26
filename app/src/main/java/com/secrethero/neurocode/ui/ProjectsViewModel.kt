@@ -65,6 +65,16 @@ class ProjectsViewModel(application: Application) : AndroidViewModel(application
 
     fun linkFolder(uri: Uri) = viewModelScope.launch {
         val projectId = settings.value.selectedProjectId ?: return@launch
+        // Одна папка на два проекта = их файлы смешиваются при синхронизации.
+        val takenBy = settings.value.linkedFolderByProject
+            .filterValues { it == uri.toString() }
+            .keys
+            .firstOrNull { it != projectId }
+        if (takenBy != null) {
+            val owner = container.projects.get(takenBy)?.name ?: takenBy
+            container.bus.showNotice(str(R.string.notice_folder_already_linked_format, owner))
+            return@launch
+        }
         runCatching {
             context.contentResolver.takePersistableUriPermission(
                 uri,

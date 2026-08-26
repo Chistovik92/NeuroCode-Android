@@ -9,21 +9,35 @@ import com.secrethero.neurocode.ai.AgentEvent
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatRunState
+import com.secrethero.neurocode.model.ChatSession
 import com.secrethero.neurocode.model.MessageRole
 import com.secrethero.neurocode.model.ProviderConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container
 
     val settings = container.settings.settings
-    val sessions = container.chats.sessions
+
+    /** Диалоги только выбранного проекта: история одного проекта не должна попадать в другой. */
+    val sessions: StateFlow<List<ChatSession>> = combine(
+        container.chats.sessions,
+        container.settings.settings.map { it.selectedProjectId }.distinctUntilChanged(),
+    ) { all, projectId ->
+        all.filter { it.projectId == projectId }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     val approval = container.approvals.request
     val localModelState = container.localLlama.state
     val projectsMutated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -41,7 +55,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             runCatching { container.chats.initialize() }.onFailure(container.bus::showError)
-            _activeSessionId.value = container.chats.sessions.value.firstOrNull()?.id
+        }
+        viewModelScope.launch {
+            // Активный диалог всегда принадлежит выбранному проекту: при смене проекта
+            // или удалении сессии переключаемся на последний диалог этого проекта.
+            sessions.collect { visible ->
+                if (visible.none { it.id == _activeSessionId.value }) {
+                    _activeSessionId.value = visible.firstOrNull()?.id
+                    _streamingResponse.value = ""
+                    _agentLog.value = emptyList()
+                }
+            }
         }
     }
 
@@ -62,12 +86,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteChat(sessionId: String) = viewModelScope.launch {
-        runCatching {
-            container.chats.delete(sessionId)
-            if (_activeSessionId.value == sessionId) {
-                _activeSessionId.value = container.chats.sessions.value.firstOrNull()?.id
-            }
-        }.onFailure(container.bus::showError)
+        // Следующий активный диалог выберет коллектор sessions в init.
+        runCatching { container.chats.delete(sessionId) }.onFailure(container.bus::showError)
     }
 
     fun sendMessage(text: String, editorContext: EditorContext? = null) {
@@ -86,7 +106,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     sessionId,
                     ChatMessage(role = MessageRole.USER, content = text.trim()),
                 )
-                val history = container.chats.get(sessionId)?.messages.orEmpty()
+                val session = container.chats.get(sessionId)
+                val history = session?.messages.orEmpty()
+                // Проект берём из самого диалога, а не из текущего выбора: иначе история
+                // старого проекта применялась бы к файлам нового.
+                val projectId = session?.projectId ?: settings.value.selectedProjectId
                 _streamingResponse.value = ""
                 _agentLog.value = emptyList()
                 _chatRunState.value = ChatRunState.Working(str(R.string.status_thinking))
@@ -94,7 +118,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 val answer = if (settings.value.useLocalModel) {
                     runLocal(sessionId, text.trim(), editorContext)
                 } else {
-                    runCloud(sessionId, history)
+                    runCloud(sessionId, projectId, history)
                 }
                 container.chats.append(
                     sessionId,
@@ -124,13 +148,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         container.approvals.resolve(approved)
     }
 
-    private suspend fun runCloud(sessionId: String, history: List<ChatMessage>): String {
+    private suspend fun runCloud(
+        sessionId: String,
+        projectId: String?,
+        history: List<ChatMessage>,
+    ): String {
         val current = settings.value
         val provider = current.providers.firstOrNull { it.id == current.selectedProviderId }
             ?: error(str(R.string.error_select_provider))
         val key = container.settings.apiKey(provider)
             ?: error(str(R.string.error_add_key_format, provider.name))
-        val project = container.projects.get(current.selectedProjectId)
+        val project = container.projects.get(projectId)
         val skills = if (current.skillsEnabled) {
             current.skills.filter { it.enabled }.map { "${it.name}: ${it.prompt}" }
         } else {

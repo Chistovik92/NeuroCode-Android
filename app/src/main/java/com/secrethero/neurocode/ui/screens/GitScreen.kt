@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -45,6 +47,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.model.AppDesign
+import com.secrethero.neurocode.git.GitCommitInfo
 import com.secrethero.neurocode.git.GitStatus
 import com.secrethero.neurocode.ui.GitViewModel
 import java.text.DateFormat
@@ -60,6 +64,7 @@ fun GitScreen(git: GitViewModel) {
     val settings by git.settings.collectAsStateWithLifecycle()
     val projectId = settings.selectedProjectId
     var commitDialog by remember { mutableStateOf(false) }
+    val modern = settings.appDesign == AppDesign.MODERN
 
     LaunchedEffect(Unit) { git.refresh() }
 
@@ -74,13 +79,24 @@ fun GitScreen(git: GitViewModel) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                status?.let { stringResource(R.string.branch_format, it.branch) }
-                    ?: stringResource(R.string.git_not_initialized),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f),
-            )
+            if (modern && status != null) {
+                Text(
+                    stringResource(R.string.git_repository_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.weight(1f),
+                )
+                BranchTag(status!!.branch)
+            } else {
+                Text(
+                    status?.let { stringResource(R.string.branch_format, it.branch) }
+                        ?: stringResource(R.string.git_not_initialized),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+            }
             IconButton(onClick = { git.refresh() }) {
                 Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
             }
@@ -127,7 +143,7 @@ fun GitScreen(git: GitViewModel) {
 
         Text(stringResource(R.string.changes), style = MaterialTheme.typography.titleMedium)
         Surface(
-            color = Color(0xFF0D1117),
+            color = if (modern) Color(0xFF0D0E0F) else Color(0xFF0D1117),
             shape = MaterialTheme.shapes.small,
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
@@ -141,17 +157,15 @@ fun GitScreen(git: GitViewModel) {
                     .padding(10.dp),
             ) {
                 if (diff.isBlank()) {
-                    Text(stringResource(R.string.no_changes), color = Color(0xFF9AA7B5))
+                    Text(
+                        stringResource(R.string.no_changes),
+                        color = if (modern) Color(0xFF8E918F) else Color(0xFF9AA7B5),
+                    )
                 } else {
                     diff.lineSequence().forEach { line ->
                         Text(
                             line,
-                            color = when {
-                                line.startsWith("+") && !line.startsWith("+++") -> Color(0xFF7EE787)
-                                line.startsWith("-") && !line.startsWith("---") -> Color(0xFFFF7B72)
-                                line.startsWith("@@") -> Color(0xFF79C0FF)
-                                else -> Color(0xFFE6EDF3)
-                            },
+                            color = diffColor(line, modern),
                             fontFamily = FontFamily.Monospace,
                             style = MaterialTheme.typography.bodySmall,
                         )
@@ -164,23 +178,7 @@ fun GitScreen(git: GitViewModel) {
         if (log.isEmpty()) {
             Text(stringResource(R.string.no_commits_yet))
         } else {
-            log.forEach { commit ->
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(Modifier.padding(10.dp)) {
-                        Text(commit.message, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "${commit.shortHash} · ${commit.author} · ${
-                                DateFormat.getDateTimeInstance().format(Date(commit.timestamp))
-                            }",
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                }
-            }
+            log.forEach { commit -> CommitCard(commit = commit, modern = modern) }
         }
     }
 
@@ -192,6 +190,104 @@ fun GitScreen(git: GitViewModel) {
                 commitDialog = false
             },
         )
+    }
+}
+
+/** Палитра diff: GitHub-dark в классике и Gemini в современном дизайне. */
+private class DiffPalette(
+    val added: Color,
+    val removed: Color,
+    val hunk: Color,
+    val text: Color,
+)
+
+private val ClassicDiffPalette = DiffPalette(
+    added = Color(0xFF7EE787),
+    removed = Color(0xFFFF7B72),
+    hunk = Color(0xFF79C0FF),
+    text = Color(0xFFE6EDF3),
+)
+
+private val ModernDiffPalette = DiffPalette(
+    added = Color(0xFF81C995),
+    removed = Color(0xFFF28B82),
+    hunk = Color(0xFF8AB4F8),
+    text = Color(0xFFE3E3E3),
+)
+
+private fun diffColor(line: String, modern: Boolean): Color {
+    val palette = if (modern) ModernDiffPalette else ClassicDiffPalette
+    return when {
+        line.startsWith("+") && !line.startsWith("+++") -> palette.added
+        line.startsWith("-") && !line.startsWith("---") -> palette.removed
+        line.startsWith("@@") -> palette.hunk
+        else -> palette.text
+    }
+}
+
+/** Пилюля с текущей веткой (современный дизайн). */
+@Composable
+private fun BranchTag(branch: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Text(
+            branch,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+        )
+    }
+}
+
+/** Карточка коммита: хеш-чип слева, дата справа, сообщение под ними. */
+@Composable
+private fun CommitCard(commit: GitCommitInfo, modern: Boolean) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = if (modern) RoundedCornerShape(12.dp) else MaterialTheme.shapes.small,
+        border = if (modern) {
+            null
+        } else {
+            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp),
+                ) {
+                    Text(
+                        commit.shortHash,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+                Text(
+                    DateFormat.getDateTimeInstance().format(Date(commit.timestamp)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(commit.message, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                commit.author,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

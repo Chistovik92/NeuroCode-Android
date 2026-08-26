@@ -82,8 +82,12 @@
     <string name="empty_local_body">The currently open file is added to the context automatically. Local mode does not use the network.</string>
     <string name="empty_agent_title">The agent is ready to work on your project</string>
     <string name="empty_agent_body">It can read files, propose edits, run commands and inspect Git diffs. Dangerous actions require confirmation.</string>
+    <string name="greeting_hello">Hello</string>
+    <string name="greeting_help">How can I help?</string>
 
     <!-- Terminal screen -->
+    <string name="terminal_session_label">SHELL SESSION</string>
+    <string name="git_repository_label">REPOSITORY</string>
     <string name="clear_cd">Clear</string>
     <string name="run_cd">Run</string>
 
@@ -229,6 +233,7 @@
 
     <!-- Notices -->
     <string name="notice_folder_linked">Sync folder linked</string>
+    <string name="notice_folder_already_linked_format">This folder is already linked to project “%1$s”. Pick another one so the projects do not mix.</string>
     <string name="notice_link_folder_first">Link a sync folder first</string>
     <string name="notice_synced_files_format">Files synced: %1$d</string>
     <string name="notice_from_folder_format">From folder: added %1$d, updated %2$d</string>

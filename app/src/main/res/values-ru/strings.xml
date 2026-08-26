@@ -82,8 +82,12 @@
     <string name="empty_local_body">Текущий открытый файл автоматически добавляется в контекст. Локальный режим не использует интернет.</string>
     <string name="empty_agent_title">Агент готов работать с проектом</string>
     <string name="empty_agent_body">Он может читать файлы, предлагать изменения, запускать команды и проверять Git diff. Опасные действия требуют подтверждения.</string>
+    <string name="greeting_hello">Привет</string>
+    <string name="greeting_help">Чем я могу помочь?</string>
 
     <!-- Terminal screen -->
+    <string name="terminal_session_label">SHELL SESSION</string>
+    <string name="git_repository_label">REPOSITORY</string>
     <string name="clear_cd">Очистить</string>
     <string name="run_cd">Выполнить</string>
 
@@ -229,6 +233,7 @@
 
     <!-- Notices -->
     <string name="notice_folder_linked">Папка синхронизации привязана</string>
+    <string name="notice_folder_already_linked_format">Эта папка уже привязана к проекту «%1$s». Выберите другую, иначе проекты смешаются.</string>
     <string name="notice_link_folder_first">Сначала привяжите папку синхронизации</string>
     <string name="notice_synced_files_format">Синхронизировано файлов: %1$d</string>
     <string name="notice_from_folder_format">Из папки: добавлено %1$d, обновлено %2$d</string>

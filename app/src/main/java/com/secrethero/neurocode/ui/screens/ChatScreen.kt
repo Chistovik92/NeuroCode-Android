@@ -25,9 +25,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Stop
@@ -42,6 +45,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,6 +60,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatRunState
 import com.secrethero.neurocode.model.MessageRole
@@ -70,6 +77,12 @@ import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.ui.ChatViewModel
 import com.secrethero.neurocode.ui.EditorViewModel
 import com.secrethero.neurocode.ui.ProviderModelsState
+
+/** Заливка пузыря пользователя в классическом дизайне (GitHub green). */
+private val ClassicUserBubble = Color(0xFF238636)
+
+/** Фирменный градиент Gemini для аватара и приветствия. */
+private val ModernAvatarGradient = listOf(Color(0xFF7DACFA), Color(0xFFC58AF9))
 
 @Composable
 fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
@@ -86,6 +99,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
     var input by remember { mutableStateOf("") }
     var showLog by remember { mutableStateOf(false) }
     val busy = runState is ChatRunState.Working
+    val modern = settings.appDesign == AppDesign.MODERN
 
     LaunchedEffect(messages.size, streaming, agentLog.size) {
         val extra = if (streaming.isNotEmpty() || agentLog.isNotEmpty()) 1 else 0
@@ -157,12 +171,17 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
             ) {
                 if (messages.isEmpty() && streaming.isEmpty()) {
                     item {
-                        EmptyChatHint(local = settings.useLocalModel)
+                        if (modern) {
+                            ModernGreeting()
+                        } else {
+                            EmptyChatHint(local = settings.useLocalModel)
+                        }
                     }
                 }
                 items(messages, key = { it.id }) { message ->
                     MessageBubble(
                         message = message,
+                        modern = modern,
                         onCopy = {
                             clipboard.setText(AnnotatedString(message.content))
                         },
@@ -206,6 +225,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                                 role = MessageRole.ASSISTANT,
                                 content = streaming,
                             ),
+                            modern = modern,
                             onCopy = { clipboard.setText(AnnotatedString(streaming)) },
                         )
                     }
@@ -223,81 +243,50 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 }
             }
 
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .imePadding(),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            ) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    val context = LocalContext.current
-                    IconButton(
-                        onClick = {
-                            val text = messages.joinToString("\n\n") { message ->
-                                when (message.role) {
-                                    MessageRole.USER ->
-                                        context.getString(R.string.prefix_user, message.content)
-                                    MessageRole.ASSISTANT ->
-                                        context.getString(R.string.prefix_agent, message.content)
-                                    MessageRole.TOOL -> context.getString(
-                                        R.string.prefix_tool,
-                                        message.toolName ?: "",
-                                        message.content,
-                                    )
-                                    MessageRole.SYSTEM -> message.content
-                                }
-                            }
-                            clipboard.setText(AnnotatedString(text))
-                        },
-                        enabled = messages.isNotEmpty(),
-                    ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy_dialog_cd))
-                    }
-                    OutlinedTextField(
-                        value = input,
-                        onValueChange = { input = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = {
-                            Text(
-                                if (settings.agentMode && !settings.useLocalModel) {
-                                    stringResource(R.string.hint_agent_input)
-                                } else {
-                                    stringResource(R.string.hint_message)
-                                },
-                            )
-                        },
-                        minLines = 1,
-                        maxLines = 6,
-                    )
-                    FilledIconButton(
-                        onClick = {
-                            if (busy) {
-                                chat.cancelChat()
-                            } else if (input.isNotBlank()) {
-                                chat.sendMessage(input, editor.currentContext())
-                                input = ""
-                            }
-                        },
-                        enabled = busy || input.isNotBlank(),
-                    ) {
-                        Icon(
-                            if (busy) Icons.Default.Stop else Icons.AutoMirrored.Filled.Send,
-                            contentDescription = if (busy) {
-                                stringResource(R.string.stop_cd)
-                            } else {
-                                stringResource(R.string.send_cd)
-                            },
+            val context = LocalContext.current
+            val onCopyDialog = {
+                val text = messages.joinToString("\n\n") { message ->
+                    when (message.role) {
+                        MessageRole.USER ->
+                            context.getString(R.string.prefix_user, message.content)
+                        MessageRole.ASSISTANT ->
+                            context.getString(R.string.prefix_agent, message.content)
+                        MessageRole.TOOL -> context.getString(
+                            R.string.prefix_tool,
+                            message.toolName ?: "",
+                            message.content,
                         )
+                        MessageRole.SYSTEM -> message.content
                     }
                 }
+                clipboard.setText(AnnotatedString(text))
+            }
+            val placeholder = if (settings.agentMode && !settings.useLocalModel) {
+                stringResource(R.string.hint_agent_input)
+            } else {
+                stringResource(R.string.hint_message)
+            }
+            val onSend = {
+                if (busy) {
+                    chat.cancelChat()
+                } else if (input.isNotBlank()) {
+                    chat.sendMessage(input, editor.currentContext())
+                    input = ""
+                }
+            }
+            val bar = InputBarState(
+                value = input,
+                onValue = { input = it },
+                placeholder = placeholder,
+                busy = busy,
+                onSend = onSend,
+                onCopyDialog = onCopyDialog,
+                copyEnabled = messages.isNotEmpty(),
+            )
+            if (modern) {
+                ModernInputBar(bar)
+            } else {
+                ClassicInputBar(bar)
             }
         }
     }
@@ -433,9 +422,142 @@ fun ModelSwitcherDialog(
     }
 }
 
+/** Параметры панели ввода, общие для обоих дизайнов. */
+@Suppress("LongParameterList")
+private class InputBarState(
+    val value: String,
+    val onValue: (String) -> Unit,
+    val placeholder: String,
+    val busy: Boolean,
+    val onSend: () -> Unit,
+    val onCopyDialog: () -> Unit,
+    val copyEnabled: Boolean,
+)
+
+/** Классическая панель ввода: плотная строка на панели с рамкой (GitHub-dark). */
 @Composable
-private fun MessageBubble(message: ChatMessage, onCopy: () -> Unit) {
+private fun ClassicInputBar(state: InputBarState) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding(),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            IconButton(onClick = state.onCopyDialog, enabled = state.copyEnabled) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = stringResource(R.string.copy_dialog_cd),
+                )
+            }
+            OutlinedTextField(
+                value = state.value,
+                onValueChange = state.onValue,
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(state.placeholder) },
+                shape = RoundedCornerShape(6.dp),
+                minLines = 1,
+                maxLines = 6,
+            )
+            FilledIconButton(
+                onClick = state.onSend,
+                enabled = state.busy || state.value.isNotBlank(),
+            ) {
+                Icon(
+                    if (state.busy) Icons.Default.Stop else Icons.AutoMirrored.Filled.Send,
+                    contentDescription = if (state.busy) {
+                        stringResource(R.string.stop_cd)
+                    } else {
+                        stringResource(R.string.send_cd)
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** Современная панель ввода: «таблетка» на фоне экрана, круглая кнопка отправки. */
+@Suppress("LongMethod")
+@Composable
+private fun ModernInputBar(state: InputBarState) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Row(
+                Modifier.padding(start = 6.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = state.onCopyDialog, enabled = state.copyEnabled) {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = stringResource(R.string.copy_dialog_cd),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                TextField(
+                    value = state.value,
+                    onValueChange = state.onValue,
+                    modifier = Modifier.weight(1f),
+                    placeholder = {
+                        Text(state.placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                    ),
+                    maxLines = 6,
+                )
+                FilledIconButton(
+                    onClick = state.onSend,
+                    enabled = state.busy || state.value.isNotBlank(),
+                    shape = CircleShape,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        if (state.busy) Icons.Default.Stop else Icons.Default.ArrowUpward,
+                        contentDescription = if (state.busy) {
+                            stringResource(R.string.stop_cd)
+                        } else {
+                            stringResource(R.string.send_cd)
+                        },
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Suppress("LongMethod", "CyclomaticComplexMethod")
+@Composable
+private fun MessageBubble(message: ChatMessage, modern: Boolean, onCopy: () -> Unit) {
     val user = message.role == MessageRole.USER
+    val tool = message.role == MessageRole.TOOL
     Column(
         horizontalAlignment = if (user) Alignment.End else Alignment.Start,
         modifier = Modifier.fillMaxWidth(),
@@ -444,6 +566,9 @@ private fun MessageBubble(message: ChatMessage, onCopy: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            if (modern && !user) {
+                GeminiAvatar()
+            }
             IconButton(onClick = onCopy, modifier = Modifier.size(28.dp)) {
                 Icon(
                     Icons.Default.ContentCopy,
@@ -452,37 +577,112 @@ private fun MessageBubble(message: ChatMessage, onCopy: () -> Unit) {
                     modifier = Modifier.size(16.dp),
                 )
             }
+            val shape = bubbleShape(modern = modern, user = user)
+            val background = bubbleBackground(modern = modern, user = user, tool = tool)
+            val bordered = !modern || tool
             Box(
                 modifier = Modifier
                     .widthIn(max = 340.dp)
-                    .background(
-                        color = when {
-                            user -> MaterialTheme.colorScheme.primaryContainer
-                            message.role == MessageRole.TOOL ->
-                                MaterialTheme.colorScheme.tertiaryContainer
-                            else -> MaterialTheme.colorScheme.surfaceVariant
+                    .background(background, shape)
+                    .then(
+                        if (bordered) {
+                            Modifier.border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
+                                shape,
+                            )
+                        } else {
+                            Modifier
                         },
-                        shape = RoundedCornerShape(12.dp),
                     )
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
-                        RoundedCornerShape(12.dp),
-                    )
-                    .padding(10.dp),
+                    .padding(
+                        horizontal = if (modern && !user && !tool) 2.dp else 12.dp,
+                        vertical = if (modern && !user && !tool) 2.dp else 10.dp,
+                    ),
             ) {
                 Text(
                     message.content,
-                    style = if (message.role == MessageRole.TOOL) {
+                    style = if (tool) {
                         MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
                     } else {
                         MaterialTheme.typography.bodyMedium
                     },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.takeIf { !user }
-                        ?: MaterialTheme.colorScheme.onSurface,
+                    color = when {
+                        !modern && user -> Color.White
+                        tool -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.onSurface
+                    },
                 )
             }
         }
+    }
+}
+
+/** Скругления пузыря: компактные в классике, «капля» пользователя в современном дизайне. */
+private fun bubbleShape(modern: Boolean, user: Boolean) = when {
+    !modern -> RoundedCornerShape(10.dp)
+    user -> RoundedCornerShape(
+        topStart = 20.dp,
+        topEnd = 20.dp,
+        bottomStart = 20.dp,
+        bottomEnd = 6.dp,
+    )
+    else -> RoundedCornerShape(20.dp)
+}
+
+/**
+ * В современном дизайне ответ модели сливается с фоном, как в Gemini,
+ * а в классическом это карточка с рамкой в духе GitHub-dark.
+ */
+@Composable
+private fun bubbleBackground(modern: Boolean, user: Boolean, tool: Boolean): Color = when {
+    modern && user -> MaterialTheme.colorScheme.surfaceVariant
+    modern && tool -> MaterialTheme.colorScheme.surface
+    modern -> Color.Transparent
+    user -> ClassicUserBubble
+    tool -> MaterialTheme.colorScheme.tertiaryContainer
+    else -> MaterialTheme.colorScheme.surface
+}
+
+/** Кружок-аватар ассистента с фирменным градиентом (современный дизайн). */
+@Composable
+private fun GeminiAvatar() {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .background(Brush.linearGradient(ModernAvatarGradient), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Default.AutoAwesome,
+            contentDescription = null,
+            tint = Color(0xFF041E49),
+            modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
+/** Приветствие пустого диалога в стиле Gemini. */
+@Composable
+private fun ModernGreeting() {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 48.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            stringResource(R.string.greeting_hello),
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.Medium,
+                brush = Brush.linearGradient(ModernAvatarGradient),
+            ),
+        )
+        Text(
+            stringResource(R.string.greeting_help),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

@@ -110,7 +110,7 @@
     <ID>ReturnCount:LspController.kt$LspController$private fun ensureStarted(root: File): LspClient?</ID>
     <ID>ReturnCount:ProotManager.kt$ProotManager$private fun resolveBundledBinary(): File?</ID>
     <ID>SpreadOperator:ProotManager.kt$(destination.absolutePath, *entry.name.split('/').toTypedArray())</ID>
-    <ID>ThrowsCount:ChatViewModel.kt$ChatViewModel$private suspend fun runCloud(sessionId: String, history: List&lt;ChatMessage&gt;): String</ID>
+    <ID>ThrowsCount:ChatViewModel.kt$ChatViewModel$private suspend fun runCloud( sessionId: String, projectId: String?, history: List&lt;ChatMessage&gt;, ): String</ID>
     <ID>ThrowsCount:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun tryChatEndpoints( provider: ProviderConfig, shouldRethrow: () -&gt; Boolean = { false }, block: suspend (String) -&gt; AssistantTurn, ): AssistantTurn</ID>
     <ID>ThrowsCount:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
     <ID>TooGenericExceptionCaught:ChatViewModel.kt$ChatViewModel$error: Throwable</ID>
