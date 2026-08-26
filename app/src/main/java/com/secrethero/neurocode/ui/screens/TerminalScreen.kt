@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -37,39 +39,62 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.ui.TerminalViewModel
 
 @Composable
 fun TerminalScreen(terminal: TerminalViewModel) {
     val lines by terminal.lines.collectAsStateWithLifecycle()
+    val settings by terminal.settings.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var command by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) { terminal.startTerminal() }
+    // Ключ по проекту: при переключении сессия перезапускается в новом корне.
+    LaunchedEffect(settings.selectedProjectId) { terminal.startTerminal() }
     LaunchedEffect(lines.size) {
         if (lines.isNotEmpty()) listState.scrollToItem(lines.lastIndex)
     }
 
+    // Классика — чёрный терминал GitHub-dark, современный дизайн — тёмная dev-панель Gemini.
+    val modern = settings.appDesign == AppDesign.MODERN
+    val screenColor = if (modern) Color(0xFF0D0E0F) else Color(0xFF000000)
+    val barColor = if (modern) Color(0xFF0D0E0F) else Color(0xFF161B22)
+    val accentColor = if (modern) Color(0xFF6DD58C) else Color(0xFF7EE787)
+    val textColor = if (modern) Color(0xFFE3E3E3) else Color(0xFFE6EDF3)
+    val errorColor = if (modern) Color(0xFFF28B82) else Color(0xFFF85149)
+    val mutedColor = if (modern) Color(0xFF8E918F) else Color(0xFF8B949E)
+
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(screenColor)
             .imePadding(),
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF161B22))
+                .background(barColor)
                 .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(
+                stringResource(R.string.terminal_session_label),
+                color = mutedColor,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 6.dp),
+            )
             IconButton(onClick = terminal::interruptTerminal) {
-                Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop_cd), tint = Color(0xFFFF6B6B))
+                Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.stop_cd), tint = errorColor)
             }
             IconButton(onClick = terminal::clearTerminal) {
-                Icon(Icons.Default.ClearAll, contentDescription = stringResource(R.string.clear_cd), tint = Color(0xFFB9C2CF))
+                Icon(Icons.Default.ClearAll, contentDescription = stringResource(R.string.clear_cd), tint = mutedColor)
             }
         }
+        HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -81,9 +106,9 @@ fun TerminalScreen(terminal: TerminalViewModel) {
                 Text(
                     line.text,
                     color = when {
-                        line.error -> Color(0xFFF85149)
-                        line.command -> Color(0xFF7EE787)
-                        else -> Color(0xFFE6EDF3)
+                        line.error -> errorColor
+                        line.command -> accentColor
+                        else -> textColor
                     },
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
@@ -94,16 +119,18 @@ fun TerminalScreen(terminal: TerminalViewModel) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF161B22))
+                .background(barColor)
                 .padding(8.dp),
         ) {
             OutlinedTextField(
                 value = command,
                 onValueChange = { command = it },
                 modifier = Modifier.weight(1f),
-                prefix = { Text("$ ", color = Color(0xFF7EE787)) },
+                prefix = {
+                    Text(if (modern) "❯ " else "$ ", color = accentColor)
+                },
                 textStyle = TextStyle(
-                    color = Color.White,
+                    color = textColor,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 13.sp,
                 ),
@@ -126,7 +153,7 @@ fun TerminalScreen(terminal: TerminalViewModel) {
                     }
                 },
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.run_cd), tint = Color(0xFF7EE787))
+                Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.run_cd), tint = accentColor)
             }
         }
     }

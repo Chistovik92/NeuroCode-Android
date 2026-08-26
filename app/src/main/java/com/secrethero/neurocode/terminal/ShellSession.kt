@@ -44,9 +44,14 @@ class ShellSession(
     @Synchronized
     fun start(projectId: String) {
         if (process?.isAlive == true && activeProjectId == projectId) return
+        val previousProjectId = activeProjectId
         stop()
+        // Вывод чужого проекта не должен оставаться в буфере после переключения.
+        if (previousProjectId != null && previousProjectId != projectId) {
+            _lines.value = emptyList()
+        }
         val root = projects.resolve(projectId, "")
-        launchBackgroundInit(projectId)
+        launchBackgroundInit()
         val shellCommand = interactiveShellCommand(root)
         process = createProcess(root, shellCommand).also { shell ->
             writer = BufferedWriter(OutputStreamWriter(shell.outputStream))
@@ -152,7 +157,7 @@ class ShellSession(
             listOf("/system/bin/sh")
         }
 
-    private fun launchBackgroundInit(projectId: String) {
+    private fun launchBackgroundInit() {
         if (proot.isReady()) {
             append(TerminalLine(appContext.getString(R.string.banner_linux_active)))
             return
@@ -167,9 +172,12 @@ class ShellSession(
             }
             append(TerminalLine(appContext.getString(R.string.banner_linux_ready)))
             synchronized(this@ShellSession) {
-                if (interactiveCommandsSent == 0 && activeProjectId != null) {
+                // activeProjectId читаем до stop(): он его обнуляет, и перезапуск ушёл бы
+                // в проект, который был активен на момент запуска proot.
+                val current = activeProjectId
+                if (interactiveCommandsSent == 0 && current != null) {
                     stop()
-                    start(activeProjectId ?: projectId)
+                    start(current)
                 }
             }
         }

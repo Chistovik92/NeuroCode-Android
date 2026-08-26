@@ -76,6 +76,7 @@ class AppContainer(application: Application) {
                         settings.update { it.copy(selectedProjectId = first.id) }
                     }
                 }
+                settings.settings.value.selectedProjectId?.let { chats.adoptOrphanSessions(it) }
             }.onFailure(bus::showError)
             _ready.value = true
         }
