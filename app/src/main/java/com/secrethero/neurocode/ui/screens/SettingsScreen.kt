@@ -55,6 +55,7 @@ import com.secrethero.neurocode.device.DeviceSnapshot
 import com.secrethero.neurocode.device.ModelTier
 import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppDesign
+import com.secrethero.neurocode.model.ModelLimits
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
 import com.secrethero.neurocode.ui.ProviderModelsState
@@ -69,6 +70,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
     val providerModels by vm.providerModels.collectAsStateWithLifecycle()
     val prootState by vm.prootState.collectAsStateWithLifecycle()
     val deviceSnapshot by vm.deviceSnapshot.collectAsStateWithLifecycle()
+    val modelLimits by vm.modelLimits.collectAsStateWithLifecycle()
     var editingProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var providerDialog by remember { mutableStateOf(false) }
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
@@ -189,6 +191,8 @@ fun SettingsScreen(vm: SettingsViewModel) {
         deviceSnapshot?.let { snapshot ->
             DeviceRecommendationCard(snapshot)
         }
+
+        ModelLimitsCard(modelLimits)
 
         SettingSwitch(
             title = stringResource(R.string.agent_mode),
@@ -464,6 +468,84 @@ fun SettingsScreen(vm: SettingsViewModel) {
                 TextButton(onClick = { deleteProvider = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
+    }
+}
+
+/** Лимиты и расход выбранной модели: окно контекста, токены запроса и остатки провайдера. */
+@Suppress("LongMethod", "CyclomaticComplexMethod")
+@Composable
+private fun ModelLimitsCard(limits: ModelLimits?) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                stringResource(R.string.limits_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (limits == null) {
+                Text(
+                    stringResource(R.string.limits_none),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                return@Column
+            }
+            Text(
+                stringResource(R.string.limits_model, limits.model),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            limits.contextWindow?.let {
+                Text(
+                    stringResource(R.string.limits_context_row, it.toString()),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            limits.maxOutputTokens?.let {
+                Text(
+                    stringResource(R.string.limits_max_output_row, it.toString()),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (limits.hasUsage) {
+                Text(
+                    stringResource(
+                        R.string.limits_usage_row,
+                        limits.promptTokens ?: 0,
+                        limits.completionTokens ?: 0,
+                        limits.totalTokens ?: 0,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            limits.requestsRemaining?.let { remaining ->
+                val value = limits.requestsLimit?.let { "$remaining / $it" } ?: remaining
+                Text(
+                    stringResource(R.string.limits_requests_row, value),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            limits.tokensRemaining?.let { remaining ->
+                val value = limits.tokensLimit?.let { "$remaining / $it" } ?: remaining
+                Text(
+                    stringResource(R.string.limits_tokens_row, value),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            limits.resetHint?.let {
+                Text(
+                    stringResource(R.string.limits_reset_row, it),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Text(
+                stringResource(R.string.limits_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

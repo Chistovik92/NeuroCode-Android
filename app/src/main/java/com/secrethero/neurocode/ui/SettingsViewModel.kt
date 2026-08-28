@@ -33,6 +33,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _deviceSnapshot = MutableStateFlow<DeviceSnapshot?>(null)
     val deviceSnapshot: StateFlow<DeviceSnapshot?> = _deviceSnapshot.asStateFlow()
 
+    /** Лимиты и расход по последнему ответу провайдера. */
+    val modelLimits: StateFlow<com.secrethero.neurocode.model.ModelLimits?> =
+        container.apiClient.limits
+
     init {
         viewModelScope.launch {
             runCatching { deviceSpecs.snapshot() }

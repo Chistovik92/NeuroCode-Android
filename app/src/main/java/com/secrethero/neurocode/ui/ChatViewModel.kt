@@ -1,15 +1,20 @@
 package com.secrethero.neurocode.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.R
 import com.secrethero.neurocode.ai.AgentEvent
+import com.secrethero.neurocode.ai.PreparedAttachment
 import com.secrethero.neurocode.model.AppSettings
+import com.secrethero.neurocode.model.AttachmentKind
+import com.secrethero.neurocode.model.ChatAttachment
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatRunState
 import com.secrethero.neurocode.model.ChatSession
+import com.secrethero.neurocode.model.ModelLimits
 import com.secrethero.neurocode.model.MessageRole
 import com.secrethero.neurocode.model.ProviderConfig
 import kotlinx.coroutines.CancellationException
@@ -50,6 +55,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val streamingResponse: StateFlow<String> = _streamingResponse.asStateFlow()
     private val _agentLog = MutableStateFlow<List<String>>(emptyList())
     val agentLog: StateFlow<List<String>> = _agentLog.asStateFlow()
+
+    /** Размышления модели по текущему ответу (пока он генерируется). */
+    private val _streamingReasoning = MutableStateFlow("")
+    val streamingReasoning: StateFlow<String> = _streamingReasoning.asStateFlow()
+
+    /** Файлы, выбранные для следующего сообщения. */
+    private val _pendingAttachments = MutableStateFlow<List<ChatAttachment>>(emptyList())
+    val pendingAttachments: StateFlow<List<ChatAttachment>> = _pendingAttachments.asStateFlow()
+
+    /** Лимиты и расход по последнему ответу провайдера. */
+    val modelLimits: StateFlow<ModelLimits?> = container.apiClient.limits
+
     private var chatJob: Job? = null
 
     init {
@@ -63,6 +80,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 if (visible.none { it.id == _activeSessionId.value }) {
                     _activeSessionId.value = visible.firstOrNull()?.id
                     _streamingResponse.value = ""
+                    _streamingReasoning.value = ""
                     _agentLog.value = emptyList()
                 }
             }
@@ -82,7 +100,41 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun selectChat(sessionId: String) {
         _activeSessionId.value = sessionId
         _streamingResponse.value = ""
+        _streamingReasoning.value = ""
         _agentLog.value = emptyList()
+    }
+
+    /** Копирует выбранные через SAF файлы в проект и прикрепляет их к следующему сообщению. */
+    fun attachFiles(uris: List<Uri>) = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId
+        if (projectId == null) {
+            container.bus.showNotice(str(R.string.notice_select_project_first))
+            return@launch
+        }
+        uris.forEach { uri ->
+            runCatching { container.projects.importAttachment(projectId, uri) }
+                .onSuccess { attachment ->
+                    _pendingAttachments.value = _pendingAttachments.value + attachment
+                }
+                .onFailure(container.bus::showError)
+        }
+    }
+
+    /** Файл вложения на диске — нужен превью картинок в списке сообщений. */
+    fun attachmentFile(attachment: ChatAttachment): java.io.File? {
+        val projectId = sessions.value.firstOrNull { it.id == _activeSessionId.value }?.projectId
+            ?: settings.value.selectedProjectId
+            ?: return null
+        return container.projects.attachmentFile(projectId, attachment)
+    }
+
+    fun removeAttachment(attachmentId: String) = viewModelScope.launch {
+        val attachment = _pendingAttachments.value.firstOrNull { it.id == attachmentId }
+            ?: return@launch
+        _pendingAttachments.value = _pendingAttachments.value.filterNot { it.id == attachmentId }
+        settings.value.selectedProjectId?.let { projectId ->
+            runCatching { container.projects.deleteAttachment(projectId, attachment) }
+        }
     }
 
     fun deleteChat(sessionId: String) = viewModelScope.launch {
@@ -91,7 +143,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendMessage(text: String, editorContext: EditorContext? = null) {
-        if (text.isBlank() || chatJob?.isActive == true) return
+        val attached = _pendingAttachments.value
+        if ((text.isBlank() && attached.isEmpty()) || chatJob?.isActive == true) return
         chatJob = viewModelScope.launch {
             try {
                 var sessionId = _activeSessionId.value
@@ -104,27 +157,38 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 container.chats.append(
                     sessionId,
-                    ChatMessage(role = MessageRole.USER, content = text.trim()),
+                    ChatMessage(
+                        role = MessageRole.USER,
+                        content = text.trim(),
+                        attachments = attached,
+                    ),
                 )
+                _pendingAttachments.value = emptyList()
                 val session = container.chats.get(sessionId)
                 val history = session?.messages.orEmpty()
                 // Проект берём из самого диалога, а не из текущего выбора: иначе история
                 // старого проекта применялась бы к файлам нового.
                 val projectId = session?.projectId ?: settings.value.selectedProjectId
                 _streamingResponse.value = ""
+                _streamingReasoning.value = ""
                 _agentLog.value = emptyList()
                 _chatRunState.value = ChatRunState.Working(str(R.string.status_thinking))
 
                 val answer = if (settings.value.useLocalModel) {
-                    runLocal(sessionId, text.trim(), editorContext)
+                    runLocal(sessionId, text.trim(), editorContext, attached)
                 } else {
                     runCloud(sessionId, projectId, history)
                 }
                 container.chats.append(
                     sessionId,
-                    ChatMessage(role = MessageRole.ASSISTANT, content = answer),
+                    ChatMessage(
+                        role = MessageRole.ASSISTANT,
+                        content = answer,
+                        reasoning = _streamingReasoning.value.takeIf { it.isNotBlank() },
+                    ),
                 )
                 _streamingResponse.value = ""
+                _streamingReasoning.value = ""
                 _chatRunState.value = ChatRunState.Idle
                 projectsMutated.tryEmit(Unit)
             } catch (cancelled: CancellationException) {
@@ -159,15 +223,16 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val key = container.settings.apiKey(provider)
             ?: error(str(R.string.error_add_key_format, provider.name))
         val project = container.projects.get(projectId)
-        val skills = if (current.skillsEnabled) {
-            current.skills.filter { it.enabled }.map { "${it.name}: ${it.prompt}" }
-        } else {
-            emptyList()
-        }
-        val externalTools = current.externalTools.filter { it.enabled }
+        val request = CloudRequest(
+            current = current,
+            project = project,
+            history = history,
+            attachments = prepareAttachments(projectId, history),
+            sessionId = sessionId,
+        )
 
         val answer = try {
-            runCloudAttempt(current, project, provider, key, history, skills, externalTools, sessionId)
+            runCloudAttempt(request, provider, key)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (primaryError: Throwable) {
@@ -183,7 +248,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             )
             _chatRunState.value =
                 ChatRunState.Working(str(R.string.status_fallback_format, fallback.name))
-            runCloudAttempt(current, project, fallback, fallbackKey, history, skills, externalTools, sessionId)
+            runCloudAttempt(request, fallback, fallbackKey)
         }
         runPostChecks(current, project, sessionId)
         return answer
@@ -198,40 +263,108 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         return fallback
     }
 
+    /** Всё, что не меняется между основной попыткой и фолбэком на резервного провайдера. */
+    private class CloudRequest(
+        val current: AppSettings,
+        val project: com.secrethero.neurocode.model.Project?,
+        val history: List<ChatMessage>,
+        val attachments: Map<String, PreparedAttachment>,
+        val sessionId: String,
+    ) {
+        val skills: List<String>
+            get() = if (current.skillsEnabled) {
+                current.skills.filter { it.enabled }.map { "${it.name}: ${it.prompt}" }
+            } else {
+                emptyList()
+            }
+
+        val externalTools = current.externalTools.filter { it.enabled }
+    }
+
     private suspend fun runCloudAttempt(
-        current: AppSettings,
-        project: com.secrethero.neurocode.model.Project?,
+        request: CloudRequest,
         provider: ProviderConfig,
         key: String,
-        history: List<ChatMessage>,
-        skills: List<String>,
-        externalTools: List<com.secrethero.neurocode.model.ExternalAgentTool>,
-        sessionId: String,
-    ): String = if (current.agentMode && project != null) {
-        val projectSummary = runCatching {
-            container.projects.contextSummary(project.id)
-        }.getOrDefault("")
-        container.agent.run(
-            projectId = project.id,
-            projectName = project.name,
-            projectSummary = projectSummary,
-            provider = provider,
-            apiKey = key,
-            history = history,
-            maxSteps = current.maxAgentSteps,
-            allowAgentShell = current.allowAgentShell,
-            activeSkills = skills,
-            externalTools = externalTools,
-            onEvent = { onAgentEvent(sessionId, it) },
-        )
-    } else {
-        container.agent.chat(
-            provider,
-            key,
-            history,
-            onEvent = { onAgentEvent(sessionId, it) },
-        )
+    ): String {
+        val project = request.project
+        return if (request.current.agentMode && project != null) {
+            val projectSummary = runCatching {
+                container.projects.contextSummary(project.id)
+            }.getOrDefault("")
+            container.agent.run(
+                projectId = project.id,
+                projectName = project.name,
+                projectSummary = projectSummary,
+                provider = provider,
+                apiKey = key,
+                history = request.history,
+                maxSteps = request.current.maxAgentSteps,
+                allowAgentShell = request.current.allowAgentShell,
+                activeSkills = request.skills,
+                externalTools = request.externalTools,
+                attachments = request.attachments,
+                onEvent = { onAgentEvent(request.sessionId, it) },
+            )
+        } else {
+            container.agent.chat(
+                provider = provider,
+                apiKey = key,
+                history = request.history,
+                attachments = request.attachments,
+                onEvent = { onAgentEvent(request.sessionId, it) },
+            )
+        }
     }
+
+    /**
+     * Готовит вложения из истории к отправке: картинки — в data-URL, текстовые файлы —
+     * содержимым, остальные — путём внутри проекта.
+     */
+    private suspend fun prepareAttachments(
+        projectId: String?,
+        history: List<ChatMessage>,
+    ): Map<String, PreparedAttachment> {
+        val attachments = if (projectId == null) emptyList() else history.flatMap { it.attachments }
+        if (projectId == null || attachments.isEmpty()) return emptyMap()
+        return attachments.associate { attachment ->
+            val prepared = when (attachment.kind) {
+                AttachmentKind.IMAGE -> {
+                    val bytes = runCatching {
+                        container.projects.readAttachmentBytes(projectId, attachment)
+                    }.getOrNull()
+                    val dataUrl = bytes
+                        ?.takeIf { it.size <= MAX_INLINE_IMAGE_BYTES }
+                        ?.let { "data:${attachment.mimeType};base64," + encodeBase64(it) }
+                    PreparedAttachment(
+                        name = attachment.name,
+                        mimeType = attachment.mimeType,
+                        sizeBytes = attachment.sizeBytes,
+                        dataUrl = dataUrl,
+                        path = attachment.relativePath.takeIf { dataUrl == null },
+                    )
+                }
+                AttachmentKind.TEXT -> PreparedAttachment(
+                    name = attachment.name,
+                    mimeType = attachment.mimeType,
+                    sizeBytes = attachment.sizeBytes,
+                    text = runCatching {
+                        container.projects.readAttachmentText(projectId, attachment)
+                    }.getOrNull(),
+                    path = attachment.relativePath,
+                )
+                AttachmentKind.BINARY -> PreparedAttachment(
+                    name = attachment.name,
+                    mimeType = attachment.mimeType,
+                    sizeBytes = attachment.sizeBytes,
+                    path = attachment.relativePath,
+                )
+            }
+            attachment.id to prepared
+        }
+    }
+
+    private fun encodeBase64(bytes: ByteArray): String =
+        android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
 
     private suspend fun runPostChecks(current: AppSettings, project: com.secrethero.neurocode.model.Project?, sessionId: String) {
         if (!current.postChecksEnabled || !current.agentMode) return
@@ -294,6 +427,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         sessionId: String,
         userMessage: String,
         editorContext: EditorContext?,
+        attachments: List<ChatAttachment> = emptyList(),
     ): String {
         val current = settings.value
         val path = current.localModelPath ?: error(str(R.string.error_import_model_first))
@@ -307,11 +441,24 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             """.trimIndent(),
             conversationKey = sessionId,
         )
+        val projectId = settings.value.selectedProjectId
         val context = buildString {
             append(userMessage)
             if (editorContext != null && editorContext.text.length <= 20_000) {
                 append("\n\nТекущий файл: ").append(editorContext.path)
                 append("\n```\n").append(editorContext.text).append("\n```")
+            }
+            // Локальная модель не умеет в картинки и инструменты — отдаём только текст файлов.
+            attachments.forEach { attachment ->
+                append("\n\nВложение: ").append(attachment.name)
+                if (attachment.kind == AttachmentKind.TEXT && projectId != null) {
+                    val text = runCatching {
+                        container.projects.readAttachmentText(projectId, attachment)
+                    }.getOrNull()
+                    if (!text.isNullOrBlank()) append("\n```\n").append(text).append("\n```")
+                } else {
+                    append(" (").append(attachment.mimeType).append(", содержимое не текстовое)")
+                }
             }
         }
         _chatRunState.value = ChatRunState.Working(str(R.string.status_local_generation))
@@ -327,6 +474,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         when (event) {
             is AgentEvent.Status -> _chatRunState.value = ChatRunState.Working(event.text)
             is AgentEvent.Delta -> _streamingResponse.value += event.text
+            is AgentEvent.Reasoning -> _streamingReasoning.value += event.text
             is AgentEvent.ToolStarted -> appendAgentLog("→ ${event.name}: ${event.arguments.take(500)}")
             is AgentEvent.ToolFinished -> {
                 appendAgentLog("← ${event.name}: ${event.result.take(800)}")
@@ -358,6 +506,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { (getApplication<NeuroCodeApplication>().container.settings.update(transform)) }
                 .onFailure(container.bus::showError)
         }
+
+    private companion object {
+        /** Картинка крупнее уходит не data-URL, а путём в проекте: base64 раздувает запрос. */
+        const val MAX_INLINE_IMAGE_BYTES = 8 * 1024 * 1024
+    }
 }
 
 data class EditorContext(
