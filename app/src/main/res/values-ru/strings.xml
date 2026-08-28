@@ -61,6 +61,24 @@
     <string name="show_agent_actions">Показать действия агента</string>
     <string name="hide_agent_actions">Скрыть действия агента</string>
     <string name="copy_dialog_cd">Копировать диалог</string>
+    <string name="attach_files_cd">Прикрепить файлы</string>
+    <string name="remove_attachment_cd">Убрать вложение</string>
+    <string name="reasoning_title">Размышления модели</string>
+    <string name="limits_context">контекст %1$s</string>
+    <string name="limits_last_request">запрос %1$s токенов</string>
+    <string name="limits_requests">осталось запросов: %1$s</string>
+    <string name="limits_requests_of">запросов: %1$s из %2$s</string>
+    <string name="limits_tokens_left">осталось токенов: %1$s</string>
+    <string name="limits_title">Лимиты модели</string>
+    <string name="limits_none">Данных пока нет — отправьте запрос провайдеру.</string>
+    <string name="limits_model">Модель: %1$s</string>
+    <string name="limits_context_row">Окно контекста: %1$s токенов</string>
+    <string name="limits_max_output_row">Максимум ответа: %1$s токенов</string>
+    <string name="limits_usage_row">Последний запрос: %1$d промпт + %2$d ответ = %3$d токенов</string>
+    <string name="limits_requests_row">Осталось запросов: %1$s</string>
+    <string name="limits_tokens_row">Осталось токенов: %1$s</string>
+    <string name="limits_reset_row">Сброс лимита: %1$s</string>
+    <string name="limits_hint">Значения приходят в ответе провайдера: блок usage и заголовки x-ratelimit. Их присылают не все провайдеры.</string>
     <string name="hint_agent_input">Опишите задачу для проекта…</string>
     <string name="hint_message">Сообщение…</string>
     <string name="stop_cd">Остановить</string>

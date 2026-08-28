@@ -8,9 +8,25 @@ import com.secrethero.neurocode.model.ProviderConfig
 sealed interface AgentEvent {
     data class Status(val text: String) : AgentEvent
     data class Delta(val text: String) : AgentEvent
+
+    /** Кусок размышлений модели (reasoning), если провайдер их отдаёт. */
+    data class Reasoning(val text: String) : AgentEvent
     data class ToolStarted(val name: String, val arguments: String) : AgentEvent
     data class ToolFinished(val name: String, val result: String) : AgentEvent
 }
+
+/**
+ * Вложение, подготовленное к отправке: картинка — как data-URL, текстовый файл — содержимым,
+ * остальные — только именем, типом и путём внутри проекта (агент может открыть их инструментами).
+ */
+data class PreparedAttachment(
+    val name: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val dataUrl: String? = null,
+    val text: String? = null,
+    val path: String? = null,
+)
 
 class AgentOrchestrator(
     private val client: OpenAiCompatibleClient,
@@ -28,6 +44,7 @@ class AgentOrchestrator(
         allowAgentShell: Boolean,
         activeSkills: List<String> = emptyList(),
         externalTools: List<ExternalAgentTool> = emptyList(),
+        attachments: Map<String, PreparedAttachment> = emptyMap(),
         onEvent: (AgentEvent) -> Unit = {},
     ): String {
         val messages = mutableListOf(
@@ -36,7 +53,7 @@ class AgentOrchestrator(
                 content = systemPrompt(projectName, projectSummary, activeSkills),
             ),
         )
-        messages += contextMessages(history)
+        messages += contextMessages(history, attachments = attachments)
 
         repeat(maxSteps.coerceIn(1, 20)) { index ->
             onEvent(AgentEvent.Status("Шаг агента ${index + 1}"))
@@ -46,6 +63,7 @@ class AgentOrchestrator(
                 messages = messages,
                 tools = tools.definitions(externalTools),
                 onDelta = { chunk -> onEvent(AgentEvent.Delta(chunk)) },
+                onReasoning = { chunk -> onEvent(AgentEvent.Reasoning(chunk)) },
             )
             messages += ApiMessage(
                 role = "assistant",
@@ -76,14 +94,21 @@ class AgentOrchestrator(
         provider: ProviderConfig,
         apiKey: String,
         history: List<ChatMessage>,
+        attachments: Map<String, PreparedAttachment> = emptyMap(),
         onEvent: (AgentEvent) -> Unit = {},
     ): String {
-        val messages = contextMessages(history, limit = 50, toolSummariesLimit = 0)
+        val messages = contextMessages(
+            history = history,
+            limit = 50,
+            toolSummariesLimit = 0,
+            attachments = attachments,
+        )
         return client.complete(
             provider = provider,
             apiKey = apiKey,
             messages = messages,
             onDelta = { chunk -> onEvent(AgentEvent.Delta(chunk)) },
+            onReasoning = { chunk -> onEvent(AgentEvent.Reasoning(chunk)) },
         ).content
     }
 
@@ -91,6 +116,7 @@ class AgentOrchestrator(
         history: List<ChatMessage>,
         limit: Int = 40,
         toolSummariesLimit: Int = 12,
+        attachments: Map<String, PreparedAttachment> = emptyMap(),
     ): List<ApiMessage> {
         val result = mutableListOf<ApiMessage>()
         var summaries = 0
@@ -106,6 +132,7 @@ class AgentOrchestrator(
                     )
                 }
             } else {
+                val prepared = message.attachments.mapNotNull { attachments[it.id] }
                 result += ApiMessage(
                     role = when (message.role) {
                         MessageRole.SYSTEM -> "system"
@@ -113,11 +140,30 @@ class AgentOrchestrator(
                         MessageRole.ASSISTANT -> "assistant"
                         MessageRole.TOOL -> "user"
                     },
-                    content = message.content,
+                    content = message.content + attachmentBlock(prepared),
+                    images = prepared.mapNotNull { it.dataUrl },
                 )
             }
         }
         return result
+    }
+
+    /** Текстовые вложения уходят содержимым, остальные — описанием и путём внутри проекта. */
+    private fun attachmentBlock(attachments: List<PreparedAttachment>): String {
+        if (attachments.isEmpty()) return ""
+        return buildString {
+            append("\n\n## Вложенные файлы\n")
+            attachments.forEach { item ->
+                append("- ${item.name} (${item.mimeType}, ${item.sizeBytes} байт)")
+                item.path?.let { append(", путь в проекте: $it") }
+                append("\n")
+            }
+            attachments.filter { !it.text.isNullOrBlank() }.forEach { item ->
+                append("\n### ${item.name}\n```\n")
+                append(item.text?.take(ATTACHMENT_TEXT_CHARS))
+                append("\n```\n")
+            }
+        }
     }
 
     private fun systemPrompt(
@@ -153,5 +199,6 @@ class AgentOrchestrator(
     companion object {
         private const val TOOL_SUMMARY_CHARS = 1_200
         private const val PROJECT_SUMMARY_CHARS = 8_000
+        private const val ATTACHMENT_TEXT_CHARS = 24_000
     }
 }

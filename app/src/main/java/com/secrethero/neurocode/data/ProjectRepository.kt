@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import androidx.documentfile.provider.DocumentFile
+import com.secrethero.neurocode.model.AttachmentKind
+import com.secrethero.neurocode.model.ChatAttachment
 import com.secrethero.neurocode.model.FileNode
 import com.secrethero.neurocode.model.Project
 import com.secrethero.neurocode.model.SearchHit
@@ -255,6 +257,81 @@ class ProjectRepository(private val context: Context) {
             ?: "application/octet-stream"
     }
 
+    /**
+     * Копирует выбранный через SAF файл в `.neurocode/attachments` проекта и определяет,
+     * как его можно передать модели. Каталог исключён из экспорта и синхронизации.
+     */
+    suspend fun importAttachment(projectId: String, uri: Uri): ChatAttachment =
+        withContext(Dispatchers.IO) {
+            val document = DocumentFile.fromSingleUri(context, uri)
+            val rawName = document?.name
+                ?: uri.lastPathSegment?.substringAfterLast('/')
+                ?: "attachment"
+            val name = sanitizeName(rawName)
+            val mimeType = context.contentResolver.getType(uri)
+                ?: mimeTypeFor(name)
+            val id = UUID.randomUUID().toString()
+            val relativePath = "$ATTACHMENTS_DIR/$id/$name"
+            val target = resolve(projectId, relativePath)
+            target.parentFile?.mkdirs()
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+            } ?: throw IOException("Не удалось прочитать файл $name")
+            require(target.length() <= MAX_ATTACHMENT_BYTES) {
+                target.deleteRecursively()
+                "Файл $name больше 32 МБ"
+            }
+            ChatAttachment(
+                id = id,
+                name = name,
+                mimeType = mimeType,
+                sizeBytes = target.length(),
+                relativePath = relativePath,
+                kind = attachmentKind(mimeType, name),
+            )
+        }
+
+    /** Файл вложения на диске; null, если проект или файл уже удалены. */
+    fun attachmentFile(projectId: String, attachment: ChatAttachment): File? =
+        runCatching { resolve(projectId, attachment.relativePath) }
+            .getOrNull()
+            ?.takeIf { it.isFile }
+
+    suspend fun readAttachmentBytes(projectId: String, attachment: ChatAttachment): ByteArray? =
+        withContext(Dispatchers.IO) {
+            attachmentFile(projectId, attachment)?.readBytes()
+        }
+
+    suspend fun readAttachmentText(
+        projectId: String,
+        attachment: ChatAttachment,
+        maxChars: Int = MAX_ATTACHMENT_TEXT_CHARS,
+    ): String? = withContext(Dispatchers.IO) {
+        val file = attachmentFile(projectId, attachment) ?: return@withContext null
+        val text = runCatching { file.readText() }.getOrNull() ?: return@withContext null
+        if (text.length <= maxChars) text else text.take(maxChars) + "\n… файл обрезан"
+    }
+
+    /** Удаляет каталог вложения (используется при отмене выбора до отправки). */
+    suspend fun deleteAttachment(projectId: String, attachment: ChatAttachment) =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                resolve(projectId, "$ATTACHMENTS_DIR/${attachment.id}").deleteRecursively()
+            }
+            Unit
+        }
+
+    private fun attachmentKind(mimeType: String, name: String): AttachmentKind {
+        val extension = name.substringAfterLast('.', "").lowercase()
+        return when {
+            mimeType.startsWith("image/") -> AttachmentKind.IMAGE
+            mimeType.startsWith("text/") -> AttachmentKind.TEXT
+            mimeType in TEXT_MIME_TYPES -> AttachmentKind.TEXT
+            extension in TEXT_EXTENSIONS -> AttachmentKind.TEXT
+            else -> AttachmentKind.BINARY
+        }
+    }
+
     suspend fun delete(projectId: String) = withContext(Dispatchers.IO) {
         val project = get(projectId) ?: return@withContext
         File(project.rootPath).deleteRecursively()
@@ -457,6 +534,25 @@ class ProjectRepository(private val context: Context) {
     }
 
     companion object {
+        const val ATTACHMENTS_DIR = ".neurocode/attachments"
+        private const val MAX_ATTACHMENT_BYTES = 32L * 1024 * 1024
+        private const val MAX_ATTACHMENT_TEXT_CHARS = 24_000
+        private val TEXT_MIME_TYPES = setOf(
+            "application/json",
+            "application/xml",
+            "application/x-yaml",
+            "application/yaml",
+            "application/javascript",
+            "application/x-sh",
+            "application/sql",
+        )
+        private val TEXT_EXTENSIONS = setOf(
+            "txt", "md", "markdown", "json", "yaml", "yml", "toml", "ini", "cfg", "conf",
+            "xml", "html", "htm", "css", "scss", "csv", "tsv", "log", "sql", "sh", "bat",
+            "kt", "kts", "java", "py", "js", "jsx", "ts", "tsx", "c", "h", "cpp", "hpp",
+            "cs", "go", "rs", "rb", "php", "swift", "gradle", "properties", "env", "diff",
+            "patch",
+        )
         private const val MAX_TEXT_FILE_BYTES = 2L * 1024 * 1024
         private const val SEARCH_FILE_BYTES = 1024L * 1024
         private const val MAX_IMPORTED_FILE_BYTES = 200L * 1024 * 1024

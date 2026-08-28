@@ -61,6 +61,24 @@
     <string name="show_agent_actions">Show agent actions</string>
     <string name="hide_agent_actions">Hide agent actions</string>
     <string name="copy_dialog_cd">Copy conversation</string>
+    <string name="attach_files_cd">Attach files</string>
+    <string name="remove_attachment_cd">Remove attachment</string>
+    <string name="reasoning_title">Model reasoning</string>
+    <string name="limits_context">context %1$s</string>
+    <string name="limits_last_request">last request %1$s tokens</string>
+    <string name="limits_requests">%1$s requests left</string>
+    <string name="limits_requests_of">%1$s of %2$s requests left</string>
+    <string name="limits_tokens_left">%1$s tokens left</string>
+    <string name="limits_title">Model limits</string>
+    <string name="limits_none">No data yet — send a request to the provider.</string>
+    <string name="limits_model">Model: %1$s</string>
+    <string name="limits_context_row">Context window: %1$s tokens</string>
+    <string name="limits_max_output_row">Max response: %1$s tokens</string>
+    <string name="limits_usage_row">Last request: %1$d prompt + %2$d response = %3$d tokens</string>
+    <string name="limits_requests_row">Requests left: %1$s</string>
+    <string name="limits_tokens_row">Tokens left: %1$s</string>
+    <string name="limits_reset_row">Limit reset: %1$s</string>
+    <string name="limits_hint">Values come from the provider response: usage and x-ratelimit headers. Not every provider sends them.</string>
     <string name="hint_agent_input">Describe a task for the project…</string>
     <string name="hint_message">Message…</string>
     <string name="stop_cd">Stop</string>

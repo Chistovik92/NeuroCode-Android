@@ -1,10 +1,14 @@
 package com.secrethero.neurocode.ai
 
 import com.secrethero.neurocode.model.AssistantTurn
+import com.secrethero.neurocode.model.ModelLimits
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ToolCall
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -24,6 +28,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -38,11 +43,22 @@ data class ApiMessage(
     val content: String? = null,
     val toolCalls: List<ApiToolCall> = emptyList(),
     val toolCallId: String? = null,
+    /** Картинки как data-URL: уходят частями `image_url` в multimodal-формате OpenAI. */
+    val images: List<String> = emptyList(),
 )
 
 class OpenAiCompatibleClient {
     private val json = Json { ignoreUnknownKeys = true }
     private val mediaType = "application/json; charset=utf-8".toMediaType()
+
+    private val _limits = MutableStateFlow<ModelLimits?>(null)
+
+    /** Лимиты и расход по последнему ответу провайдера. */
+    val limits: StateFlow<ModelLimits?> = _limits.asStateFlow()
+
+    /** Окна контекста из каталога моделей, если провайдер их отдаёт. */
+    private val contextWindows = mutableMapOf<String, Int>()
+    private val maxOutputTokens = mutableMapOf<String, Int>()
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -84,12 +100,14 @@ class OpenAiCompatibleClient {
         error is SerializationException ||
             (error is ApiException && (error.code == 404 || error.code == 405))
 
+    @Suppress("LongParameterList")
     suspend fun complete(
         provider: ProviderConfig,
         apiKey: String,
         messages: List<ApiMessage>,
         tools: JsonArray = JsonArray(emptyList()),
         onDelta: ((String) -> Unit)? = null,
+        onReasoning: ((String) -> Unit)? = null,
     ): AssistantTurn {
         validate(provider, apiKey)
         if (onDelta == null) {
@@ -99,10 +117,21 @@ class OpenAiCompatibleClient {
         }
         var received = false
         return tryChatEndpoints(provider, shouldRethrow = { received }) { endpoint ->
-            executeStreaming(endpoint, apiKey, messages, tools, { chunk ->
-                received = true
-                onDelta(chunk)
-            }, provider)
+            executeStreaming(
+                endpoint = endpoint,
+                apiKey = apiKey,
+                messages = messages,
+                tools = tools,
+                onChunk = { chunk ->
+                    received = true
+                    onDelta(chunk)
+                },
+                onReasoningChunk = { chunk ->
+                    received = true
+                    onReasoning?.invoke(chunk)
+                },
+                providerForHeaders = provider,
+            )
         }
     }
 
@@ -181,6 +210,7 @@ class OpenAiCompatibleClient {
                 throw IOException("сервер вернул не JSON (проверьте адрес)")
             }
             val data = (root["data"] as? JsonArray) ?: JsonArray(emptyList())
+            data.forEach { element -> rememberModelLimits(element) }
             data.mapNotNull { element ->
                 runCatching {
                     element.jsonObject["id"]?.jsonPrimitive?.contentOrNull
@@ -215,16 +245,19 @@ class OpenAiCompatibleClient {
             if (!response.isSuccessful) {
                 throw apiError(response.code, body, response.message)
             }
+            captureLimits(providerForHeaders, response, body)
             parseTurn(body)
         }
     }
 
+    @Suppress("LongParameterList", "LongMethod", "CyclomaticComplexMethod")
     private suspend fun executeStreaming(
         endpoint: String,
         apiKey: String,
         messages: List<ApiMessage>,
         tools: JsonArray,
         onChunk: (String) -> Unit,
+        onReasoningChunk: (String) -> Unit,
         providerForHeaders: ProviderConfig,
     ): AssistantTurn = withContext(Dispatchers.IO) {
         validate(providerForHeaders, apiKey)
@@ -235,10 +268,23 @@ class OpenAiCompatibleClient {
                 val body = response.body?.string().orEmpty()
                 throw apiError(response.code, body, response.message)
             }
+            captureLimits(providerForHeaders, response, body = null)
             val source = response.body?.source()
                 ?: throw IOException("Провайдер вернул пустой поток")
             val content = StringBuilder()
+            val reasoning = StringBuilder()
+            val splitter = ReasoningSplitter()
             val builders = mutableMapOf<Int, StreamToolCall>()
+            fun emit(chunk: ReasoningSplitter.Chunk) {
+                if (chunk.content.isNotEmpty()) {
+                    content.append(chunk.content)
+                    onChunk(chunk.content)
+                }
+                if (chunk.reasoning.isNotEmpty()) {
+                    reasoning.append(chunk.reasoning)
+                    onReasoningChunk(chunk.reasoning)
+                }
+            }
             while (true) {
                 val line = source.readUtf8Line() ?: break
                 val data = line.takeIf { it.startsWith("data:") }
@@ -247,14 +293,18 @@ class OpenAiCompatibleClient {
                 if (data.isEmpty()) continue
                 val element = runCatching { json.parseToJsonElement(data).jsonObject }
                     .getOrNull() ?: continue
+                element["usage"]?.let { usage ->
+                    updateUsage(providerForHeaders.model, usage as? JsonObject)
+                }
                 val delta = element["choices"]?.jsonArray?.firstOrNull()
                     ?.jsonObject?.get("delta") as? JsonObject ?: continue
+                reasoningField(delta)?.takeIf { it.isNotEmpty() }?.let { chunk ->
+                    reasoning.append(chunk)
+                    onReasoningChunk(chunk)
+                }
                 (delta["content"] as? JsonPrimitive)?.contentOrNull
                     ?.takeIf { it.isNotEmpty() }
-                    ?.let { chunk ->
-                        content.append(chunk)
-                        onChunk(chunk)
-                    }
+                    ?.let { chunk -> emit(splitter.push(chunk)) }
                 (delta["tool_calls"] as? JsonArray)?.forEach { raw ->
                     val item = raw.jsonObject
                     val index = (item["index"] as? JsonPrimitive)?.intOrNull ?: builders.size
@@ -268,6 +318,7 @@ class OpenAiCompatibleClient {
                         ?.let { accumulator.arguments.append(it) }
                 }
             }
+            emit(splitter.flush())
             AssistantTurn(
                 content = content.toString(),
                 toolCalls = builders.toSortedMap().values.mapIndexedNotNull { index, accumulator ->
@@ -279,9 +330,15 @@ class OpenAiCompatibleClient {
                         )
                     }
                 },
+                reasoning = reasoning.toString(),
             )
         }
     }
+
+    /** Модели отдают размышления по-разному: `reasoning_content` (DeepSeek) или `reasoning`. */
+    private fun reasoningField(node: JsonObject): String? =
+        (node["reasoning_content"] as? JsonPrimitive)?.contentOrNull
+            ?: (node["reasoning"] as? JsonPrimitive)?.contentOrNull
 
     private fun buildPayload(
         provider: ProviderConfig,
@@ -334,15 +391,81 @@ class OpenAiCompatibleClient {
         return ApiException(code, "Ошибка API $code: ${short.take(300)}.$hint")
     }
 
+    /** Заголовки `x-ratelimit-*` и блок `usage` — источник данных для карточки лимитов. */
+    private fun captureLimits(provider: ProviderConfig, response: Response, body: String?) {
+        fun header(vararg names: String): String? = names.firstNotNullOfOrNull { name ->
+            response.header(name)?.takeIf { it.isNotBlank() }
+        }
+        val usage = body?.let {
+            runCatching { json.parseToJsonElement(it).jsonObject["usage"] as? JsonObject }
+                .getOrNull()
+        }
+        val previous = _limits.value?.takeIf { it.model == provider.model }
+        _limits.value = ModelLimits(
+            model = provider.model,
+            contextWindow = contextWindows[provider.model] ?: previous?.contextWindow,
+            maxOutputTokens = maxOutputTokens[provider.model] ?: previous?.maxOutputTokens,
+            promptTokens = usage.int("prompt_tokens") ?: previous?.promptTokens,
+            completionTokens = usage.int("completion_tokens") ?: previous?.completionTokens,
+            totalTokens = usage.int("total_tokens") ?: previous?.totalTokens,
+            requestsRemaining = header("x-ratelimit-remaining-requests")
+                ?: previous?.requestsRemaining,
+            requestsLimit = header("x-ratelimit-limit-requests") ?: previous?.requestsLimit,
+            tokensRemaining = header("x-ratelimit-remaining-tokens") ?: previous?.tokensRemaining,
+            tokensLimit = header("x-ratelimit-limit-tokens") ?: previous?.tokensLimit,
+            resetHint = header("x-ratelimit-reset-requests", "x-ratelimit-reset-tokens")
+                ?: previous?.resetHint,
+        )
+    }
+
+    /** Обновляет расход токенов из `usage`, который стрим присылает последним событием. */
+    private fun updateUsage(model: String, usage: JsonObject?) {
+        if (usage == null) return
+        val current = _limits.value?.takeIf { it.model == model } ?: ModelLimits(model = model)
+        _limits.value = current.copy(
+            promptTokens = usage.int("prompt_tokens") ?: current.promptTokens,
+            completionTokens = usage.int("completion_tokens") ?: current.completionTokens,
+            totalTokens = usage.int("total_tokens") ?: current.totalTokens,
+            updatedAt = System.currentTimeMillis(),
+        )
+    }
+
+    /** Каталоги моделей (OpenRouter и совместимые) отдают окно контекста прямо в `/models`. */
+    private fun rememberModelLimits(element: JsonElement) {
+        val item = element as? JsonObject ?: return
+        val id = (item["id"] as? JsonPrimitive)?.contentOrNull ?: return
+        listOf("context_length", "context_window", "max_context_length")
+            .firstNotNullOfOrNull { key -> item.int(key) }
+            ?.let { contextWindows[id] = it }
+        val topProvider = item["top_provider"] as? JsonObject
+        listOfNotNull(
+            item.int("max_completion_tokens"),
+            item.int("max_output_tokens"),
+            topProvider.int("max_completion_tokens"),
+        ).firstOrNull()?.let { maxOutputTokens[id] = it }
+    }
+
+    private fun JsonObject?.int(key: String): Int? =
+        (this?.get(key) as? JsonPrimitive)?.intOrNull
+
     private fun parseTurn(body: String): AssistantTurn {
         val root = json.parseToJsonElement(body).jsonObject
         val message = root["choices"]?.jsonArray?.firstOrNull()
             ?.jsonObject?.get("message")?.jsonObject
             ?: throw IOException("Провайдер вернул ответ без choices.message")
-        val content = message["content"]
+        val rawContent = message["content"]
             ?.takeUnless { it is JsonNull }
             ?.jsonPrimitive?.contentOrNull
             .orEmpty()
+        val splitter = ReasoningSplitter()
+        val split = splitter.push(rawContent)
+        val tail = splitter.flush()
+        val content = split.content + tail.content
+        val reasoning = buildString {
+            reasoningField(message)?.let(::append)
+            append(split.reasoning)
+            append(tail.reasoning)
+        }
         val calls = message["tool_calls"]?.jsonArray.orEmpty().mapNotNull { element ->
             val item = element.jsonObject
             val function = item["function"]?.jsonObject ?: return@mapNotNull null
@@ -353,7 +476,7 @@ class OpenAiCompatibleClient {
                 arguments = function["arguments"]?.jsonPrimitive?.contentOrNull ?: "{}",
             )
         }
-        return AssistantTurn(content = content, toolCalls = calls)
+        return AssistantTurn(content = content, toolCalls = calls, reasoning = reasoning)
     }
 
     private fun ApiMessage.toJson(): JsonObject = buildJsonObject {
@@ -363,6 +486,20 @@ class OpenAiCompatibleClient {
                 put("tool_call_id", JsonPrimitive(toolCallId))
                 put("content", JsonPrimitive(content.orEmpty()))
             }
+            images.isNotEmpty() -> put("content", buildJsonArray {
+                content?.takeIf { it.isNotBlank() }?.let { text ->
+                    add(buildJsonObject {
+                        put("type", JsonPrimitive("text"))
+                        put("text", JsonPrimitive(text))
+                    })
+                }
+                images.forEach { dataUrl ->
+                    add(buildJsonObject {
+                        put("type", JsonPrimitive("image_url"))
+                        put("image_url", buildJsonObject { put("url", JsonPrimitive(dataUrl)) })
+                    })
+                }
+            })
             toolCalls.isNotEmpty() -> {
                 put("content", content?.let(::JsonPrimitive) ?: JsonNull)
                 put("tool_calls", buildJsonArray {

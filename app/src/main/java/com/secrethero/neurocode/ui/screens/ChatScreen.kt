@@ -1,5 +1,7 @@
 package com.secrethero.neurocode.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
@@ -29,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
@@ -69,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.R
 import com.secrethero.neurocode.model.AppDesign
+import com.secrethero.neurocode.model.ChatAttachment
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatRunState
 import com.secrethero.neurocode.model.MessageRole
@@ -77,6 +81,7 @@ import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.ui.ChatViewModel
 import com.secrethero.neurocode.ui.EditorViewModel
 import com.secrethero.neurocode.ui.ProviderModelsState
+import java.io.File
 
 /** Заливка пузыря пользователя в классическом дизайне (GitHub green). */
 private val ClassicUserBubble = Color(0xFF238636)
@@ -100,6 +105,12 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
     var showLog by remember { mutableStateOf(false) }
     val busy = runState is ChatRunState.Working
     val modern = settings.appDesign == AppDesign.MODERN
+    val pendingAttachments by chat.pendingAttachments.collectAsStateWithLifecycle()
+    val streamingReasoning by chat.streamingReasoning.collectAsStateWithLifecycle()
+    val limits by chat.modelLimits.collectAsStateWithLifecycle()
+    val pickFiles = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris -> if (uris.isNotEmpty()) chat.attachFiles(uris) }
 
     LaunchedEffect(messages.size, streaming, agentLog.size) {
         val extra = if (streaming.isNotEmpty() || agentLog.isNotEmpty()) 1 else 0
@@ -182,6 +193,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                     MessageBubble(
                         message = message,
                         modern = modern,
+                        attachmentFile = chat::attachmentFile,
                         onCopy = {
                             clipboard.setText(AnnotatedString(message.content))
                         },
@@ -217,6 +229,9 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         }
                     }
                 }
+                if (streamingReasoning.isNotEmpty()) {
+                    item { ReasoningBlock(text = streamingReasoning, initiallyExpanded = true) }
+                }
                 if (streaming.isNotEmpty()) {
                     item {
                         MessageBubble(
@@ -226,6 +241,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                                 content = streaming,
                             ),
                             modern = modern,
+                            attachmentFile = { null },
                             onCopy = { clipboard.setText(AnnotatedString(streaming)) },
                         )
                     }
@@ -282,11 +298,28 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 onSend = onSend,
                 onCopyDialog = onCopyDialog,
                 copyEnabled = messages.isNotEmpty(),
+                onAttach = { pickFiles.launch(arrayOf("*/*")) },
+                hasAttachments = pendingAttachments.isNotEmpty(),
             )
-            if (modern) {
-                ModernInputBar(bar)
-            } else {
-                ClassicInputBar(bar)
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding(),
+            ) {
+                limits?.let { ModelLimitsBar(it) }
+                if (pendingAttachments.isNotEmpty()) {
+                    PendingAttachments(
+                        attachments = pendingAttachments,
+                        attachmentFile = chat::attachmentFile,
+                        onRemove = chat::removeAttachment,
+                    )
+                }
+                if (modern) {
+                    ModernInputBar(bar)
+                } else {
+                    ClassicInputBar(bar)
+                }
             }
         }
     }
@@ -432,16 +465,15 @@ private class InputBarState(
     val onSend: () -> Unit,
     val onCopyDialog: () -> Unit,
     val copyEnabled: Boolean,
+    val onAttach: () -> Unit,
+    val hasAttachments: Boolean,
 )
 
 /** Классическая панель ввода: плотная строка на панели с рамкой (GitHub-dark). */
 @Composable
 private fun ClassicInputBar(state: InputBarState) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .imePadding(),
+        modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
@@ -452,6 +484,17 @@ private fun ClassicInputBar(state: InputBarState) {
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            IconButton(onClick = state.onAttach) {
+                Icon(
+                    Icons.Default.AttachFile,
+                    contentDescription = stringResource(R.string.attach_files_cd),
+                    tint = if (state.hasAttachments) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
             IconButton(onClick = state.onCopyDialog, enabled = state.copyEnabled) {
                 Icon(
                     Icons.Default.ContentCopy,
@@ -489,10 +532,7 @@ private fun ClassicInputBar(state: InputBarState) {
 @Composable
 private fun ModernInputBar(state: InputBarState) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .imePadding(),
+        modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background,
     ) {
         Surface(
@@ -507,6 +547,18 @@ private fun ModernInputBar(state: InputBarState) {
                 Modifier.padding(start = 6.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                IconButton(onClick = state.onAttach) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = stringResource(R.string.attach_files_cd),
+                        tint = if (state.hasAttachments) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
                 IconButton(onClick = state.onCopyDialog, enabled = state.copyEnabled) {
                     Icon(
                         Icons.Default.ContentCopy,
@@ -553,15 +605,23 @@ private fun ModernInputBar(state: InputBarState) {
     }
 }
 
+
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
-private fun MessageBubble(message: ChatMessage, modern: Boolean, onCopy: () -> Unit) {
+private fun MessageBubble(
+    message: ChatMessage,
+    modern: Boolean,
+    attachmentFile: (ChatAttachment) -> File?,
+    onCopy: () -> Unit,
+) {
     val user = message.role == MessageRole.USER
     val tool = message.role == MessageRole.TOOL
     Column(
         horizontalAlignment = if (user) Alignment.End else Alignment.Start,
         modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        message.reasoning?.takeIf { it.isNotBlank() }?.let { ReasoningBlock(text = it) }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -600,19 +660,27 @@ private fun MessageBubble(message: ChatMessage, modern: Boolean, onCopy: () -> U
                         vertical = if (modern && !user && !tool) 2.dp else 10.dp,
                     ),
             ) {
-                Text(
-                    message.content,
-                    style = if (tool) {
-                        MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-                    } else {
-                        MaterialTheme.typography.bodyMedium
-                    },
-                    color = when {
-                        !modern && user -> Color.White
-                        tool -> MaterialTheme.colorScheme.onSurfaceVariant
-                        else -> MaterialTheme.colorScheme.onSurface
-                    },
-                )
+                Column {
+                    if (message.content.isNotBlank()) {
+                        Text(
+                            message.content,
+                            style = if (tool) {
+                                MaterialTheme.typography.bodySmall
+                                    .copy(fontFamily = FontFamily.Monospace)
+                            } else {
+                                MaterialTheme.typography.bodyMedium
+                            },
+                            color = when {
+                                !modern && user -> Color.White
+                                tool -> MaterialTheme.colorScheme.onSurfaceVariant
+                                else -> MaterialTheme.colorScheme.onSurface
+                            },
+                        )
+                    }
+                    if (message.attachments.isNotEmpty()) {
+                        MessageAttachments(message.attachments, attachmentFile)
+                    }
+                }
             }
         }
     }
