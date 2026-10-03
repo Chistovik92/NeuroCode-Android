@@ -68,4 +68,22 @@ class CommandPolicyTest {
         assertFalse(CommandPolicy.isSafeReadOnly("cat a > b"))
         assertFalse(CommandPolicy.isSafeReadOnly("grep .. x"))
     }
+
+    @Test
+    fun safeReadOnlyRejectsFileModifyingFlags() {
+        assertFalse(CommandPolicy.isSafeReadOnly("find . -name x -delete"))
+        assertFalse(CommandPolicy.isSafeReadOnly("find . -exec rm x"))
+        assertFalse(CommandPolicy.isSafeReadOnly("sed -i s/a/b/ file.txt"))
+        assertFalse(CommandPolicy.isSafeReadOnly("sed -ni p file.txt"))
+        assertTrue(CommandPolicy.isSafeReadOnly("sed -n 1,5p file.txt"))
+        assertTrue(CommandPolicy.isSafeReadOnly("find . -name '*.kt'"))
+    }
+
+    @Test
+    fun recursiveDeleteWithSeparateFlagsIsRisky() {
+        assertEquals("рекурсивное удаление", CommandPolicy.risk("rm -r -f build"))
+        assertEquals("рекурсивное удаление", CommandPolicy.risk("rm -f -R build"))
+        assertEquals("рекурсивное удаление", CommandPolicy.risk("rm --recursive build"))
+        assertNull(CommandPolicy.risk("rm notes.txt"))
+    }
 }

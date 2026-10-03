@@ -74,6 +74,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { container.chats.initialize() }.onFailure(container.bus::showError)
         }
         viewModelScope.launch {
+            // Вложения лежат в папке проекта, где их выбрали, — в другом проекте файла не будет.
+            container.settings.settings.map { it.selectedProjectId }.distinctUntilChanged()
+                .collect { _pendingAttachments.value = emptyList() }
+        }
+        viewModelScope.launch {
             // Активный диалог всегда принадлежит выбранному проекту: при смене проекта
             // или удалении сессии переключаемся на последний диалог этого проекта.
             sessions.collect { visible ->
@@ -192,9 +197,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 _chatRunState.value = ChatRunState.Idle
                 projectsMutated.tryEmit(Unit)
             } catch (cancelled: CancellationException) {
+                clearStreaming()
                 _chatRunState.value = ChatRunState.Idle
                 throw cancelled
             } catch (error: Throwable) {
+                clearStreaming()
                 val message = error.message ?: error::class.java.simpleName
                 _chatRunState.value = ChatRunState.Failed(message)
                 container.bus.showError(error)
@@ -205,7 +212,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelChat() {
         chatJob?.cancel()
         chatJob = null
+        clearStreaming()
         _chatRunState.value = ChatRunState.Idle
+    }
+
+    /** Сбрасывает недописанный ответ, иначе «зависший» пузырь остаётся после отмены или ошибки. */
+    private fun clearStreaming() {
+        _streamingResponse.value = ""
+        _streamingReasoning.value = ""
     }
 
     fun approveTool(approved: Boolean) {
@@ -246,6 +260,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     fallback.name,
                 ),
             )
+            clearStreaming()
             _chatRunState.value =
                 ChatRunState.Working(str(R.string.status_fallback_format, fallback.name))
             runCloudAttempt(request, fallback, fallbackKey)

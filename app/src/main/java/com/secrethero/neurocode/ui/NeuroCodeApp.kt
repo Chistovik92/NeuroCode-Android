@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
@@ -284,7 +285,7 @@ fun NeuroCodeApp(
                     }
                 }
                 if (expanded && !modern) {
-                    Row(Modifier.fillMaxSize().padding(padding)) {
+                    Row(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
                         NavigationRail {
                             MainTab.entries.forEach { item ->
                                 val label = stringResource(item.titleRes)
@@ -302,7 +303,9 @@ fun NeuroCodeApp(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .padding(padding),
+                            .padding(padding)
+                            // Иначе imePadding() экранов повторно добавляет высоту панелей.
+                            .consumeWindowInsets(padding),
                     ) { screens() }
                 }
             }
@@ -487,6 +490,8 @@ private fun ClassicTopBar(state: TopBarState, actions: ShellActions) {
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             },
@@ -907,6 +912,7 @@ fun TextInputDialog(
                 onValueChange = { value = it },
                 label = { Text(label) },
                 singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
             )
         },
         confirmButton = {

@@ -405,24 +405,27 @@ private fun CloneDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.clone_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     stringResource(R.string.clone_note),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = url,
                     onValueChange = { url = it },
                     label = { Text(stringResource(R.string.repo_url_label)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = username,
                     onValueChange = { username = it },
                     label = { Text(stringResource(R.string.username_label)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = token,
                     onValueChange = { token = it },
                     label = { Text(stringResource(R.string.token_label)) },
@@ -491,19 +494,22 @@ private fun CommitDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.commit_dialog_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = message,
                     onValueChange = { message = it },
                     label = { Text(stringResource(R.string.message_label)) },
                 )
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.author_name_label)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = email,
                     onValueChange = { email = it },
                     label = { Text(stringResource(R.string.author_email_label)) },

@@ -16,8 +16,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -62,6 +63,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -112,6 +114,27 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
         ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris -> if (uris.isNotEmpty()) chat.attachFiles(uris) }
 
+    val context = LocalContext.current
+    val onCopyDialog = {
+        val text = messages.joinToString("\n\n") { message ->
+            when (message.role) {
+                MessageRole.USER ->
+                    context.getString(R.string.prefix_user, message.content)
+                MessageRole.ASSISTANT ->
+                    context.getString(R.string.prefix_agent, message.content)
+                MessageRole.TOOL -> context.getString(
+                    R.string.prefix_tool,
+                    message.toolName ?: "",
+                    message.content,
+                )
+                MessageRole.SYSTEM -> message.content
+            }
+        }
+        clipboard.setText(AnnotatedString(text))
+    }
+    // С открытой клавиатурой прячем второстепенные строки, чтобы список и поле ввода не сжимались.
+    val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
     LaunchedEffect(messages.size, streaming, agentLog.size) {
         val extra = if (streaming.isNotEmpty() || agentLog.isNotEmpty()) 1 else 0
         if (messages.size + extra > 0) {
@@ -126,7 +149,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 .widthIn(max = 840.dp)
                 .align(Alignment.TopCenter),
         ) {
-            LazyRow(
+            if (!keyboardOpen) LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -139,6 +162,14 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         label = { Text(stringResource(R.string.chip_new)) },
                         leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                     )
+                }
+                item {
+                    IconButton(onClick = onCopyDialog, enabled = messages.isNotEmpty()) {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = stringResource(R.string.copy_dialog_cd),
+                        )
+                    }
                 }
                 items(sessions, key = { it.id }) { session ->
                     FilterChip(
@@ -259,24 +290,6 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 }
             }
 
-            val context = LocalContext.current
-            val onCopyDialog = {
-                val text = messages.joinToString("\n\n") { message ->
-                    when (message.role) {
-                        MessageRole.USER ->
-                            context.getString(R.string.prefix_user, message.content)
-                        MessageRole.ASSISTANT ->
-                            context.getString(R.string.prefix_agent, message.content)
-                        MessageRole.TOOL -> context.getString(
-                            R.string.prefix_tool,
-                            message.toolName ?: "",
-                            message.content,
-                        )
-                        MessageRole.SYSTEM -> message.content
-                    }
-                }
-                clipboard.setText(AnnotatedString(text))
-            }
             val placeholder = if (settings.agentMode && !settings.useLocalModel) {
                 stringResource(R.string.hint_agent_input)
             } else {
@@ -296,18 +309,15 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 placeholder = placeholder,
                 busy = busy,
                 onSend = onSend,
-                onCopyDialog = onCopyDialog,
-                copyEnabled = messages.isNotEmpty(),
                 onAttach = { pickFiles.launch(arrayOf("*/*")) },
                 hasAttachments = pendingAttachments.isNotEmpty(),
             )
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
                     .imePadding(),
             ) {
-                limits?.let { ModelLimitsBar(it) }
+                if (!keyboardOpen) limits?.let { ModelLimitsBar(it) }
                 if (pendingAttachments.isNotEmpty()) {
                     PendingAttachments(
                         attachments = pendingAttachments,
@@ -463,8 +473,6 @@ private class InputBarState(
     val placeholder: String,
     val busy: Boolean,
     val onSend: () -> Unit,
-    val onCopyDialog: () -> Unit,
-    val copyEnabled: Boolean,
     val onAttach: () -> Unit,
     val hasAttachments: Boolean,
 )
@@ -495,17 +503,13 @@ private fun ClassicInputBar(state: InputBarState) {
                     },
                 )
             }
-            IconButton(onClick = state.onCopyDialog, enabled = state.copyEnabled) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = stringResource(R.string.copy_dialog_cd),
-                )
-            }
             OutlinedTextField(
                 value = state.value,
                 onValueChange = state.onValue,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(state.placeholder) },
+                placeholder = {
+                    Text(state.placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
                 shape = RoundedCornerShape(6.dp),
                 minLines = 1,
                 maxLines = 6,
@@ -559,20 +563,17 @@ private fun ModernInputBar(state: InputBarState) {
                         modifier = Modifier.size(22.dp),
                     )
                 }
-                IconButton(onClick = state.onCopyDialog, enabled = state.copyEnabled) {
-                    Icon(
-                        Icons.Default.ContentCopy,
-                        contentDescription = stringResource(R.string.copy_dialog_cd),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
                 TextField(
                     value = state.value,
                     onValueChange = state.onValue,
                     modifier = Modifier.weight(1f),
                     placeholder = {
-                        Text(state.placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            state.placeholder,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -642,6 +643,8 @@ private fun MessageBubble(
             val bordered = !modern || tool
             Box(
                 modifier = Modifier
+                    // weight: на узких экранах пузырь сжимается, а не вытесняет кнопки за край.
+                    .weight(1f, fill = false)
                     .widthIn(max = 340.dp)
                     .background(background, shape)
                     .then(

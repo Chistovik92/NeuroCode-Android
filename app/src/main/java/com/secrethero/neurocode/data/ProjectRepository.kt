@@ -163,16 +163,17 @@ class ProjectRepository(private val context: Context) {
                 result = result.copy(skipped = result.skipped + 1)
                 continue
             }
-            val target = File(root, doc.relativePath)
+            // Имя приходит от стороннего провайдера документов — путь проверяем PathGuard.
+            val target = PathGuard.resolveWithin(root, doc.relativePath)
             target.parentFile?.mkdirs()
             val existed = target.exists()
             if (existed) backup(projectId, doc.relativePath, target)
-            context.contentResolver.openInputStream(doc.uri)?.use { input ->
-                target.outputStream().use { output -> input.copyTo(output) }
-            } ?: run {
+            val input = context.contentResolver.openInputStream(doc.uri)
+            if (input == null) {
                 result = result.copy(skipped = result.skipped + 1)
-                return@run
+                continue
             }
+            input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
             result = if (existed) {
                 result.copy(updated = result.updated + 1)
             } else {
@@ -274,12 +275,13 @@ class ProjectRepository(private val context: Context) {
             val relativePath = "$ATTACHMENTS_DIR/$id/$name"
             val target = resolve(projectId, relativePath)
             target.parentFile?.mkdirs()
+            require((document?.length() ?: 0L) <= MAX_ATTACHMENT_BYTES) { "Файл $name больше 32 МБ" }
             context.contentResolver.openInputStream(uri)?.use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
             } ?: throw IOException("Не удалось прочитать файл $name")
-            require(target.length() <= MAX_ATTACHMENT_BYTES) {
-                target.deleteRecursively()
-                "Файл $name больше 32 МБ"
+            if (target.length() > MAX_ATTACHMENT_BYTES) {
+                target.parentFile?.deleteRecursively()
+                throw IllegalArgumentException("Файл $name больше 32 МБ")
             }
             ChatAttachment(
                 id = id,
