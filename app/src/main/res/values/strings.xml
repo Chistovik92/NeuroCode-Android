@@ -101,7 +101,7 @@
     <string name="empty_agent_title">The agent is ready to work on your project</string>
     <string name="empty_agent_body">It can read files, propose edits, run commands and inspect Git diffs. Dangerous actions require confirmation.</string>
     <string name="greeting_hello">Hello</string>
-    <string name="greeting_help">How can I help?</string>
+    <string name="greeting_help">How can I help you today?</string>
 
     <!-- Terminal screen -->
     <string name="terminal_session_label">SHELL SESSION</string>
@@ -306,4 +306,17 @@
     <string name="banner_linux_ready">Linux environment ready (proot + Alpine).</string>
     <string name="banner_linux_unavailable">Linux environment unavailable, using the Android shell.</string>
     <string name="banner_linux_active">Linux environment: proot ready</string>
+
+    <!-- Modern (Gemini-style) shell -->
+    <string name="open_menu_cd">Open menu</string>
+    <string name="drawer_new_chat">New chat</string>
+    <string name="drawer_chats">Chats</string>
+    <string name="drawer_tools">Tools</string>
+    <string name="drawer_no_chats">No chats in this project yet</string>
+    <string name="drawer_copy_chat">Copy conversation</string>
+    <string name="suggest_explain">Explain how this project is structured</string>
+    <string name="suggest_bugs">Find bugs in the project code</string>
+    <string name="suggest_tests">Write unit tests for the key modules</string>
+    <string name="suggest_diff">Review my uncommitted Git changes</string>
+    <string name="hint_ask">Ask NeuroCode</string>
 </resources>

@@ -11,13 +11,29 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Source
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -62,6 +78,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -87,7 +104,7 @@ import java.io.File
 private val ClassicUserBubble = Color(0xFF238636)
 
 /** Фирменный градиент Gemini для аватара и приветствия. */
-private val ModernAvatarGradient = listOf(Color(0xFF7DACFA), Color(0xFFC58AF9))
+internal val ModernAvatarGradient = listOf(Color(0xFF7DACFA), Color(0xFFC58AF9))
 
 @Composable
 fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
@@ -112,6 +129,27 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
         ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris -> if (uris.isNotEmpty()) chat.attachFiles(uris) }
 
+    val context = LocalContext.current
+    val onCopyDialog = {
+        val text = messages.joinToString("\n\n") { message ->
+            when (message.role) {
+                MessageRole.USER ->
+                    context.getString(R.string.prefix_user, message.content)
+                MessageRole.ASSISTANT ->
+                    context.getString(R.string.prefix_agent, message.content)
+                MessageRole.TOOL -> context.getString(
+                    R.string.prefix_tool,
+                    message.toolName ?: "",
+                    message.content,
+                )
+                MessageRole.SYSTEM -> message.content
+            }
+        }
+        clipboard.setText(AnnotatedString(text))
+    }
+    // С открытой клавиатурой прячем второстепенные строки, чтобы список и поле ввода не сжимались.
+    val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
     LaunchedEffect(messages.size, streaming, agentLog.size) {
         val extra = if (streaming.isNotEmpty() || agentLog.isNotEmpty()) 1 else 0
         if (messages.size + extra > 0) {
@@ -126,7 +164,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 .widthIn(max = 840.dp)
                 .align(Alignment.TopCenter),
         ) {
-            LazyRow(
+            if (!keyboardOpen && !modern) LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -139,6 +177,14 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         label = { Text(stringResource(R.string.chip_new)) },
                         leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                     )
+                }
+                item {
+                    IconButton(onClick = onCopyDialog, enabled = messages.isNotEmpty()) {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = stringResource(R.string.copy_dialog_cd),
+                        )
+                    }
                 }
                 items(sessions, key = { it.id }) { session ->
                     FilterChip(
@@ -183,7 +229,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 if (messages.isEmpty() && streaming.isEmpty()) {
                     item {
                         if (modern) {
-                            ModernGreeting()
+                            ModernGreeting(onSuggestion = { input = it })
                         } else {
                             EmptyChatHint(local = settings.useLocalModel)
                         }
@@ -252,31 +298,17 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            if (modern) {
+                                PulsingAvatar()
+                            } else {
+                                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            }
                             Text((runState as ChatRunState.Working).status)
                         }
                     }
                 }
             }
 
-            val context = LocalContext.current
-            val onCopyDialog = {
-                val text = messages.joinToString("\n\n") { message ->
-                    when (message.role) {
-                        MessageRole.USER ->
-                            context.getString(R.string.prefix_user, message.content)
-                        MessageRole.ASSISTANT ->
-                            context.getString(R.string.prefix_agent, message.content)
-                        MessageRole.TOOL -> context.getString(
-                            R.string.prefix_tool,
-                            message.toolName ?: "",
-                            message.content,
-                        )
-                        MessageRole.SYSTEM -> message.content
-                    }
-                }
-                clipboard.setText(AnnotatedString(text))
-            }
             val placeholder = if (settings.agentMode && !settings.useLocalModel) {
                 stringResource(R.string.hint_agent_input)
             } else {
@@ -296,18 +328,15 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 placeholder = placeholder,
                 busy = busy,
                 onSend = onSend,
-                onCopyDialog = onCopyDialog,
-                copyEnabled = messages.isNotEmpty(),
                 onAttach = { pickFiles.launch(arrayOf("*/*")) },
                 hasAttachments = pendingAttachments.isNotEmpty(),
             )
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
                     .imePadding(),
             ) {
-                limits?.let { ModelLimitsBar(it) }
+                if (!keyboardOpen) limits?.let { ModelLimitsBar(it) }
                 if (pendingAttachments.isNotEmpty()) {
                     PendingAttachments(
                         attachments = pendingAttachments,
@@ -457,14 +486,12 @@ fun ModelSwitcherDialog(
 
 /** Параметры панели ввода, общие для обоих дизайнов. */
 @Suppress("LongParameterList")
-private class InputBarState(
+internal class InputBarState(
     val value: String,
     val onValue: (String) -> Unit,
     val placeholder: String,
     val busy: Boolean,
     val onSend: () -> Unit,
-    val onCopyDialog: () -> Unit,
-    val copyEnabled: Boolean,
     val onAttach: () -> Unit,
     val hasAttachments: Boolean,
 )
@@ -495,17 +522,13 @@ private fun ClassicInputBar(state: InputBarState) {
                     },
                 )
             }
-            IconButton(onClick = state.onCopyDialog, enabled = state.copyEnabled) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = stringResource(R.string.copy_dialog_cd),
-                )
-            }
             OutlinedTextField(
                 value = state.value,
                 onValueChange = state.onValue,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(state.placeholder) },
+                placeholder = {
+                    Text(state.placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                },
                 shape = RoundedCornerShape(6.dp),
                 minLines = 1,
                 maxLines = 6,
@@ -527,85 +550,6 @@ private fun ClassicInputBar(state: InputBarState) {
     }
 }
 
-/** Современная панель ввода: «таблетка» на фоне экрана, круглая кнопка отправки. */
-@Suppress("LongMethod")
-@Composable
-private fun ModernInputBar(state: InputBarState) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        ) {
-            Row(
-                Modifier.padding(start = 6.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = state.onAttach) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.attach_files_cd),
-                        tint = if (state.hasAttachments) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-                IconButton(onClick = state.onCopyDialog, enabled = state.copyEnabled) {
-                    Icon(
-                        Icons.Default.ContentCopy,
-                        contentDescription = stringResource(R.string.copy_dialog_cd),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                TextField(
-                    value = state.value,
-                    onValueChange = state.onValue,
-                    modifier = Modifier.weight(1f),
-                    placeholder = {
-                        Text(state.placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                    ),
-                    maxLines = 6,
-                )
-                FilledIconButton(
-                    onClick = state.onSend,
-                    enabled = state.busy || state.value.isNotBlank(),
-                    shape = CircleShape,
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(
-                        if (state.busy) Icons.Default.Stop else Icons.Default.ArrowUpward,
-                        contentDescription = if (state.busy) {
-                            stringResource(R.string.stop_cd)
-                        } else {
-                            stringResource(R.string.send_cd)
-                        },
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 private fun MessageBubble(
@@ -616,6 +560,10 @@ private fun MessageBubble(
 ) {
     val user = message.role == MessageRole.USER
     val tool = message.role == MessageRole.TOOL
+    if (modern && !tool) {
+        ModernMessage(message, user, attachmentFile, onCopy)
+        return
+    }
     Column(
         horizontalAlignment = if (user) Alignment.End else Alignment.Start,
         modifier = Modifier.fillMaxWidth(),
@@ -642,6 +590,8 @@ private fun MessageBubble(
             val bordered = !modern || tool
             Box(
                 modifier = Modifier
+                    // weight: на узких экранах пузырь сжимается, а не вытесняет кнопки за край.
+                    .weight(1f, fill = false)
                     .widthIn(max = 340.dp)
                     .background(background, shape)
                     .then(
@@ -687,7 +637,7 @@ private fun MessageBubble(
 }
 
 /** Скругления пузыря: компактные в классике, «капля» пользователя в современном дизайне. */
-private fun bubbleShape(modern: Boolean, user: Boolean) = when {
+internal fun bubbleShape(modern: Boolean, user: Boolean) = when {
     !modern -> RoundedCornerShape(10.dp)
     user -> RoundedCornerShape(
         topStart = 20.dp,
@@ -714,7 +664,7 @@ private fun bubbleBackground(modern: Boolean, user: Boolean, tool: Boolean): Col
 
 /** Кружок-аватар ассистента с фирменным градиентом (современный дизайн). */
 @Composable
-private fun GeminiAvatar() {
+internal fun GeminiAvatar() {
     Box(
         modifier = Modifier
             .size(28.dp)
@@ -726,30 +676,6 @@ private fun GeminiAvatar() {
             contentDescription = null,
             tint = Color(0xFF041E49),
             modifier = Modifier.size(16.dp),
-        )
-    }
-}
-
-/** Приветствие пустого диалога в стиле Gemini. */
-@Composable
-private fun ModernGreeting() {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 48.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(
-            stringResource(R.string.greeting_hello),
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.Medium,
-                brush = Brush.linearGradient(ModernAvatarGradient),
-            ),
-        )
-        Text(
-            stringResource(R.string.greeting_help),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

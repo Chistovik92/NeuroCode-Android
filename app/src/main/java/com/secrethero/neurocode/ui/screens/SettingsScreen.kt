@@ -683,14 +683,16 @@ private fun SkillDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.skill_name_label)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = prompt,
                     onValueChange = { prompt = it },
                     label = { Text(stringResource(R.string.skill_prompt_label)) },
@@ -818,14 +820,16 @@ private fun ProviderDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.skill_name_label)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = baseUrl,
                     onValueChange = { baseUrl = it },
                     label = { Text(stringResource(R.string.base_url_label)) },
@@ -869,6 +873,7 @@ private fun ProviderDialog(
                     )
                 }
                 OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = apiKey,
                     onValueChange = { apiKey = it },
                     label = {

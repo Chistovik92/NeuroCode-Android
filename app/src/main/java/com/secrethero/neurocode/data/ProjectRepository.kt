@@ -159,29 +159,35 @@ class ProjectRepository(private val context: Context) {
         var result = SyncResult(0, 0, 0)
         for ((index, doc) in files.withIndex()) {
             onProgress(index, files.size)
-            if (doc.length > MAX_IMPORTED_FILE_BYTES) {
-                result = result.copy(skipped = result.skipped + 1)
-                continue
-            }
-            val target = File(root, doc.relativePath)
-            target.parentFile?.mkdirs()
-            val existed = target.exists()
-            if (existed) backup(projectId, doc.relativePath, target)
-            context.contentResolver.openInputStream(doc.uri)?.use { input ->
-                target.outputStream().use { output -> input.copyTo(output) }
-            } ?: run {
-                result = result.copy(skipped = result.skipped + 1)
-                return@run
-            }
-            result = if (existed) {
-                result.copy(updated = result.updated + 1)
+            val copied = if (doc.length > MAX_IMPORTED_FILE_BYTES) {
+                null
             } else {
-                result.copy(added = result.added + 1)
+                copyFromDocument(projectId, root, doc)
+            }
+            result = when (copied) {
+                null -> result.copy(skipped = result.skipped + 1)
+                true -> result.copy(updated = result.updated + 1)
+                false -> result.copy(added = result.added + 1)
             }
             onProgress(index + 1, files.size)
         }
         touch(projectId)
         result
+    }
+
+    /**
+     * Копирует документ из привязанной папки в проект. Возвращает true, если файл был
+     * перезаписан, false — если создан, null — если его не удалось открыть.
+     * Имя приходит от стороннего провайдера документов, поэтому путь проверяется PathGuard.
+     */
+    private fun copyFromDocument(projectId: String, root: File, doc: RemoteDoc): Boolean? {
+        val target = PathGuard.resolveWithin(root, doc.relativePath)
+        val input = context.contentResolver.openInputStream(doc.uri) ?: return null
+        target.parentFile?.mkdirs()
+        val existed = target.exists()
+        if (existed) backup(projectId, doc.relativePath, target)
+        input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
+        return existed
     }
 
     private class RemoteDoc(
@@ -274,12 +280,13 @@ class ProjectRepository(private val context: Context) {
             val relativePath = "$ATTACHMENTS_DIR/$id/$name"
             val target = resolve(projectId, relativePath)
             target.parentFile?.mkdirs()
+            require((document?.length() ?: 0L) <= MAX_ATTACHMENT_BYTES) { "Файл $name больше 32 МБ" }
             context.contentResolver.openInputStream(uri)?.use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
             } ?: throw IOException("Не удалось прочитать файл $name")
-            require(target.length() <= MAX_ATTACHMENT_BYTES) {
-                target.deleteRecursively()
-                "Файл $name больше 32 МБ"
+            if (target.length() > MAX_ATTACHMENT_BYTES) {
+                target.parentFile?.deleteRecursively()
+                throw IllegalArgumentException("Файл $name больше 32 МБ")
             }
             ChatAttachment(
                 id = id,

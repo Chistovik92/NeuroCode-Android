@@ -123,7 +123,8 @@ class AgentTools(
         allowAgentShell: Boolean,
         externalTools: List<ExternalAgentTool> = emptyList(),
     ): String = runCatching {
-        val arguments = json.parseToJsonElement(call.arguments).jsonObject
+        // Некоторые модели присылают пустую строку вместо «{}» для инструментов без параметров.
+        val arguments = json.parseToJsonElement(call.arguments.ifBlank { "{}" }).jsonObject
         when (call.name) {
             "list_files" -> json.encodeToString(projects.tree(projectId)).take(MAX_TOOL_OUTPUT)
             "read_file" -> {
