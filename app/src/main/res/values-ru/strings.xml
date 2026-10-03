@@ -101,7 +101,7 @@
     <string name="empty_agent_title">Агент готов работать с проектом</string>
     <string name="empty_agent_body">Он может читать файлы, предлагать изменения, запускать команды и проверять Git diff. Опасные действия требуют подтверждения.</string>
     <string name="greeting_hello">Привет</string>
-    <string name="greeting_help">Чем я могу помочь?</string>
+    <string name="greeting_help">Чем могу помочь сегодня?</string>
 
     <!-- Terminal screen -->
     <string name="terminal_session_label">SHELL SESSION</string>
@@ -306,4 +306,17 @@
     <string name="banner_linux_ready">Linux-окружение готово (proot + Alpine).</string>
     <string name="banner_linux_unavailable">Linux-окружение недоступно, используется Android shell.</string>
     <string name="banner_linux_active">Linux-окружение: proot готов</string>
+
+    <!-- Современная (Gemini-style) оболочка -->
+    <string name="open_menu_cd">Открыть меню</string>
+    <string name="drawer_new_chat">Новый чат</string>
+    <string name="drawer_chats">Чаты</string>
+    <string name="drawer_tools">Инструменты</string>
+    <string name="drawer_no_chats">В этом проекте пока нет чатов</string>
+    <string name="drawer_copy_chat">Копировать диалог</string>
+    <string name="suggest_explain">Объясни, как устроен этот проект</string>
+    <string name="suggest_bugs">Найди ошибки в коде проекта</string>
+    <string name="suggest_tests">Напиши unit-тесты для ключевых модулей</string>
+    <string name="suggest_diff">Проверь мои незакоммиченные изменения в Git</string>
+    <string name="hint_ask">Спросите NeuroCode</string>
 </resources>

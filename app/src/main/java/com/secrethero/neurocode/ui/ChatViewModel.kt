@@ -209,6 +209,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Весь активный диалог одним текстом — для копирования из бокового меню. */
+    fun conversationText(): String =
+        sessions.value.firstOrNull { it.id == _activeSessionId.value }?.messages.orEmpty()
+            .joinToString("\n\n") { message ->
+                when (message.role) {
+                    MessageRole.USER -> str(R.string.prefix_user, message.content)
+                    MessageRole.ASSISTANT -> str(R.string.prefix_agent, message.content)
+                    MessageRole.TOOL -> str(R.string.prefix_tool, message.toolName ?: "", message.content)
+                    MessageRole.SYSTEM -> message.content
+                }
+            }
+
     fun cancelChat() {
         chatJob?.cancel()
         chatJob = null

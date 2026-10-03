@@ -43,6 +43,13 @@ import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import kotlinx.coroutines.launch
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -96,7 +103,7 @@ import com.secrethero.neurocode.ui.screens.ModelSwitcherDialog
 import com.secrethero.neurocode.ui.screens.SettingsScreen
 import com.secrethero.neurocode.ui.screens.TerminalScreen
 
-private enum class MainTab(
+internal enum class MainTab(
     @StringRes val titleRes: Int,
     val icon: ImageVector,
 ) {
@@ -108,17 +115,17 @@ private enum class MainTab(
 }
 
 /** Вкладки инструментов разработчика в современном дизайне (настройки — отдельная шторка). */
-private val ModernDevTabs = listOf(MainTab.CHAT, MainTab.EDITOR, MainTab.TERMINAL, MainTab.GIT)
+internal val ModernDevTabs = listOf(MainTab.CHAT, MainTab.EDITOR, MainTab.TERMINAL, MainTab.GIT)
 
 /** Gemini-style brand gradient used by the modern design (0.7.0 UI reference). */
-private val ModernBrandGradientColors = listOf(
+internal val ModernBrandGradientColors = listOf(
     Color(0xFF7DACFA),
     Color(0xFFC58AF9),
     Color(0xFFE995BB),
 )
 
 /** Данные шапки, общие для обоих дизайнов. */
-private class TopBarState(
+internal class TopBarState(
     val projectName: String?,
     val projects: List<Project>,
     val hasProject: Boolean,
@@ -128,7 +135,7 @@ private class TopBarState(
 
 /** Действия шапки, общие для обоих дизайнов. */
 @Suppress("LongParameterList")
-private class ShellActions(
+internal class ShellActions(
     val onSelectProject: (String) -> Unit,
     val onNewProject: () -> Unit,
     val onImportFolder: () -> Unit,
@@ -170,6 +177,11 @@ fun NeuroCodeApp(
     var showSwitcher by remember { mutableStateOf(false) }
     var settingsDrawer by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val drawerScope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
+    val sessions by viewModel.chat.sessions.collectAsStateWithLifecycle()
+    val activeSessionId by viewModel.chat.activeSessionId.collectAsStateWithLifecycle()
     val importFolder = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
@@ -247,6 +259,54 @@ fun NeuroCodeApp(
         },
     )
 
+    val closeDrawer: () -> Unit = { drawerScope.launch { drawerState.close() } }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = modern,
+        drawerContent = {
+            if (modern) {
+                ModernDrawerContent(
+                    topBar = topBar,
+                    actions = ShellActions(
+                        onSelectProject = { actions.onSelectProject(it); closeDrawer() },
+                        onNewProject = { closeDrawer(); actions.onNewProject() },
+                        onImportFolder = { closeDrawer(); actions.onImportFolder() },
+                        onExportFolder = { closeDrawer(); actions.onExportFolder() },
+                        onExportZip = { closeDrawer(); actions.onExportZip() },
+                        onLinkFolder = { closeDrawer(); actions.onLinkFolder() },
+                        onSyncTo = { closeDrawer(); actions.onSyncTo() },
+                        onSyncFrom = { closeDrawer(); actions.onSyncFrom() },
+                        onDeleteProject = { closeDrawer(); actions.onDeleteProject() },
+                        onPickModel = { closeDrawer(); actions.onPickModel() },
+                        onNewChat = actions.onNewChat,
+                        onOpenSettings = { closeDrawer(); actions.onOpenSettings() },
+                    ),
+                    sessions = sessions,
+                    activeSessionId = activeSessionId,
+                    tab = tab,
+                    onSelectChat = {
+                        viewModel.chat.selectChat(it)
+                        tabName = MainTab.CHAT.name
+                        closeDrawer()
+                    },
+                    onDeleteChat = viewModel.chat::deleteChat,
+                    onCopyChat = {
+                        clipboard.setText(AnnotatedString(viewModel.chat.conversationText()))
+                        closeDrawer()
+                    },
+                    onTab = {
+                        tabName = it.name
+                        closeDrawer()
+                    },
+                    onNewChat = {
+                        tabName = MainTab.CHAT.name
+                        viewModel.chat.newChat()
+                        closeDrawer()
+                    },
+                )
+            }
+        },
+    ) {
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbar) },
@@ -254,9 +314,12 @@ fun NeuroCodeApp(
                 if (modern) {
                     ModernTopBar(
                         state = topBar,
-                        tab = tab,
-                        onTab = { tabName = it.name },
-                        actions = actions,
+                        onMenu = { drawerScope.launch { drawerState.open() } },
+                        onPickModel = actions.onPickModel,
+                        onNewChat = {
+                            tabName = MainTab.CHAT.name
+                            viewModel.chat.newChat()
+                        },
                     )
                 } else {
                     ClassicTopBar(state = topBar, actions = actions)
@@ -320,6 +383,7 @@ fun NeuroCodeApp(
                 SettingsScreen(viewModel.settingsScreen)
             }
         }
+    }
     }
 
     approval?.let { request ->
@@ -570,170 +634,6 @@ private fun ClassicNavigationBar(tab: MainTab, onTab: (MainTab) -> Unit) {
     }
 }
 
-/**
- * Современная шапка (Gemini): градиентный бренд слева, справа — новый диалог, выбор модели
- * и проекта, меню инструментов разработчика и настройки.
- */
-@Suppress("LongMethod")
-@Composable
-private fun ModernTopBar(
-    state: TopBarState,
-    tab: MainTab,
-    onTab: (MainTab) -> Unit,
-    actions: ShellActions,
-) {
-    var projectMenu by remember { mutableStateOf(false) }
-    var toolsMenu by remember { mutableStateOf(false) }
-    Surface(color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.statusBarsPadding()) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(
-                        Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Column {
-                        Text(
-                            "NeuroCode",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Medium,
-                                brush = Brush.linearGradient(ModernBrandGradientColors),
-                            ),
-                            maxLines = 1,
-                        )
-                        Text(
-                            state.projectName ?: stringResource(R.string.project_none),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = actions.onNewChat) {
-                        Icon(
-                            Icons.Default.ChatBubbleOutline,
-                            contentDescription = stringResource(R.string.chip_new),
-                        )
-                    }
-                    Box {
-                        IconButton(onClick = { projectMenu = true }) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.menu_projects),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = projectMenu,
-                            onDismissRequest = { projectMenu = false },
-                            shape = RoundedCornerShape(16.dp),
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(state.modelLabel, fontFamily = FontFamily.Monospace) },
-                                onClick = {
-                                    projectMenu = false
-                                    actions.onPickModel()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                                },
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            ProjectMenuItems(
-                                state = state,
-                                actions = actions,
-                                onDismiss = { projectMenu = false },
-                            )
-                        }
-                    }
-                    Box {
-                        IconButton(onClick = { toolsMenu = true }) {
-                            Icon(
-                                Icons.Default.DeveloperMode,
-                                contentDescription = stringResource(R.string.tab_terminal),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = toolsMenu,
-                            onDismissRequest = { toolsMenu = false },
-                            shape = RoundedCornerShape(16.dp),
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ) {
-                            ModernDevTabs.forEach { item ->
-                                val selected = item == tab
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            stringResource(item.titleRes),
-                                            color = if (selected) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
-                                            },
-                                            fontWeight = if (selected) {
-                                                FontWeight.Medium
-                                            } else {
-                                                FontWeight.Normal
-                                            },
-                                        )
-                                    },
-                                    onClick = {
-                                        toolsMenu = false
-                                        onTab(item)
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            item.icon,
-                                            contentDescription = null,
-                                            tint = if (selected) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                        )
-                                    },
-                                    trailingIcon = {
-                                        if (selected) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(18.dp),
-                                            )
-                                        }
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    IconButton(onClick = actions.onOpenSettings) {
-                        Icon(
-                            Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.tab_settings),
-                        )
-                    }
-                }
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
-        }
-    }
-}
-
 /** Полноэкранная шторка настроек современного дизайна. */
 @Composable
 private fun SettingsDrawer(onClose: () -> Unit, content: @Composable () -> Unit) {
@@ -781,7 +681,7 @@ private fun ProjectMenu(
 
 @Suppress("LongMethod")
 @Composable
-private fun ProjectMenuItems(
+internal fun ProjectMenuItems(
     state: TopBarState,
     actions: ShellActions,
     onDismiss: () -> Unit,

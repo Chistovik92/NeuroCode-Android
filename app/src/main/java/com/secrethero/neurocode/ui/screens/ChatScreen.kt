@@ -11,6 +11,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.Source
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -149,7 +164,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 .widthIn(max = 840.dp)
                 .align(Alignment.TopCenter),
         ) {
-            if (!keyboardOpen) LazyRow(
+            if (!keyboardOpen && !modern) LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -214,7 +229,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 if (messages.isEmpty() && streaming.isEmpty()) {
                     item {
                         if (modern) {
-                            ModernGreeting()
+                            ModernGreeting(onSuggestion = { input = it })
                         } else {
                             EmptyChatHint(local = settings.useLocalModel)
                         }
@@ -283,7 +298,11 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            if (modern) {
+                                PulsingAvatar()
+                            } else {
+                                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            }
                             Text((runState as ChatRunState.Working).status)
                         }
                     }
@@ -531,8 +550,11 @@ private fun ClassicInputBar(state: InputBarState) {
     }
 }
 
-/** Современная панель ввода: «таблетка» на фоне экрана, круглая кнопка отправки. */
-@Suppress("LongMethod")
+/**
+ * Современная панель ввода в стиле Gemini: поле на всю ширину «таблетки», а кнопки
+ * (вложение слева, отправка справа) в отдельной строке под ним — длинный текст не
+ * упирается в кнопки.
+ */
 @Composable
 private fun ModernInputBar(state: InputBarState) {
     Surface(
@@ -542,31 +564,15 @@ private fun ModernInputBar(state: InputBarState) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
-            Row(
-                Modifier.padding(start = 6.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = state.onAttach) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.attach_files_cd),
-                        tint = if (state.hasAttachments) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
+            Column(Modifier.padding(bottom = 6.dp)) {
                 TextField(
                     value = state.value,
                     onValueChange = state.onValue,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
                             state.placeholder,
@@ -583,29 +589,121 @@ private fun ModernInputBar(state: InputBarState) {
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
                     ),
+                    minLines = 1,
                     maxLines = 6,
                 )
-                FilledIconButton(
-                    onClick = state.onSend,
-                    enabled = state.busy || state.value.isNotBlank(),
-                    shape = CircleShape,
-                    modifier = Modifier.size(40.dp),
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        if (state.busy) Icons.Default.Stop else Icons.Default.ArrowUpward,
-                        contentDescription = if (state.busy) {
-                            stringResource(R.string.stop_cd)
-                        } else {
-                            stringResource(R.string.send_cd)
-                        },
-                        modifier = Modifier.size(20.dp),
-                    )
+                    IconButton(onClick = state.onAttach) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = stringResource(R.string.attach_files_cd),
+                            tint = if (state.hasAttachments) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    FilledIconButton(
+                        onClick = state.onSend,
+                        enabled = state.busy || state.value.isNotBlank(),
+                        shape = CircleShape,
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            if (state.busy) Icons.Default.Stop else Icons.Default.ArrowUpward,
+                            contentDescription = if (state.busy) {
+                                stringResource(R.string.stop_cd)
+                            } else {
+                                stringResource(R.string.send_cd)
+                            },
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * Сообщение в стиле Gemini: пользователь — пузырь справа (копирование долгим нажатием),
+ * модель — текст без подложки под градиентным значком и со строкой действий.
+ */
+@Suppress("LongMethod")
+@Composable
+private fun ModernMessage(
+    message: ChatMessage,
+    user: Boolean,
+    attachmentFile: (ChatAttachment) -> File?,
+    onCopy: () -> Unit,
+) {
+    if (user) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+            Box(
+                Modifier
+                    .widthIn(max = 320.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        bubbleShape(modern = true, user = true),
+                    )
+                    .pointerInput(Unit) { detectTapGestures(onLongPress = { onCopy() }) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                Column {
+                    if (message.content.isNotBlank()) {
+                        Text(message.content, style = MaterialTheme.typography.bodyLarge)
+                    }
+                    if (message.attachments.isNotEmpty()) {
+                        MessageAttachments(message.attachments, attachmentFile)
+                    }
+                }
+            }
+        }
+        return
+    }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        GeminiAvatar()
+        message.reasoning?.takeIf { it.isNotBlank() }?.let { ReasoningBlock(text = it) }
+        SelectionContainer {
+            Text(
+                message.content,
+                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp),
+            )
+        }
+        if (message.attachments.isNotEmpty()) {
+            MessageAttachments(message.attachments, attachmentFile)
+        }
+        IconButton(onClick = onCopy, modifier = Modifier.size(32.dp)) {
+            Icon(
+                Icons.Default.ContentCopy,
+                contentDescription = stringResource(R.string.copy_message_cd),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+/** Значок модели, мягко пульсирующий, пока идёт генерация. */
+@Composable
+private fun PulsingAvatar() {
+    val transition = rememberInfiniteTransition(label = "thinking")
+    val pulse by transition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label = "pulse",
+    )
+    Box(Modifier.alpha(pulse)) { GeminiAvatar() }
+}
 
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
@@ -617,6 +715,10 @@ private fun MessageBubble(
 ) {
     val user = message.role == MessageRole.USER
     val tool = message.role == MessageRole.TOOL
+    if (modern && !tool) {
+        ModernMessage(message, user, attachmentFile, onCopy)
+        return
+    }
     Column(
         horizontalAlignment = if (user) Alignment.End else Alignment.Start,
         modifier = Modifier.fillMaxWidth(),
@@ -733,18 +835,24 @@ private fun GeminiAvatar() {
     }
 }
 
-/** Приветствие пустого диалога в стиле Gemini. */
+/** Приветствие пустого диалога в стиле Gemini с карточками-подсказками. */
 @Composable
-private fun ModernGreeting() {
+private fun ModernGreeting(onSuggestion: (String) -> Unit) {
+    val suggestions = listOf(
+        Icons.Default.Lightbulb to stringResource(R.string.suggest_explain),
+        Icons.Default.BugReport to stringResource(R.string.suggest_bugs),
+        Icons.Default.Science to stringResource(R.string.suggest_tests),
+        Icons.Default.Source to stringResource(R.string.suggest_diff),
+    )
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 48.dp),
+            .padding(horizontal = 8.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
             stringResource(R.string.greeting_hello),
-            style = MaterialTheme.typography.headlineMedium.copy(
+            style = MaterialTheme.typography.headlineLarge.copy(
                 fontWeight = FontWeight.Medium,
                 brush = Brush.linearGradient(ModernAvatarGradient),
             ),
@@ -754,6 +862,31 @@ private fun ModernGreeting() {
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Column(
+            Modifier.padding(top = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            suggestions.forEach { (icon, text) -> SuggestionCard(icon, text) { onSuggestion(text) } }
+        }
+    }
+}
+
+@Composable
+private fun SuggestionCard(icon: ImageVector, text: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        }
     }
 }
 
