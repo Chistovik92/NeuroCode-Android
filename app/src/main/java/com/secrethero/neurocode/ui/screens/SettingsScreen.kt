@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import android.os.Build
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -55,6 +56,7 @@ import com.secrethero.neurocode.device.DeviceSnapshot
 import com.secrethero.neurocode.device.ModelTier
 import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppDesign
+import com.secrethero.neurocode.ui.LocalModernDesign
 import com.secrethero.neurocode.model.ModelLimits
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
@@ -106,7 +108,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(stringResource(R.string.appearance), style = MaterialTheme.typography.titleLarge)
+        SectionTitle(stringResource(R.string.appearance))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ThemeMode.entries.forEach { mode ->
                 FilterChip(
@@ -147,7 +149,20 @@ fun SettingsScreen(vm: SettingsViewModel) {
             }
         }
 
-        Text(stringResource(R.string.work_mode), style = MaterialTheme.typography.titleLarge)
+        if (settings.appDesign == AppDesign.MODERN) {
+            val dynamicSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            SettingSwitch(
+                title = stringResource(R.string.material_you),
+                description = stringResource(
+                    if (dynamicSupported) R.string.material_you_desc else R.string.material_you_unsupported,
+                ),
+                checked = settings.dynamicColor && dynamicSupported,
+                enabled = dynamicSupported,
+                onChecked = vm::setDynamicColor,
+            )
+        }
+
+        SectionTitle(stringResource(R.string.work_mode))
         SettingSwitch(
             title = stringResource(R.string.local_gguf_model),
             description = if (settings.localModelPath == null) {
@@ -252,11 +267,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                stringResource(R.string.providers),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f),
-            )
+            SectionTitle(stringResource(R.string.providers), Modifier.weight(1f))
             IconButton(
                 onClick = {
                     editingProvider = null
@@ -354,7 +365,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             onSaveLspCommand = { vm.setLspCommand(lspCommandText) },
         )
 
-        Text(stringResource(R.string.skills_title), style = MaterialTheme.typography.titleLarge)
+        SectionTitle(stringResource(R.string.skills_title))
         SettingSwitch(
             title = stringResource(R.string.enable_skills),
             description = stringResource(R.string.enable_skills_desc),
@@ -416,7 +427,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             }
         }
 
-        Text(stringResource(R.string.security), style = MaterialTheme.typography.titleLarge)
+        SectionTitle(stringResource(R.string.security))
         Text(
             stringResource(R.string.security_text),
             style = MaterialTheme.typography.bodyMedium,
@@ -610,7 +621,7 @@ private fun RuntimeEnvironmentSection(
     onLspCommandChanged: (String) -> Unit,
     onSaveLspCommand: () -> Unit,
 ) {
-    Text(stringResource(R.string.runtime_env), style = MaterialTheme.typography.titleLarge)
+    SectionTitle(stringResource(R.string.runtime_env))
     Text(
         stringResource(R.string.linux_env_desc),
         style = MaterialTheme.typography.bodySmall,
@@ -726,6 +737,21 @@ private fun SkillDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
+}
+
+/** Заголовок раздела: крупный в классике, компактный акцентный в стиле Gemini/Material You. */
+@Composable
+private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
+    if (LocalModernDesign.current) {
+        Text(
+            text,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = modifier.padding(top = 12.dp),
+        )
+    } else {
+        Text(text, style = MaterialTheme.typography.titleLarge, modifier = modifier)
+    }
 }
 
 @Composable

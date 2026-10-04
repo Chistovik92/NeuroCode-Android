@@ -4,7 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -54,6 +59,8 @@ import com.secrethero.neurocode.ui.GitViewModel
 import java.text.DateFormat
 import java.util.Date
 
+@Suppress("LongMethod")
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GitScreen(git: GitViewModel) {
     val status by git.gitStatus.collectAsStateWithLifecycle()
@@ -78,6 +85,7 @@ fun GitScreen(git: GitViewModel) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             if (modern && status != null) {
                 Text(
@@ -128,9 +136,13 @@ fun GitScreen(git: GitViewModel) {
 
         StatusCard(status!!)
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             FilledTonalButton(onClick = git::stageAll) {
                 Icon(Icons.Default.AddTask, contentDescription = null)
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Text(stringResource(R.string.stage_all))
             }
             Button(onClick = { commitDialog = true }) {
@@ -291,6 +303,8 @@ private fun CommitCard(commit: GitCommitInfo, modern: Boolean) {
     }
 }
 
+@Suppress("LongMethod")
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RemoteCard(
     git: GitViewModel,
@@ -353,12 +367,16 @@ private fun RemoteCard(
             if (busy) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Button(
                     enabled = !busy && url.startsWith("https://"),
                     onClick = { git.connectRemote(url.trim(), username.trim(), token) },
                 ) {
                     Icon(Icons.Default.Link, contentDescription = null)
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text(stringResource(R.string.connect))
                 }
                 FilledTonalButton(
@@ -366,14 +384,16 @@ private fun RemoteCard(
                     onClick = git::pullRemote,
                 ) {
                     Icon(Icons.Default.ArrowDownward, contentDescription = null)
-                    Text(" Pull")
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Text("Pull")
                 }
                 FilledTonalButton(
                     enabled = !busy && gitReady && currentUrl != null,
                     onClick = git::pushRemote,
                 ) {
                     Icon(Icons.Default.ArrowUpward, contentDescription = null)
-                    Text(" Push")
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Text("Push")
                 }
             }
             OutlinedButton(onClick = { cloneDialog = true }, enabled = !busy) {

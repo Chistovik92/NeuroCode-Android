@@ -5,8 +5,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
+import android.os.Build
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.secrethero.neurocode.model.AppDesign
@@ -94,6 +100,11 @@ private val ModernDarkColors = darkColorScheme(
     onSurfaceVariant = Color(0xFF8E918F),
     outline = Color(0xFF47494B),
     outlineVariant = Color(0xFF2C2E30),
+    surfaceContainerLowest = Color(0xFF0E0E0F),
+    surfaceContainerLow = Color(0xFF1B1B1C),
+    surfaceContainer = Color(0xFF1E1F20),
+    surfaceContainerHigh = Color(0xFF282A2C),
+    surfaceContainerHighest = Color(0xFF333537),
     inverseSurface = Color(0xFFE3E3E3),
     inverseOnSurface = Color(0xFF131314),
 )
@@ -124,6 +135,11 @@ private val ModernLightColors = lightColorScheme(
     onSurfaceVariant = Color(0xFF444746),
     outline = Color(0xFF747775),
     outlineVariant = Color(0xFFDCDEE0),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFF7F9FC),
+    surfaceContainer = Color(0xFFF0F4F9),
+    surfaceContainerHigh = Color(0xFFE9EEF6),
+    surfaceContainerHighest = Color(0xFFDDE3EA),
     inverseSurface = Color(0xFF1F1F1F),
     inverseOnSurface = Color(0xFFFFFFFF),
 )
@@ -136,10 +152,25 @@ private val ModernShapes = Shapes(
     large = RoundedCornerShape(28.dp),
 )
 
+/** true, когда включён современный (Gemini) дизайн: экраны подстраивают оформление. */
+val LocalModernDesign = staticCompositionLocalOf { false }
+
+/** Карточки Gemini спокойные: surfaceVariant из обоев слишком яркий, берём контейнерный тон. */
+private fun softenDynamic(scheme: androidx.compose.material3.ColorScheme) =
+    scheme.copy(surfaceVariant = scheme.surfaceContainerHigh)
+
+private fun staticColorScheme(appDesign: AppDesign, dark: Boolean) = when {
+    appDesign == AppDesign.MODERN && dark -> ModernDarkColors
+    appDesign == AppDesign.MODERN -> ModernLightColors
+    dark -> DarkColors
+    else -> LightColors
+}
+
 @Composable
 fun NeuroCodeTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     appDesign: AppDesign = AppDesign.CLASSIC,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val dark = when (themeMode) {
@@ -147,16 +178,20 @@ fun NeuroCodeTheme(
         ThemeMode.DARK -> true
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
+    val context = LocalContext.current
+    // Material You работает только в современном дизайне и только на Android 12+.
+    val useDynamic = dynamicColor && appDesign == AppDesign.MODERN &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val colorScheme = when {
-        appDesign == AppDesign.MODERN && dark -> ModernDarkColors
-        appDesign == AppDesign.MODERN -> ModernLightColors
-        dark -> DarkColors
-        else -> LightColors
+        useDynamic -> softenDynamic(if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context))
+        else -> staticColorScheme(appDesign, dark)
     }
     val shapes = if (appDesign == AppDesign.MODERN) ModernShapes else MaterialTheme.shapes
-    MaterialTheme(
-        colorScheme = colorScheme,
-        shapes = shapes,
-        content = content,
-    )
+    CompositionLocalProvider(LocalModernDesign provides (appDesign == AppDesign.MODERN)) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            shapes = shapes,
+            content = content,
+        )
+    }
 }

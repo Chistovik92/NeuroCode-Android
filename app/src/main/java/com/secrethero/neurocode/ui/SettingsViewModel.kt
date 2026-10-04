@@ -77,6 +77,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setMaxAgentSteps(value: Int) = updateSettings { it.copy(maxAgentSteps = value.coerceIn(1, 20)) }
     fun setThemeMode(mode: ThemeMode) = updateSettings { it.copy(themeMode = mode) }
     fun setAppDesign(design: AppDesign) = updateSettings { it.copy(appDesign = design) }
+    fun setDynamicColor(enabled: Boolean) = updateSettings { it.copy(dynamicColor = enabled) }
 
     fun setSkillsEnabled(enabled: Boolean) = updateSettings { it.copy(skillsEnabled = enabled) }
 

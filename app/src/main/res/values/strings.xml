@@ -319,4 +319,13 @@
     <string name="suggest_tests">Write unit tests for the key modules</string>
     <string name="suggest_diff">Review my uncommitted Git changes</string>
     <string name="hint_ask">Ask NeuroCode</string>
+    <string name="material_you">Material You colors</string>
+    <string name="material_you_desc">Take the palette from your wallpaper, like system apps. Turn off for the fixed Gemini palette</string>
+    <string name="material_you_unsupported">Needs Android 12 or newer — the fixed Gemini palette is used</string>
+    <string name="copy_code_cd">Copy code</string>
+    <string name="share_message_cd">Share</string>
+    <string name="voice_input_cd">Voice input</string>
+    <string name="voice_unavailable">Voice input is not available on this device</string>
+    <string name="more_cd">More</string>
+    <string name="ai_disclaimer">NeuroCode is AI and can make mistakes, including in code and commands. Check the result before running it.</string>
 </resources>

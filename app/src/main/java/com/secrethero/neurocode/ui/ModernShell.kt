@@ -22,8 +22,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,13 +55,18 @@ import com.secrethero.neurocode.model.ChatSession
  * Шапка в стиле приложения Gemini: меню слева, выбор модели («Модель ▾») по центру-слева
  * и кнопка нового чата справа. Чаты, проекты и инструменты живут в боковом меню.
  */
+@Suppress("LongMethod", "LongParameterList")
 @Composable
 internal fun ModernTopBar(
     state: TopBarState,
     onMenu: () -> Unit,
     onPickModel: () -> Unit,
     onNewChat: () -> Unit,
+    onCopyChat: () -> Unit,
+    onDeleteChat: (() -> Unit)?,
+    onOpenSettings: () -> Unit,
 ) {
+    var overflow by remember { mutableStateOf(false) }
     Surface(color = MaterialTheme.colorScheme.background) {
         Row(
             Modifier
@@ -103,6 +110,35 @@ internal fun ModernTopBar(
             IconButton(onClick = onNewChat) {
                 Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.drawer_new_chat))
             }
+            Box {
+                IconButton(onClick = { overflow = true }) {
+                    Icon(Icons.Default.MoreHoriz, contentDescription = stringResource(R.string.more_cd))
+                }
+                DropdownMenu(
+                    expanded = overflow,
+                    onDismissRequest = { overflow = false },
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.drawer_copy_chat)) },
+                        leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                        onClick = { overflow = false; onCopyChat() },
+                    )
+                    if (onDeleteChat != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.delete_chat_cd)) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                            onClick = { overflow = false; onDeleteChat() },
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.tab_settings)) },
+                        leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        onClick = { overflow = false; onOpenSettings() },
+                    )
+                }
+            }
         }
     }
 }
@@ -128,7 +164,7 @@ internal fun ModernDrawerContent(
         selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
     )
     ModalDrawerSheet(
-        drawerContainerColor = MaterialTheme.colorScheme.surface,
+        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainer,
         drawerShape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
     ) {
         LazyColumn(
@@ -162,7 +198,7 @@ internal fun ModernDrawerContent(
                 Surface(
                     onClick = onNewChat,
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     modifier = Modifier.padding(vertical = 8.dp),
                 ) {
                     Row(

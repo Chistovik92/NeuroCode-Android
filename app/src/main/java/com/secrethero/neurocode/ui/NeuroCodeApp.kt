@@ -320,6 +320,11 @@ fun NeuroCodeApp(
                             tabName = MainTab.CHAT.name
                             viewModel.chat.newChat()
                         },
+                        onCopyChat = {
+                            clipboard.setText(AnnotatedString(viewModel.chat.conversationText()))
+                        },
+                        onDeleteChat = activeSessionId?.let { id -> { viewModel.chat.deleteChat(id) } },
+                        onOpenSettings = actions.onOpenSettings,
                     )
                 } else {
                     ClassicTopBar(state = topBar, actions = actions)

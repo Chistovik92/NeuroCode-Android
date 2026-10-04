@@ -1,5 +1,9 @@
 package com.secrethero.neurocode.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -97,6 +101,7 @@ import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.ui.ChatViewModel
 import com.secrethero.neurocode.ui.EditorViewModel
+import com.secrethero.neurocode.ui.components.MarkdownText
 import com.secrethero.neurocode.ui.ProviderModelsState
 import java.io.File
 
@@ -128,6 +133,24 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
     val pickFiles = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris -> if (uris.isNotEmpty()) chat.attachFiles(uris) }
+    val voiceContext = LocalContext.current
+    val voiceResult = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val spoken = result.data
+            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+        if (!spoken.isNullOrBlank()) input = (input + " " + spoken).trim()
+    }
+    val startVoiceInput = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        try {
+            voiceResult.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(voiceContext, R.string.voice_unavailable, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val context = LocalContext.current
     val onCopyDialog = {
@@ -149,6 +172,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
     }
     // С открытой клавиатурой прячем второстепенные строки, чтобы список и поле ввода не сжимались.
     val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val showDisclaimer = messages.isNotEmpty() && !busy && streaming.isEmpty()
 
     LaunchedEffect(messages.size, streaming, agentLog.size) {
         val extra = if (streaming.isNotEmpty() || agentLog.isNotEmpty()) 1 else 0
@@ -223,7 +247,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentPadding = PaddingValues(12.dp),
+                contentPadding = PaddingValues(horizontal = if (modern) 20.dp else 12.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (messages.isEmpty() && streaming.isEmpty()) {
@@ -244,6 +268,9 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                             clipboard.setText(AnnotatedString(message.content))
                         },
                     )
+                }
+                if (modern && showDisclaimer) {
+                    item { AiDisclaimer() }
                 }
                 if (agentLog.isNotEmpty()) {
                     item {
@@ -330,6 +357,7 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 onSend = onSend,
                 onAttach = { pickFiles.launch(arrayOf("*/*")) },
                 hasAttachments = pendingAttachments.isNotEmpty(),
+                onVoice = startVoiceInput,
             )
             Column(
                 Modifier
@@ -494,6 +522,7 @@ internal class InputBarState(
     val onSend: () -> Unit,
     val onAttach: () -> Unit,
     val hasAttachments: Boolean,
+    val onVoice: () -> Unit = {},
 )
 
 /** Классическая панель ввода: плотная строка на панели с рамкой (GitHub-dark). */
@@ -611,7 +640,13 @@ private fun MessageBubble(
                     ),
             ) {
                 Column {
-                    if (message.content.isNotBlank()) {
+                    if (message.content.isNotBlank() && message.role == MessageRole.ASSISTANT) {
+                        MarkdownText(
+                            message.content,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    } else if (message.content.isNotBlank()) {
                         Text(
                             message.content,
                             style = if (tool) {
