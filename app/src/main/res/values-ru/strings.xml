@@ -319,4 +319,13 @@
     <string name="suggest_tests">Напиши unit-тесты для ключевых модулей</string>
     <string name="suggest_diff">Проверь мои незакоммиченные изменения в Git</string>
     <string name="hint_ask">Спросите NeuroCode</string>
+    <string name="material_you">Цвета Material You</string>
+    <string name="material_you_desc">Палитра берётся из обоев, как в системных приложениях. Выключите, чтобы вернуть фиксированную палитру Gemini</string>
+    <string name="material_you_unsupported">Нужен Android 12 или новее — используется фиксированная палитра Gemini</string>
+    <string name="copy_code_cd">Копировать код</string>
+    <string name="share_message_cd">Поделиться</string>
+    <string name="voice_input_cd">Голосовой ввод</string>
+    <string name="voice_unavailable">Голосовой ввод недоступен на этом устройстве</string>
+    <string name="more_cd">Ещё</string>
+    <string name="ai_disclaimer">NeuroCode — это ИИ, он может ошибаться, в том числе в коде и командах. Проверяйте результат, прежде чем запускать.</string>
 </resources>

@@ -97,6 +97,9 @@ data class AppSettings(
     val lspCommand: String = "",
     val themeMode: ThemeMode = ThemeMode.DARK,
     val appDesign: AppDesign = AppDesign.CLASSIC,
+
+    /** Material You: в современном дизайне брать палитру из обоев (Android 12+). */
+    val dynamicColor: Boolean = true,
 )
 
 @Serializable

@@ -1,5 +1,14 @@
 package com.secrethero.neurocode.ui.screens
 
+import android.content.Intent
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalContext
+import com.secrethero.neurocode.ui.components.MarkdownText
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -56,13 +65,18 @@ import com.secrethero.neurocode.model.ChatMessage
 import java.io.File
 
 /**
- * Современная панель ввода в стиле Gemini: поле на всю ширину «таблетки», а кнопки
- * (вложение слева, отправка справа) в отдельной строке под ним — длинный текст не
- * упирается в кнопки.
+ * Современная панель ввода в стиле Gemini: пока текст короткий — одна строка
+ * («+», поле, микрофон, отправка); с длинным или многострочным текстом поле занимает
+ * всю ширину «таблетки», а кнопки уходят в строку под ним. Поле одно и то же в обоих
+ * вариантах (movableContentOf), поэтому фокус и клавиатура не сбрасываются.
  */
-@Suppress("LongMethod")
 @Composable
 internal fun ModernInputBar(state: InputBarState) {
+    val current by rememberUpdatedState(state)
+    val field = remember {
+        movableContentOf<Modifier> { modifier -> ModernInputField(current, modifier) }
+    }
+    val expanded = state.value.contains('\n') || state.value.length > EXPAND_AFTER_CHARS
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background,
@@ -72,76 +86,113 @@ internal fun ModernInputBar(state: InputBarState) {
                 .fillMaxWidth()
                 .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surfaceContainer,
         ) {
-            Column(Modifier.padding(bottom = 6.dp)) {
-                TextField(
-                    value = state.value,
-                    onValueChange = state.onValue,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            state.placeholder,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                    ),
-                    minLines = 1,
-                    maxLines = 6,
-                )
+            if (expanded) {
+                Column(Modifier.padding(bottom = 6.dp)) {
+                    field(Modifier.fillMaxWidth())
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AttachButton(state)
+                        Spacer(Modifier.weight(1f))
+                        SendButton(state)
+                    }
+                }
+            } else {
                 Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
+                    Modifier.padding(start = 6.dp, end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = state.onAttach) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = stringResource(R.string.attach_files_cd),
-                            tint = if (state.hasAttachments) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.size(24.dp),
-                        )
+                    AttachButton(state)
+                    field(Modifier.weight(1f))
+                    if (state.value.isBlank() && !state.busy) {
+                        IconButton(onClick = state.onVoice) {
+                            Icon(
+                                Icons.Default.Mic,
+                                contentDescription = stringResource(R.string.voice_input_cd),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
-                    Spacer(Modifier.weight(1f))
-                    FilledIconButton(
-                        onClick = state.onSend,
-                        enabled = state.busy || state.value.isNotBlank(),
-                        shape = CircleShape,
-                        modifier = Modifier.size(40.dp),
-                    ) {
-                        Icon(
-                            if (state.busy) Icons.Default.Stop else Icons.Default.ArrowUpward,
-                            contentDescription = if (state.busy) {
-                                stringResource(R.string.stop_cd)
-                            } else {
-                                stringResource(R.string.send_cd)
-                            },
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
+                    SendButton(state)
                 }
             }
         }
     }
 }
 
+private const val EXPAND_AFTER_CHARS = 26
+
+@Composable
+private fun ModernInputField(state: InputBarState, modifier: Modifier) {
+    TextField(
+        value = state.value,
+        onValueChange = state.onValue,
+        modifier = modifier,
+        placeholder = {
+            Text(
+                state.placeholder,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            disabledContainerColor = Color.Transparent,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+        ),
+        minLines = 1,
+        maxLines = 6,
+    )
+}
+
+@Composable
+private fun AttachButton(state: InputBarState) {
+    IconButton(onClick = state.onAttach) {
+        Icon(
+            Icons.Default.Add,
+            contentDescription = stringResource(R.string.attach_files_cd),
+            tint = if (state.hasAttachments) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.size(24.dp),
+        )
+    }
+}
+
+@Composable
+private fun SendButton(state: InputBarState) {
+    FilledIconButton(
+        onClick = state.onSend,
+        enabled = state.busy || state.value.isNotBlank(),
+        shape = CircleShape,
+        modifier = Modifier.size(40.dp),
+    ) {
+        Icon(
+            if (state.busy) Icons.Default.Stop else Icons.Default.ArrowUpward,
+            contentDescription = if (state.busy) {
+                stringResource(R.string.stop_cd)
+            } else {
+                stringResource(R.string.send_cd)
+            },
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
 /**
  * Сообщение в стиле Gemini: пользователь — пузырь справа (копирование долгим нажатием),
- * модель — текст без подложки под градиентным значком и со строкой действий.
+ * модель — Markdown-текст без подложки под градиентным значком и со строкой действий.
  */
 @Suppress("LongMethod")
 @Composable
@@ -157,7 +208,7 @@ internal fun ModernMessage(
                 Modifier
                     .widthIn(max = 320.dp)
                     .background(
-                        MaterialTheme.colorScheme.surfaceVariant,
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
                         bubbleShape(modern = true, user = true),
                     )
                     .pointerInput(Unit) { detectTapGestures(onLongPress = { onCopy() }) }
@@ -175,11 +226,12 @@ internal fun ModernMessage(
         }
         return
     }
+    val context = LocalContext.current
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         GeminiAvatar()
         message.reasoning?.takeIf { it.isNotBlank() }?.let { ReasoningBlock(text = it) }
         SelectionContainer {
-            Text(
+            MarkdownText(
                 message.content,
                 style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp),
             )
@@ -187,15 +239,39 @@ internal fun ModernMessage(
         if (message.attachments.isNotEmpty()) {
             MessageAttachments(message.attachments, attachmentFile)
         }
-        IconButton(onClick = onCopy, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Default.ContentCopy,
-                contentDescription = stringResource(R.string.copy_message_cd),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            MessageAction(Icons.Default.ContentCopy, stringResource(R.string.copy_message_cd), onCopy)
+            MessageAction(Icons.Default.Share, stringResource(R.string.share_message_cd)) {
+                val send = Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(Intent.EXTRA_TEXT, message.content)
+                context.startActivity(Intent.createChooser(send, null))
+            }
         }
     }
+}
+
+@Composable
+private fun MessageAction(icon: ImageVector, description: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+        Icon(
+            icon,
+            contentDescription = description,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+/** Пояснение под последним ответом, как в Gemini. */
+@Composable
+internal fun AiDisclaimer() {
+    Text(
+        stringResource(R.string.ai_disclaimer),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp),
+    )
 }
 
 /** Значок модели, мягко пульсирующий, пока идёт генерация. */
@@ -252,7 +328,7 @@ private fun SuggestionCard(icon: ImageVector, text: String, onClick: () -> Unit)
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(

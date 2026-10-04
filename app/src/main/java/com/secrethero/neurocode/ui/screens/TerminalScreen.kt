@@ -21,6 +21,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -121,29 +124,21 @@ fun TerminalScreen(terminal: TerminalViewModel) {
                 .fillMaxWidth()
                 .background(barColor)
                 .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
+            TerminalInput(
                 value = command,
-                onValueChange = { command = it },
-                modifier = Modifier.weight(1f),
-                prefix = {
-                    Text(if (modern) "❯ " else "$ ", color = accentColor)
+                onValue = { command = it },
+                modern = modern,
+                accentColor = accentColor,
+                textColor = textColor,
+                onSend = {
+                    if (command.isNotBlank()) {
+                        terminal.runTerminal(command)
+                        command = ""
+                    }
                 },
-                textStyle = TextStyle(
-                    color = textColor,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 13.sp,
-                ),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        if (command.isNotBlank()) {
-                            terminal.runTerminal(command)
-                            command = ""
-                        }
-                    },
-                ),
+                modifier = Modifier.weight(1f),
             )
             IconButton(
                 onClick = {
@@ -159,4 +154,52 @@ fun TerminalScreen(terminal: TerminalViewModel) {
     }
 }
 
-
+/** Поле ввода команды: «таблетка» без рамки в стиле Gemini или поле с обводкой в классике. */
+@Composable
+@Suppress("LongParameterList")
+private fun TerminalInput(
+    value: String,
+    onValue: (String) -> Unit,
+    modern: Boolean,
+    accentColor: Color,
+    textColor: Color,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val prefix: @Composable () -> Unit = {
+        Text(if (modern) "❯ " else "$ ", color = accentColor)
+    }
+    val fieldStyle = TextStyle(color = textColor, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+    val options = KeyboardOptions(imeAction = ImeAction.Send)
+    val actions = KeyboardActions(onSend = { onSend() })
+    if (modern) {
+        TextField(
+            value = value,
+            onValueChange = onValue,
+            modifier = modifier,
+            prefix = prefix,
+            textStyle = fieldStyle,
+            singleLine = true,
+            shape = RoundedCornerShape(24.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color(0xFF1E1F20),
+                unfocusedContainerColor = Color(0xFF1E1F20),
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+            keyboardOptions = options,
+            keyboardActions = actions,
+        )
+    } else {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValue,
+            modifier = modifier,
+            prefix = prefix,
+            textStyle = fieldStyle,
+            singleLine = true,
+            keyboardOptions = options,
+            keyboardActions = actions,
+        )
+    }
+}
