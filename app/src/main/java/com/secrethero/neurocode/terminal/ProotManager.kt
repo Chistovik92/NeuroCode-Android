@@ -86,7 +86,20 @@ class ProotManager(private val context: Context) {
             downloadAndExtract(rootfsUrl(), rootfsDir)
             markerFile().writeText("alpine")
         }
+        ensureResolvConf()
         return canExecute(proot)
+    }
+
+    /**
+     * alpine-minirootfs не содержит /etc/resolv.conf, поэтому без него гостевые
+     * процессы не резолвят домены (apk add, wget, git clone по https и т.д.).
+     * Пишется при каждой подготовке, чтобы починиться и для уже установленных rootfs.
+     */
+    private fun ensureResolvConf() {
+        val resolvConf = File(rootfsDir, "etc/resolv.conf")
+        if (resolvConf.exists()) return
+        resolvConf.parentFile?.mkdirs()
+        resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
     }
 
     private fun markerFile() = File(linuxDir, ".rootfs-ok")

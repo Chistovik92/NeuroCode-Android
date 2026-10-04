@@ -158,12 +158,15 @@ class ShellSession(
         }
 
     private fun launchBackgroundInit() {
-        if (proot.isReady()) {
-            append(TerminalLine(appContext.getString(R.string.banner_linux_active)))
-            return
+        when (proot.state.value) {
+            ProotState.READY -> {
+                append(TerminalLine(appContext.getString(R.string.banner_linux_active)))
+                return
+            }
+            // Установка уже идёт (запущена отсюда же или из настроек) — не дублируем попытку.
+            ProotState.PREPARING -> return
+            else -> Unit
         }
-        if (_initAttempted) return
-        _initAttempted = true
         scope.launch {
             val prepared = runCatching { proot.initialize() }.getOrDefault(false)
             if (!prepared) {
@@ -183,9 +186,6 @@ class ShellSession(
         }
     }
 
-    @Volatile
-    private var _initAttempted = false
-
     private fun createProcess(root: File, command: List<String>): Process =
         ProcessBuilder(command)
             .directory(root)
@@ -199,6 +199,12 @@ class ShellSession(
                     "/system/bin:/system/xbin"
                 }
                 environment()["TERM"] = "xterm-256color"
+                if (proot.isReady()) {
+                    // На части устройств ядро конфликтует со встроенным seccomp-ускорителем
+                    // proot (зависания/ошибки трассировки) — это его собственная переменная
+                    // окружения процесса, а не гостевая (--env=), поэтому выставляется здесь.
+                    environment()["PROOT_NO_SECCOMP"] = "1"
+                }
             }
             .start()
 
