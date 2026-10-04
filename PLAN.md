@@ -298,23 +298,55 @@ enum class DialogType {
 
 ## 🛠️ 3. ПОДДЕРЖКА СКИЛЛОВ АГЕНТА (уже частично реализовано)
 
-### Что реализовано
-- `AgentSkill` модель (id, name, description, command, enabled)
-- `SettingsViewModel` методы: `saveSkill()`, `deleteSkill()`, `toggleSkill()`, `exportSkills()`, `importSkills()`
-- UI в `SettingsScreen` для управления скиллами (строки 368-399)
+### ✅ Что уже реализовано
+- ✅ `AgentSkill` модель (id, name, description, command, enabled)
+- ✅ `SettingsViewModel` методы: `saveSkill()`, `deleteSkill()`, `toggleSkill()`, `exportSkills()`, `importSkills()`
+- ✅ UI в `SettingsScreen` для управления скиллами (строки 368-399)
+- ✅ `AgentOrchestrator.run()` принимает `activeSkills: List<String>` параметр
+- ✅ `systemPrompt()` включает скиллы в промпт агента
+- ✅ Скиллы сохраняются в настройках (settings)
+- ✅ Импорт/экспорт скиллов через JSON файл
 
-### Что нужно
-- [ ] **Тестирование скиллов** — создать тестовые скиллы и проверить работу в AgentOrchestrator
-- [ ] **Интеграция с AgentOrchestrator** — использовать скиллы при выполнении команд агента
-- [ ] **Библиотека встроенных скиллов** — добавить предустановленные скиллы (git, npm, etc.)
-- [ ] **Предпросмотр вывода скилла** — показать результат выполнения скилла в UI
-- [ ] **Параметризированные скиллы** — поддержка параметров в командах (${arg1}, ${arg2})
-- [ ] **Документирование скиллов** — добавить поле description и помощь в UI
+### 🔨 Что нужно доделать
+- [ ] **Выполнение скиллов** — реальное выполнение команд скиллов в AgentTools
+  - Интеграция с ShellSession или ModernShell
+  - Обработка результатов выполнения
+  - Обработка ошибок выполнения
+
+- [ ] **Тестирование скиллов** — Unit тесты для выполнения скиллов
+  - Тесты на успешное выполнение
+  - Тесты на обработку ошибок
+  - Тесты на параметризованные команды
+
+- [ ] **Библиотека встроенных скиллов** — добавить предустановленные скиллы
+  - Git скиллы (commit, push, pull, branch, log)
+  - NPM/Yarn скиллы (install, build, test, run)
+  - Android скиллы (build, install, test)
+  - Shell скиллы (find, grep, sed, awk)
+  - Файловые операции (cp, mv, rm, mkdir)
+
+- [ ] **Параметризированные скиллы** — поддержка переменных
+  - Синтаксис ${arg0}, ${arg1}, ${arg2}...
+  - Валидация параметров
+  - Документирование параметров
+
+- [ ] **Предпросмотр вывода скилла** — показать результат в UI
+  - История выполнения скиллов
+  - Output каждого скилла
+  - Время выполнения
+
+- [ ] **Документирование скиллов** — улучшить помощь в UI
+  - Поле description (уже есть)
+  - Примеры использования
+  - Список параметров
+  - Возможные ошибки
 
 ### Файлы для модификации
-- `app/src/main/java/com/secrethero/neurocode/ai/AgentOrchestrator.kt` — добавить использование скиллов
-- `app/src/main/java/com/secrethero/neurocode/model/Models.kt` — расширить AgentSkill
-- `app/src/main/java/com/secrethero/neurocode/ui/screens/SettingsScreen.kt` — улучшить UI скиллов
+- ✅ `app/src/main/java/com/secrethero/neurocode/ai/AgentOrchestrator.kt` — уже передает activeSkills
+- ✅ `app/src/main/java/com/secrethero/neurocode/model/Models.kt` — AgentSkill уже реализована
+- ✅ `app/src/main/java/com/secrethero/neurocode/ui/screens/SettingsScreen.kt` — UI уже есть
+- 🔨 `app/src/main/java/com/secrethero/neurocode/terminal/AgentTools.kt` — добавить выполнение скиллов
+- 🔨 `app/src/main/java/com/secrethero/neurocode/terminal/ShellSession.kt` — использовать для выполнения
 
 ---
 

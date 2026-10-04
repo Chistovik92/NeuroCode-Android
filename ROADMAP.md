@@ -18,7 +18,45 @@
 | 0.7.3 | ✅ | UX: поля не перекрываются | 2025 Q4 |
 | 0.7.4 | ✅ | Новый дизайн Google Gemini | 2025 Q4 |
 | 0.7.5 | ✅ | Material You, Markdown в ответах | 2025 Q4 |
-| **0.8.0** | 🔄 **Текущая** | **Инфраструктура: Filesystem + Dialog Manager** | 2026 Q1 |
+| **0.8.0** | 📋 **Документирован** | **Инфраструктура: Filesystem + Dialog Manager** | 2026 Q1 |
+
+---
+
+## 📊 Текущее состояние реализации компонентов
+
+### ✅ Уже реализовано
+| Компонент | Статус | Файл |
+|-----------|--------|------|
+| **AgentOrchestrator** | ✅ | `ai/AgentOrchestrator.kt` |
+| **AgentTools** | ✅ | `terminal/AgentTools.kt` |
+| **AgentSkill модель** | ✅ | `model/Models.kt` |
+| **Скиллы в UI** | ✅ | `ui/screens/SettingsScreen.kt` (строки 368-399) |
+| **SettingsViewModel** | ✅ | `ui/SettingsViewModel.kt` |
+| **ChatRepository** | ✅ | `data/ChatRepository.kt` |
+| **ProjectRepository** | ✅ | `data/ProjectRepository.kt` |
+| **SettingsRepository** | ✅ | `data/SettingsRepository.kt` |
+| **PathGuard** | ✅ | `terminal/PathGuard.kt` |
+| **ProotManager** | ✅ | `terminal/ProotManager.kt` |
+| **LocalLlamaClient** | ✅ | `ai/LocalLlamaClient.kt` |
+| **OpenAiCompatibleClient** | ✅ | `ai/OpenAiCompatibleClient.kt` |
+| **LSP (Language Server Protocol)** | ✅ | `lsp/LspClient.kt` |
+
+### 🔨 Требует доработки
+| Компонент | Проблема | Версия |
+|-----------|----------|--------|
+| **UI выбора моделей** | Неправильное отображение | 0.8.1 |
+| **Linux окружение (proot)** | Не устанавливается на некоторых устройствах | 0.8.1 |
+| **Скиллы (выполнение)** | Нет реального выполнения команд | 0.9.0 |
+| **Управление моделями** | Отсутствует UI для удаления/управления | 0.8.2 |
+
+### 📋 Планируется реализовать
+| Компонент | Версия |
+|-----------|--------|
+| **FilesystemManager** | 0.8.0 |
+| **DialogManager (UUID)** | 0.8.0 |
+| **ModelManager** | 0.8.2 |
+| **MCPConnectorManager** | 1.0.0 |
+| **PluginManager** | 1.1.0 |
 
 ---
 
