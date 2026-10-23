@@ -90,7 +90,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             session = all.firstOrNull { it.id == activeId },
             project = projects.firstOrNull { it.id == current.selectedProjectId },
             settings = current,
-            hasKey = { container.settings.apiKey(it) != null },
+            // Поток не должен падать, если хранилище ключей не читается: модель просто считается без ключа.
+            hasKey = { runCatching { container.settings.apiKey(it) }.getOrNull() != null },
         )
     }.stateIn(
         viewModelScope,
