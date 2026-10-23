@@ -92,6 +92,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.ai.ModelResolver
 import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.ChatAttachment
 import com.secrethero.neurocode.model.ChatMessage
@@ -266,6 +267,15 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         attachmentFile = chat::attachmentFile,
                         onCopy = {
                             clipboard.setText(AnnotatedString(message.content))
+                        },
+                        signature = if (message.role == MessageRole.ASSISTANT) {
+                            MessageSignature(
+                                modelLabel = message.generatedBy
+                                    ?.let { ModelResolver.fullLabel(it, settings.providers) },
+                                onRetry = if (busy) null else ({ chat.requestRetry(message.id) }),
+                            )
+                        } else {
+                            null
                         },
                     )
                 }
@@ -456,11 +466,12 @@ private fun MessageBubble(
     modern: Boolean,
     attachmentFile: (ChatAttachment) -> File?,
     onCopy: () -> Unit,
+    signature: MessageSignature? = null,
 ) {
     val user = message.role == MessageRole.USER
     val tool = message.role == MessageRole.TOOL
     if (modern && !tool) {
-        ModernMessage(message, user, attachmentFile, onCopy)
+        ModernMessage(message, user, attachmentFile, onCopy, signature)
         return
     }
     Column(
@@ -538,6 +549,7 @@ private fun MessageBubble(
                 }
             }
         }
+        ModelSignature(signature?.modelLabel, signature?.onRetry)
     }
 }
 

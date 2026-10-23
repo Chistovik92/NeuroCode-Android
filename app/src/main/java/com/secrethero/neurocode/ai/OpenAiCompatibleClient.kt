@@ -60,6 +60,9 @@ class OpenAiCompatibleClient {
     private val contextWindows = mutableMapOf<String, Int>()
     private val maxOutputTokens = mutableMapOf<String, Int>()
 
+    /** Окно контекста модели из каталога провайдера; null, если провайдер его не отдавал. */
+    fun contextWindow(model: String): Int? = contextWindows[model]
+
     private val http = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)

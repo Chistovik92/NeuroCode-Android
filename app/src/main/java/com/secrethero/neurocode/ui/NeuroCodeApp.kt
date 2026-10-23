@@ -99,7 +99,10 @@ import com.secrethero.neurocode.model.Project
 import com.secrethero.neurocode.ui.screens.ChatScreen
 import com.secrethero.neurocode.ui.screens.EditorScreen
 import com.secrethero.neurocode.ui.screens.GitScreen
+import com.secrethero.neurocode.ui.screens.ModelPickerActions
+import com.secrethero.neurocode.ui.screens.ModelPickerModel
 import com.secrethero.neurocode.ui.screens.ModelSwitcherDialog
+import com.secrethero.neurocode.ai.ModelResolver
 import com.secrethero.neurocode.ui.screens.SettingsScreen
 import com.secrethero.neurocode.ui.screens.TerminalScreen
 
@@ -175,6 +178,9 @@ fun NeuroCodeApp(
     var createProjectDialog by remember { mutableStateOf(false) }
     var deleteProjectDialog by remember { mutableStateOf(false) }
     var showSwitcher by remember { mutableStateOf(false) }
+    val retryFor by viewModel.chat.retryRequest.collectAsStateWithLifecycle()
+    val activeModel by viewModel.chat.activeModel.collectAsStateWithLifecycle()
+    val localModels by viewModel.chat.localModels.collectAsStateWithLifecycle()
     var settingsDrawer by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -220,9 +226,10 @@ fun NeuroCodeApp(
         }
     }
 
-    LaunchedEffect(showSwitcher, currentProvider?.id) {
-        if (showSwitcher && !settings.useLocalModel && currentProvider != null) {
-            viewModel.chat.loadSwitcherModels(currentProvider)
+    LaunchedEffect(showSwitcher || retryFor != null, activeModel.provider?.id) {
+        if (showSwitcher || retryFor != null) {
+            viewModel.chat.refreshLocalModels()
+            (activeModel.provider ?: currentProvider)?.let { viewModel.chat.loadSwitcherModels(it) }
         }
     }
 
@@ -252,11 +259,7 @@ fun NeuroCodeApp(
         projects = projects,
         hasProject = currentProject != null,
         syncEnabled = syncEnabled,
-        modelLabel = when {
-            settings.useLocalModel -> settings.localModelName ?: "GGUF"
-            currentProvider != null -> currentProvider.model
-            else -> stringResource(R.string.select_model)
-        },
+        modelLabel = ModelResolver.shortLabel(activeModel.ref) ?: stringResource(R.string.select_model),
     )
 
     val closeDrawer: () -> Unit = { drawerScope.launch { drawerState.close() } }
@@ -513,20 +516,35 @@ fun NeuroCodeApp(
         )
     }
 
-    if (showSwitcher) {
+    if (showSwitcher || retryFor != null) {
+        val retryId = retryFor
         ModelSwitcherDialog(
-            settings = settings,
-            state = viewModel.chat.switcherModels.collectAsStateWithLifecycle().value,
-            onProvider = {
-                viewModel.chat.switchProvider(it.id)
-                viewModel.chat.loadSwitcherModels(it)
-            },
-            onRefresh = viewModel.chat::loadSwitcherModels,
-            onModel = { provider, model -> viewModel.chat.setProviderModel(provider, model) },
-            onDismiss = {
-                showSwitcher = false
-                viewModel.chat.clearSwitcherModels()
-            },
+            picker = ModelPickerModel(
+                settings = settings,
+                active = activeModel,
+                project = currentProject,
+                cloudModels = viewModel.chat.switcherModels.collectAsStateWithLifecycle().value,
+                localModels = localModels,
+                retry = retryId != null,
+            ),
+            actions = ModelPickerActions(
+                onBrowseProvider = viewModel.chat::loadSwitcherModels,
+                onRefresh = viewModel.chat::loadSwitcherModels,
+                onSelect = { ref, scope ->
+                    if (retryId != null) {
+                        viewModel.chat.retryWithModel(retryId, ref)
+                    } else {
+                        viewModel.chat.selectModel(ref, scope)
+                    }
+                },
+                onClear = { viewModel.chat.clearModel(it) },
+                onToggleFavorite = viewModel.chat::toggleFavorite,
+                onDismiss = {
+                    showSwitcher = false
+                    viewModel.chat.clearRetryRequest()
+                    viewModel.chat.clearSwitcherModels()
+                },
+            ),
         )
     }
 }

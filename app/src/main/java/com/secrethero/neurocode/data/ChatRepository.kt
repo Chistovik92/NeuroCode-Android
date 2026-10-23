@@ -4,6 +4,7 @@ import android.content.Context
 import com.secrethero.neurocode.R
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatSession
+import com.secrethero.neurocode.model.ModelRef
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,6 +66,11 @@ class ChatRepository(private val context: Context) {
                 messages = session.messages + message,
             )
         }
+    }
+
+    /** Переопределение модели диалога; null возвращает диалог к модели проекта. */
+    suspend fun setModel(sessionId: String, model: ModelRef?) {
+        update(sessionId) { it.copy(model = model) }
     }
 
     suspend fun replaceMessages(sessionId: String, messages: List<ChatMessage>) {

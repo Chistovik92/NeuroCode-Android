@@ -7,6 +7,8 @@ import androidx.documentfile.provider.DocumentFile
 import com.secrethero.neurocode.model.AttachmentKind
 import com.secrethero.neurocode.model.ChatAttachment
 import com.secrethero.neurocode.model.FileNode
+import com.secrethero.neurocode.model.ModelKind
+import com.secrethero.neurocode.model.ModelRef
 import com.secrethero.neurocode.model.Project
 import com.secrethero.neurocode.model.SearchHit
 import kotlinx.coroutines.Dispatchers
@@ -58,11 +60,34 @@ class ProjectRepository(private val context: Context) {
         withContext(Dispatchers.IO) {
             val source = DocumentFile.fromTreeUri(context, uri)
                 ?: throw IOException("Не удалось открыть выбранную папку")
-            val project = create(requestedName ?: source.name ?: "Импортированный проект")
+            val manifest = readManifest(source)
+            val project = create(requestedName ?: manifest?.name ?: source.name ?: "Импортированный проект")
             copyDocumentTree(source, File(project.rootPath), 0)
+            manifest?.model?.let { setModel(project.id, relinkLocalModel(it)) }
             touch(project.id)
-            project
+            get(project.id) ?: project
         }
+
+    /** Паспорт проекта из экспорта, если он лежит в корне выбранной папки. */
+    private fun readManifest(root: DocumentFile): ProjectManifest? {
+        val file = root.findFile(ProjectManifest.FILE_NAME) ?: return null
+        val text = runCatching {
+            context.contentResolver.openInputStream(file.uri)?.use { it.readBytes().decodeToString() }
+        }.getOrNull()
+        return text?.let(ProjectManifest::decode)
+    }
+
+    /** Локальная модель из паспорта привязывается к одноимённому GGUF на этом устройстве, если он есть. */
+    private fun relinkLocalModel(ref: ModelRef): ModelRef {
+        if (ref.kind != ModelKind.LOCAL) return ref
+        val local = ref.localName?.let { File(File(context.filesDir, "models"), it) }
+        return ref.copy(localPath = local?.takeIf { it.isFile }?.absolutePath)
+    }
+
+    /** Задаёт модель проекта; null возвращает «как в глобальных настройках». */
+    suspend fun setModel(projectId: String, model: ModelRef?) {
+        persist(_projects.value.map { if (it.id == projectId) it.copy(model = model) else it })
+    }
 
     suspend fun exportTree(
         projectId: String,
@@ -234,6 +259,11 @@ class ProjectRepository(private val context: Context) {
             ?: throw IOException("Не удалось создать архив в выбранной папке")
         var written = 0L
         ZipOutputStream(BufferedOutputStream(output)).use { zip ->
+            get(projectId)?.let { project ->
+                zip.putNextEntry(ZipEntry(ProjectManifest.FILE_NAME))
+                zip.write(ProjectManifest.forExport(project).encode().toByteArray(Charsets.UTF_8))
+                zip.closeEntry()
+            }
             for (file in entries) {
                 val relative = file.relativeTo(root).invariantSeparatorsPath
                 val entry = ZipEntry(relative).apply {

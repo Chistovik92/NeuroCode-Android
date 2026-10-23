@@ -75,6 +75,20 @@ class LocalLlamaClient(
         ImportedModel(target.name, target.absolutePath, target.length())
     }
 
+    /** GGUF-модели, импортированные в `files/models`, — для окна выбора модели. */
+    suspend fun listModels(): List<ImportedModel> = withContext(Dispatchers.IO) {
+        modelsDirectory.listFiles { file -> file.isFile && file.extension.equals("gguf", ignoreCase = true) }
+            .orEmpty()
+            .sortedBy { it.name.lowercase() }
+            .map { ImportedModel(it.name, it.absolutePath, it.length()) }
+    }
+
+    /** true, если модель уже загружена именно для этого диалога и контекст в памяти движка актуален. */
+    fun isLoadedFor(path: String, conversationKey: String): Boolean =
+        loadedPath == File(path).canonicalPath &&
+            loadedConversationKey == conversationKey &&
+            engine.state.value.isModelLoaded
+
     suspend fun load(path: String, systemPrompt: String, conversationKey: String) {
         val canonical = File(path).canonicalPath
         if (

@@ -10,7 +10,43 @@ data class Project(
     val rootPath: String,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    /** Модель проекта; null — «как в глобальных настройках». */
+    val model: ModelRef? = null,
 )
+
+@Serializable
+enum class ModelKind {
+    CLOUD,
+    LOCAL,
+}
+
+/**
+ * Выбор модели: облачная (провайдер + идентификатор модели) или локальная GGUF.
+ * Не содержит секретов, поэтому безопасна для хранения в проекте, диалоге и экспорте.
+ */
+@Serializable
+data class ModelRef(
+    val kind: ModelKind,
+    val providerId: String? = null,
+    val model: String? = null,
+    val localPath: String? = null,
+    val localName: String? = null,
+) {
+    /** Ключ для сравнения и списков «недавние / избранные». */
+    val key: String
+        get() = when (kind) {
+            ModelKind.CLOUD -> "cloud:$providerId:$model"
+            ModelKind.LOCAL -> "local:${localName ?: localPath}"
+        }
+
+    companion object {
+        fun cloud(providerId: String, model: String) =
+            ModelRef(ModelKind.CLOUD, providerId = providerId, model = model)
+
+        fun local(path: String, name: String) =
+            ModelRef(ModelKind.LOCAL, localPath = path, localName = name)
+    }
+}
 
 @Serializable
 data class FileNode(
@@ -100,7 +136,15 @@ data class AppSettings(
 
     /** Material You: в современном дизайне брать палитру из обоев (Android 12+). */
     val dynamicColor: Boolean = true,
-)
+
+    /** Последние выбранные модели (новые первыми, не больше [RECENT_MODELS_LIMIT]). */
+    val recentModels: List<ModelRef> = emptyList(),
+    val favoriteModels: List<ModelRef> = emptyList(),
+) {
+    companion object {
+        const val RECENT_MODELS_LIMIT = 5
+    }
+}
 
 @Serializable
 enum class MessageRole {
@@ -145,6 +189,8 @@ data class ChatMessage(
     val attachments: List<ChatAttachment> = emptyList(),
     /** Размышления модели (reasoning), если провайдер их отдаёт. */
     val reasoning: String? = null,
+    /** Какая модель сгенерировала ответ (для сообщений ассистента). */
+    val generatedBy: ModelRef? = null,
 )
 
 @Serializable
@@ -153,6 +199,8 @@ data class ChatSession(
     val title: String = "Новый диалог",
     val projectId: String? = null,
     val providerId: String? = null,
+    /** Переопределение модели для диалога; null — берётся модель проекта. */
+    val model: ModelRef? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val messages: List<ChatMessage> = emptyList(),

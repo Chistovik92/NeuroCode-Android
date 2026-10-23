@@ -48,6 +48,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -201,6 +202,7 @@ internal fun ModernMessage(
     user: Boolean,
     attachmentFile: (ChatAttachment) -> File?,
     onCopy: () -> Unit,
+    signature: MessageSignature? = null,
 ) {
     if (user) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
@@ -247,7 +249,11 @@ internal fun ModernMessage(
                     .putExtra(Intent.EXTRA_TEXT, message.content)
                 context.startActivity(Intent.createChooser(send, null))
             }
+            signature?.onRetry?.let {
+                MessageAction(Icons.Default.Refresh, stringResource(R.string.retry_other_model), it)
+            }
         }
+        ModelSignature(signature?.modelLabel, onRetry = null)
     }
 }
 
