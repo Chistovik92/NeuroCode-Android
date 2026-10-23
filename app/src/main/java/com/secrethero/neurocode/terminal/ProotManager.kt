@@ -33,6 +33,14 @@ class ProotManager(private val context: Context) {
     private val mutex = Mutex()
     private val _state = MutableStateFlow(ProotState.IDLE)
     val state: StateFlow<ProotState> = _state.asStateFlow()
+    private val _failure = MutableStateFlow<ProotFailure?>(null)
+
+    /** Причина последнего сбоя; null, пока не было ошибки или после сброса. */
+    val failure: StateFlow<ProotFailure?> = _failure.asStateFlow()
+    private val _progress = MutableStateFlow<ProotProgress?>(null)
+
+    /** Прогресс текущей загрузки; null, когда ничего не скачивается. */
+    val progress: StateFlow<ProotProgress?> = _progress.asStateFlow()
 
     private val linuxDir get() = File(context.filesDir, "linux")
     private val prootBinary get() = File(linuxDir, "proot")
@@ -47,15 +55,23 @@ class ProotManager(private val context: Context) {
             else -> Unit
         }
         _state.value = ProotState.PREPARING
-        val ok = withContext(Dispatchers.IO) { runCatching { prepare() }.getOrDefault(false) }
-        _state.value = if (ok) ProotState.READY else ProotState.UNAVAILABLE
-        if (!ok) cleanup()
-        ok
+        _failure.value = null
+        val error = withContext(Dispatchers.IO) { runCatching { prepare() }.exceptionOrNull() }
+        _progress.value = null
+        if (error == null) {
+            _state.value = ProotState.READY
+        } else {
+            _failure.value = error.toProotFailure()
+            _state.value = ProotState.UNAVAILABLE
+            cleanup()
+        }
+        error == null
     }
 
     fun reset() {
         if (_state.value == ProotState.PREPARING) return
         _state.value = ProotState.IDLE
+        _failure.value = null
         cleanup()
     }
 
@@ -78,7 +94,8 @@ class ProotManager(private val context: Context) {
         ) + wrapped
     }
 
-    private fun prepare(): Boolean {
+    private fun prepare() {
+        checkFreeSpace()
         val proot = resolveBundledBinary() ?: installProotStatic()
         if (!markerFile().exists()) {
             linuxDir.mkdirs()
@@ -87,7 +104,18 @@ class ProotManager(private val context: Context) {
             markerFile().writeText("alpine")
         }
         ensureResolvConf()
-        return canExecute(proot)
+        verifyExecutable(proot)
+    }
+
+    private fun checkFreeSpace() {
+        linuxDir.mkdirs()
+        val free = linuxDir.usableSpace
+        if (free < MIN_FREE_BYTES) {
+            throw ProotException(
+                ProotStage.PRECHECK,
+                "free ${free / BYTES_IN_MB} MB, need ${MIN_FREE_BYTES / BYTES_IN_MB} MB",
+            )
+        }
     }
 
     /**
@@ -120,30 +148,50 @@ class ProotManager(private val context: Context) {
         return bundled
     }
 
-    private fun canExecute(proot: File): Boolean = runCatching {
-        val process = ProcessBuilder(proot.absolutePath, "--version")
-            .redirectErrorStream(true)
-            .start()
+    private fun verifyExecutable(proot: File) {
+        val process = try {
+            ProcessBuilder(proot.absolutePath, "--version").redirectErrorStream(true).start()
+        } catch (error: IOException) {
+            val source = if (proot.parentFile == File(context.applicationInfo.nativeLibraryDir.orEmpty())) {
+                "bundled"
+            } else {
+                "downloaded"
+            }
+            throw ProotException(ProotStage.VERIFY, "$source proot cannot start: ${error.message}", error)
+        }
         val finished = process.waitFor(EXEC_CHECK_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+        val exit = if (finished) process.exitValue() else null
         process.destroyForcibly()
-        finished && process.exitValue() == 0
-    }.getOrDefault(false)
+        if (exit != 0) {
+            val reason = if (exit == null) "proot --version timed out" else "proot exit code $exit"
+            throw ProotException(ProotStage.VERIFY, reason)
+        }
+    }
 
     private fun installProotStatic(): File {
         val arch = alpineArch()
         val version = resolveProotVersion(arch)
-            ?: throw IOException("proot-static not found in repository index")
+            ?: throw ProotException(ProotStage.PROOT, "proot-static not found in repository index")
         val apk = File(context.cacheDir, "proot-static-$version-$arch.apk")
-        downloadTo(apkDownloadUrl(arch, version), apk)
+        downloadTo(apkDownloadUrl(arch, version), apk, ProotStage.PROOT)
+        return extractProotBinary(apk)
+    }
+
+    private fun extractProotBinary(apk: File): File {
         linuxDir.mkdirs()
-        extractTarGz(apk.inputStream(), linuxDir) { path ->
-            path == PROOT_APK_PATH_BIN || path == PROOT_APK_PATH_SBIN
+        try {
+            extractTarGz(apk.inputStream(), linuxDir) { path ->
+                path == PROOT_APK_PATH_BIN || path == PROOT_APK_PATH_SBIN
+            }
+        } catch (error: IOException) {
+            throw ProotException(ProotStage.EXTRACT, "proot package: ${error.message}", error)
+        } finally {
+            apk.delete()
         }
-        apk.delete()
         val extracted = sequenceOf(
             File(linuxDir, PROOT_APK_PATH_BIN),
             File(linuxDir, PROOT_APK_PATH_SBIN),
-        ).firstOrNull { it.exists() } ?: throw IOException("proot.static missing inside package")
+        ).firstOrNull { it.exists() } ?: throw ProotException(ProotStage.EXTRACT, "proot.static missing inside package")
         extracted.setExecutable(true, false)
         extracted.copyTo(prootBinary, overwrite = true)
         prootBinary.setExecutable(true, false)
@@ -156,7 +204,7 @@ class ProotManager(private val context: Context) {
 
     private fun resolveProotVersion(arch: String): String? {
         val index = File(context.cacheDir, "APKINDEX-proot.tar.gz")
-        downloadTo(APKINDEX_URL.format(arch), index)
+        downloadTo(APKINDEX_URL.format(arch), index, ProotStage.PROOT)
         var name: String? = null
         var version: String? = null
         var result: String? = null
@@ -188,7 +236,7 @@ class ProotManager(private val context: Context) {
         "armeabi-v7a", "armeabi" -> "armv7"
         "x86_64" -> "x86_64"
         "x86" -> "x86"
-        else -> throw IOException("Unsupported ABI: ${Build.SUPPORTED_ABIS.joinToString()}")
+        else -> throw ProotException(ProotStage.PRECHECK, "Unsupported ABI: ${Build.SUPPORTED_ABIS.joinToString()}")
     }
 
     private fun apkDownloadUrl(arch: String, version: String): String =
@@ -203,36 +251,77 @@ class ProotManager(private val context: Context) {
     private fun downloadAndExtract(url: String, destination: File) {
         destination.mkdirs()
         val archive = File(context.cacheDir, "rootfs-download.tar.gz")
-        downloadTo(url, archive)
-        extractTarGz(archive.inputStream(), destination) { true }
-        archive.delete()
+        downloadTo(url, archive, ProotStage.ROOTFS)
+        try {
+            extractTarGz(archive.inputStream(), destination) { true }
+        } catch (error: IOException) {
+            throw ProotException(ProotStage.EXTRACT, "rootfs: ${error.message}", error)
+        } finally {
+            archive.delete()
+        }
     }
 
-    private fun downloadTo(url: String, target: File) {
+    /** Скачивает [url] в [target] с повтором при обрыве; 404 и прочие HTTP-ошибки называют адрес. */
+    private fun downloadTo(url: String, target: File, stage: ProotStage) {
+        retrying(DOWNLOAD_ATTEMPTS, DOWNLOAD_RETRY_DELAY_MS) { downloadOnce(url, target, stage) }
+    }
+
+    private fun downloadOnce(url: String, target: File, stage: ProotStage) {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         connection.readTimeout = READ_TIMEOUT_MS
         connection.instanceFollowRedirects = true
         try {
             connection.connect()
-            if (connection.responseCode !in 200..299) {
-                throw IOException("HTTP ${connection.responseCode} for $url")
-            }
+            checkHttpStatus(connection.responseCode, url, stage)
+            val total = connection.contentLengthLong.coerceAtLeast(0L)
             connection.inputStream.use { input ->
-                target.outputStream().use { output ->
-                    input.copyTo(output, BUFFER_SIZE)
-                }
+                target.outputStream().use { output -> copyWithProgress(input, output, stage, total) }
             }
+        } catch (error: ProotException) {
+            throw error
+        } catch (error: IOException) {
+            throw ProotException(stage, "${error.message ?: error::class.java.simpleName} ($url)", error)
         } finally {
             connection.disconnect()
         }
     }
 
+    private fun checkHttpStatus(code: Int, url: String, stage: ProotStage) {
+        if (code in 200..299) return
+        val note = if (code == HTTP_NOT_FOUND) " (file not found, check the Alpine version)" else ""
+        throw ProotException(stage, "HTTP $code for $url$note")
+    }
+
+    private fun copyWithProgress(input: InputStream, output: OutputStream, stage: ProotStage, total: Long) {
+        val buffer = ByteArray(BUFFER_SIZE)
+        var downloaded = 0L
+        var reported = 0L
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            output.write(buffer, 0, read)
+            downloaded += read
+            if (downloaded - reported >= PROGRESS_STEP_BYTES) {
+                reported = downloaded
+                _progress.value = ProotProgress(stage, downloaded, total)
+            }
+        }
+        _progress.value = ProotProgress(stage, downloaded, total)
+    }
+
     companion object {
+        /** Версия Alpine для rootfs и обязательный подкаталог на зеркале; при смене проверить доступность 404-ответом. */
         private const val ALPINE_CD = "https://dl-cdn.alpinelinux.org/alpine"
         private const val ALPINE_REPO = "$ALPINE_CD/edge/community"
         private const val ALPINE_VERSION = "3.19"
         private const val ALPINE_MINIROOTFS = "3.19.0"
+        private const val MIN_FREE_BYTES = 300L * 1024 * 1024
+        private const val BYTES_IN_MB = 1024L * 1024
+        private const val DOWNLOAD_ATTEMPTS = 3
+        private const val DOWNLOAD_RETRY_DELAY_MS = 2_000L
+        private const val PROGRESS_STEP_BYTES = 256L * 1024
+        private const val HTTP_NOT_FOUND = 404
         private const val APKINDEX_URL = "$ALPINE_REPO/%s/APKINDEX.tar.gz"
         private const val PROOT_APK_PATH_BIN = "usr/bin/proot.static"
         private const val PROOT_APK_PATH_SBIN = "usr/sbin/proot.static"

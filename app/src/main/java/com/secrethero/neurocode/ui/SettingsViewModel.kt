@@ -123,6 +123,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val prootState = container.prootManager.state
 
+    val prootFailure = container.prootManager.failure
+
+    val prootProgress = container.prootManager.progress
+
     val lspDiagnostics = container.lsp.diagnostics
 
     fun setLspEnabled(enabled: Boolean) = updateSettings { it.copy(lspEnabled = enabled) }

@@ -92,6 +92,12 @@
     <string name="model_picker_title">Выбор модели</string>
     <string name="model_picker_subtitle">Следующий запрос продолжит текущий диалог</string>
     <string name="search_model">Поиск модели</string>
+    <string name="model_current">Текущая модель</string>
+    <string name="model_free_badge">бесплатная</string>
+    <string name="model_selected_cd">Выбрана</string>
+    <string name="model_search_clear">Очистить поиск</string>
+    <string name="model_list_empty">Провайдер не вернул моделей. Нажмите «Обновить».</string>
+    <string name="model_search_empty">По запросу ничего не найдено.</string>
     <string name="model_not_selected">Модель не выбрана</string>
     <string name="loading">Загрузка…</string>
 
@@ -239,7 +245,14 @@
     <string name="linux_status_idle">Linux-окружение: не установлено</string>
     <string name="linux_status_preparing">Linux-окружение: подготовка…</string>
     <string name="linux_status_ready">Linux-окружение: готово (proot)</string>
-    <string name="linux_status_unavailable">Linux-окружение: недоступно на этом устройстве</string>
+    <string name="linux_status_unavailable">Linux-окружение: недоступно</string>
+    <string name="linux_failure">Причина (%1$s): %2$s</string>
+    <string name="linux_progress">%1$s: %2$d МБ</string>
+    <string name="linux_stage_precheck">проверки</string>
+    <string name="linux_stage_proot">загрузка proot</string>
+    <string name="linux_stage_rootfs">загрузка rootfs</string>
+    <string name="linux_stage_extract">распаковка</string>
+    <string name="linux_stage_verify">проверка запуска</string>
     <string name="install_linux">Установить Linux-окружение</string>
     <string name="reset_linux">Сбросить Linux-окружение</string>
     <string name="lsp_switch">Языковой сервер (LSP)</string>

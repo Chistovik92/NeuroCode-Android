@@ -92,6 +92,12 @@
     <string name="model_picker_title">Model selection</string>
     <string name="model_picker_subtitle">The next request will continue the current conversation</string>
     <string name="search_model">Search models</string>
+    <string name="model_current">Current model</string>
+    <string name="model_free_badge">free</string>
+    <string name="model_selected_cd">Selected</string>
+    <string name="model_search_clear">Clear search</string>
+    <string name="model_list_empty">The provider returned no models. Tap Refresh.</string>
+    <string name="model_search_empty">Nothing found for this query.</string>
     <string name="model_not_selected">No model selected</string>
     <string name="loading">Loading…</string>
 
@@ -239,7 +245,14 @@
     <string name="linux_status_idle">Linux environment: not installed</string>
     <string name="linux_status_preparing">Linux environment: preparing…</string>
     <string name="linux_status_ready">Linux environment: ready (proot)</string>
-    <string name="linux_status_unavailable">Linux environment: unavailable on this device</string>
+    <string name="linux_status_unavailable">Linux environment: unavailable</string>
+    <string name="linux_failure">Reason (%1$s): %2$s</string>
+    <string name="linux_progress">%1$s: %2$d MB</string>
+    <string name="linux_stage_precheck">checks</string>
+    <string name="linux_stage_proot">downloading proot</string>
+    <string name="linux_stage_rootfs">downloading rootfs</string>
+    <string name="linux_stage_extract">unpacking</string>
+    <string name="linux_stage_verify">launch check</string>
     <string name="install_linux">Install Linux environment</string>
     <string name="reset_linux">Reset Linux environment</string>
     <string name="lsp_switch">Language Server Protocol (LSP)</string>

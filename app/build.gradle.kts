@@ -85,6 +85,10 @@ android {
         buildConfig = true
     }
 
+    // libproot.so запускается из nativeLibraryDir (запуск файлов из filesDir запрещён при targetSdk 29+),
+    // поэтому библиотеки должны быть распакованы на диск
+    packaging.jniLibs.useLegacyPackaging = true
+
     packaging.resources.excludes += setOf(
         "META-INF/AL2.0",
         "META-INF/LGPL2.1",

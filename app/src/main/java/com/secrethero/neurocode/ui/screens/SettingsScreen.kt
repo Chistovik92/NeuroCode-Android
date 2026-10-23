@@ -62,6 +62,8 @@ import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
 import com.secrethero.neurocode.ui.ProviderModelsState
 import com.secrethero.neurocode.ui.SettingsViewModel
+import com.secrethero.neurocode.terminal.ProotFailure
+import com.secrethero.neurocode.terminal.ProotProgress
 import com.secrethero.neurocode.terminal.ProotState
 import java.util.UUID
 
@@ -71,6 +73,8 @@ fun SettingsScreen(vm: SettingsViewModel) {
     val progress by vm.modelImportProgress.collectAsStateWithLifecycle()
     val providerModels by vm.providerModels.collectAsStateWithLifecycle()
     val prootState by vm.prootState.collectAsStateWithLifecycle()
+    val prootFailure by vm.prootFailure.collectAsStateWithLifecycle()
+    val prootProgress by vm.prootProgress.collectAsStateWithLifecycle()
     val deviceSnapshot by vm.deviceSnapshot.collectAsStateWithLifecycle()
     val modelLimits by vm.modelLimits.collectAsStateWithLifecycle()
     var editingProvider by remember { mutableStateOf<ProviderConfig?>(null) }
@@ -355,6 +359,8 @@ fun SettingsScreen(vm: SettingsViewModel) {
 
         RuntimeEnvironmentSection(
             prootState = prootState,
+            prootFailure = prootFailure,
+            prootProgress = prootProgress,
             lspEnabled = settings.lspEnabled,
             lspCommandText = lspCommandText,
             savedLspCommand = settings.lspCommand,
@@ -609,9 +615,12 @@ private fun tierHint(tier: ModelTier): String = when (tier) {
     ModelTier.LARGE -> stringResource(R.string.rec_tier_large)
 }
 
+@Suppress("LongMethod", "LongParameterList")
 @Composable
 private fun RuntimeEnvironmentSection(
     prootState: ProotState,
+    prootFailure: ProotFailure?,
+    prootProgress: ProotProgress?,
     lspEnabled: Boolean,
     lspCommandText: String,
     savedLspCommand: String,
@@ -636,19 +645,20 @@ private fun RuntimeEnvironmentSection(
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.SemiBold,
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(
-            onClick = onInstallLinux,
-            enabled = prootState == ProotState.IDLE || prootState == ProotState.UNAVAILABLE,
-        ) {
-            Text(stringResource(R.string.install_linux))
-        }
-        OutlinedButton(
-            onClick = onResetLinux,
-            enabled = prootState != ProotState.PREPARING,
-        ) {
-            Text(stringResource(R.string.reset_linux))
-        }
+    LinuxEnvironmentDetails(prootState, prootFailure, prootProgress)
+    Button(
+        onClick = onInstallLinux,
+        enabled = prootState == ProotState.IDLE || prootState == ProotState.UNAVAILABLE,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(stringResource(R.string.install_linux))
+    }
+    OutlinedButton(
+        onClick = onResetLinux,
+        enabled = prootState != ProotState.PREPARING,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(stringResource(R.string.reset_linux))
     }
     SettingSwitch(
         title = stringResource(R.string.lsp_switch),
@@ -808,7 +818,6 @@ private fun ModelSelectorField(
         val candidates = modelsState.models
             .filter { query.isEmpty() || it.contains(query, ignoreCase = true) }
             .ifEmpty { modelsState.models }
-            .take(60)
         candidates.forEach { candidate ->
             DropdownMenuItem(
                 text = { Text(candidate) },
@@ -871,7 +880,7 @@ private fun ProviderDialog(
                         expanded = modelsMenu,
                         onExpandedChange = { modelsMenu = it },
                         onLoadModels = {
-                            if (baseUrl.startsWith("https://") && model.isNotBlank()) {
+                            if (baseUrl.startsWith("https://")) {
                                 onLoadModels(
                                     ProviderConfig(
                                         id = current?.id ?: "draft",
