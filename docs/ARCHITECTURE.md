@@ -1,6 +1,6 @@
 # Архитектура NeuroCode Android
 
-Актуально для версии **0.7.5**. Планируемые изменения — в [ROADMAP.md](ROADMAP.md).
+Актуально для версии **0.7.6**. Планируемые изменения — в [ROADMAP.md](ROADMAP.md).
 
 ## Модули
 
@@ -70,11 +70,12 @@ GGUF выбирается через системный picker, проверяе
 
 `ShellSession` запускает `/system/bin/sh` под UID приложения. Если установлено Linux-окружение,
 команда оборачивается в `proot` (`ProotManager.command`): rootfs Alpine, workspace как `/workspace`,
-`/dev`, `/proc`, `/sys` пробрасываются. `proot` берётся из `nativeLibraryDir/libproot.so`, если он
-есть в APK, иначе скачивается из репозитория Alpine в `files/linux`. Скачанный бинарник на Android 10+
-запустить нельзя (ограничение SELinux), поэтому в 0.7.5 установка на таких устройствах завершается
-состоянием `UNAVAILABLE` без указания причины — исправление в 0.7.6. При сбое терминал откатывается
-на Android shell.
+`/dev`, `/proc`, `/sys` пробрасываются. `proot` берётся из `nativeLibraryDir/libproot.so` (бинарник входит в APK для arm64-v8a, armeabi-v7a и
+x86_64, `packaging.jniLibs.useLegacyPackaging = true`, см. `third_party/proot`); скачивание из репозитория
+Alpine в `files/linux` осталось запасным путём, но запустить скачанный бинарник на Android 10+ нельзя
+(ограничение SELinux). `ProotManager` публикует `state`, а также `failure` (этап `ProotStage` и текст
+ошибки) и `progress` (загрузка в байтах); сеть повторяется до трёх раз, перед установкой проверяется
+свободное место. При сбое терминал откатывается на Android shell.
 
 ## Git
 
@@ -89,9 +90,8 @@ JGit работает с обычным `.git` внутри внутренней
 - общая логика чата в `ChatViewModel`, оболочки `ClassicTopBar`/`ModernTopBar`/`ModernShell`;
 - локализация ru/en через `strings.xml`.
 
-## Ограничения 0.7.5
+## Ограничения 0.7.6
 
-- Linux-окружение не устанавливается на устройствах, где запрещён запуск скачанных бинарников;
 - агент видит только файлы проекта: доступ к остальной файловой системе Android не реализован;
 - все диалоги хранятся в одном `chats.json`;
 - провайдер и модель выбираются глобально (`selectedProviderId`, `localModelPath`), а не на проект или
