@@ -24,12 +24,13 @@ import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class ProjectRepository(private val context: Context) {
+class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit = {}) {
     private val workspaceRoot = File(context.filesDir, "workspaces").apply { mkdirs() }
     private val store = JsonFileStore(
         file = context.filesDir.resolve("state/projects.json"),
         serializer = ListSerializer(Project.serializer()),
         defaultValue = { emptyList() },
+        onCorrupt = onCorrupt,
     )
     private val _projects = MutableStateFlow<List<Project>>(emptyList())
     val projects: StateFlow<List<Project>> = _projects.asStateFlow()

@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 class NeuroCodeApplication : Application() {
     companion object {
@@ -44,9 +45,14 @@ class AppContainer(application: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val bus = UiMessageBus()
 
-    val settings = SettingsRepository(application)
-    val projects = ProjectRepository(application)
-    val chats = ChatRepository(application)
+    /** Повреждённый файл состояния сохранён рядом, данные не затёрты — сообщаем пользователю. */
+    private val reportCorrupt: (File) -> Unit = { file ->
+        bus.showNotice(application.getString(R.string.notice_state_corrupt_format, file.name))
+    }
+
+    val settings = SettingsRepository(application, reportCorrupt)
+    val projects = ProjectRepository(application, reportCorrupt)
+    val chats = ChatRepository(application, reportCorrupt)
     val git = GitRepository(projects)
     val prootManager = ProotManager(application)
     val shell = ShellSession(projects, prootManager, application)

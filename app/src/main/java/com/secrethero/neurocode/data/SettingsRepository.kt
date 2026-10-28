@@ -10,8 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.serializer
+import java.io.File
 
-class SettingsRepository(context: Context) {
+class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
     private val store = JsonFileStore(
         file = context.filesDir.resolve("state/settings.json"),
         serializer = serializer<AppSettings>(),
@@ -22,6 +23,7 @@ class SettingsRepository(context: Context) {
                 selectedProviderId = providers.firstOrNull()?.id,
             )
         },
+        onCorrupt = onCorrupt,
     )
     private val secrets = SecureSecretStore(context)
     private val _settings = MutableStateFlow(AppSettings())

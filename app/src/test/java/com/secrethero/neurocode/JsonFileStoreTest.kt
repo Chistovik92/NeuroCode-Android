@@ -44,6 +44,75 @@ class JsonFileStoreTest {
         assertTrue(createStore("broken.json").read().isEmpty())
     }
 
+    private fun quarantined(name: String) =
+        tmp.root.listFiles()!!.filter { it.name.startsWith("$name.corrupt-") }
+
+    @Test
+    fun corruptedFileIsQuarantinedAndNotOverwrittenByNextWrite() = runBlocking {
+        val file = File(tmp.root, "chats.json")
+        file.writeText("{ truncated")
+        val reported = mutableListOf<File>()
+        val store = JsonFileStore(
+            file = file,
+            serializer = ListSerializer(SampleEntry.serializer()),
+            defaultValue = { emptyList() },
+            onCorrupt = { reported += it },
+        )
+
+        assertTrue(store.read().isEmpty())
+        store.write(listOf(SampleEntry("fresh", 1)))
+
+        assertEquals(1, reported.size)
+        assertEquals(reported.single(), quarantined("chats.json").single())
+        assertEquals("{ truncated", reported.single().readText())
+        assertEquals(listOf(SampleEntry("fresh", 1)), store.read())
+    }
+
+    @Test
+    fun blankAndMissingFilesAreNotReportedAsCorrupt() = runBlocking {
+        File(tmp.root, "blank.json").writeText("  \n")
+        var reports = 0
+        val blank = JsonFileStore(
+            File(tmp.root, "blank.json"),
+            ListSerializer(SampleEntry.serializer()),
+            { emptyList() },
+            { reports++ },
+        )
+        val missing = JsonFileStore(
+            File(tmp.root, "none.json"),
+            ListSerializer(SampleEntry.serializer()),
+            { emptyList() },
+            { reports++ },
+        )
+
+        assertTrue(blank.read().isEmpty())
+        assertTrue(missing.read().isEmpty())
+        assertEquals(0, reports)
+        assertTrue(quarantined("blank.json").isEmpty())
+    }
+
+    @Test
+    fun onlyFiveQuarantinedCopiesAreKept() = runBlocking {
+        val file = File(tmp.root, "state.json")
+        val store = createStore("state.json")
+        repeat(8) { index ->
+            file.writeText("broken $index")
+            store.read()
+            Thread.sleep(3)
+        }
+
+        assertEquals(JsonFileStore.MAX_QUARANTINED, quarantined("state.json").size)
+    }
+
+    @Test
+    fun goodFileIsNeverQuarantined() = runBlocking {
+        val store = createStore("good.json")
+        store.write(listOf(SampleEntry("a", 1)))
+
+        assertEquals(1, store.read().size)
+        assertTrue(quarantined("good.json").isEmpty())
+    }
+
     @Test
     fun writeReplacesPreviousContentAtomically() = runBlocking {
         val store = createStore("atomic.json")

@@ -9,12 +9,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.builtins.ListSerializer
+import java.io.File
 
-class ChatRepository(private val context: Context) {
+class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {}) {
     private val store = JsonFileStore(
         file = context.filesDir.resolve("state/chats.json"),
         serializer = ListSerializer(ChatSession.serializer()),
         defaultValue = { emptyList() },
+        onCorrupt = onCorrupt,
     )
     private val _sessions = MutableStateFlow<List<ChatSession>>(emptyList())
     val sessions: StateFlow<List<ChatSession>> = _sessions.asStateFlow()
