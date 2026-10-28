@@ -130,6 +130,8 @@
     <string name="duplicate_project_message_format">Проект «%1$s» уже существует. Можно создать отдельный: они будут различаться коротким идентификатором.</string>
     <string name="duplicate_project_create">Создать отдельный</string>
     <string name="duplicate_project_rename">Другое имя</string>
+    <string name="duplicate_title_suffix"> (копия)</string>
+    <string name="menu_duplicate_chat">Дублировать диалог</string>
     <string name="model_not_selected">Модель не выбрана</string>
     <string name="loading">Загрузка…</string>
 

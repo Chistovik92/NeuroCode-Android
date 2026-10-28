@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
@@ -65,6 +66,7 @@ internal fun ModernTopBar(
     onCopyChat: () -> Unit,
     onDeleteChat: (() -> Unit)?,
     onOpenSettings: () -> Unit,
+    onDuplicateChat: (() -> Unit)? = null,
 ) {
     var overflow by remember { mutableStateOf(false) }
     Surface(color = MaterialTheme.colorScheme.background) {
@@ -125,6 +127,13 @@ internal fun ModernTopBar(
                         leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
                         onClick = { overflow = false; onCopyChat() },
                     )
+                    if (onDuplicateChat != null) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.menu_duplicate_chat)) },
+                            leadingIcon = { Icon(Icons.Default.FileCopy, contentDescription = null) },
+                            onClick = { overflow = false; onDuplicateChat() },
+                        )
+                    }
                     if (onDeleteChat != null) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.delete_chat_cd)) },

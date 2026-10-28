@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AssistChip
@@ -209,6 +210,17 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         Icon(
                             Icons.Default.ContentCopy,
                             contentDescription = stringResource(R.string.copy_dialog_cd),
+                        )
+                    }
+                }
+                item {
+                    IconButton(
+                        onClick = { activeId?.let(chat::duplicateChat) },
+                        enabled = messages.isNotEmpty(),
+                    ) {
+                        Icon(
+                            Icons.Default.FileCopy,
+                            contentDescription = stringResource(R.string.menu_duplicate_chat),
                         )
                     }
                 }

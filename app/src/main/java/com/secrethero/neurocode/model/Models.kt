@@ -12,6 +12,8 @@ data class Project(
     val updatedAt: Long = System.currentTimeMillis(),
     /** Модель проекта; null — «как в глобальных настройках». */
     val model: ModelRef? = null,
+    /** Скрытая рабочая папка диалога без проекта («песочница»): в списке проектов не показывается. */
+    val hidden: Boolean = false,
 )
 
 @Serializable
@@ -201,6 +203,8 @@ data class ChatSession(
     val providerId: String? = null,
     /** Переопределение модели для диалога; null — берётся модель проекта. */
     val model: ModelRef? = null,
+    /** Своя скрытая рабочая папка диалога без проекта; создаётся при первом запросе и удаляется вместе с диалогом. */
+    val sandboxProjectId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val messages: List<ChatMessage> = emptyList(),

@@ -180,9 +180,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteChat(sessionId: String) = viewModelScope.launch {
+        val session = container.chats.get(sessionId)
         // Следующий активный диалог выберет коллектор sessions в init.
-        runCatching { container.chats.delete(sessionId) }.onFailure(container.bus::showError)
+        runCatching {
+            container.chats.delete(sessionId)
+            session?.let { workspace.removeOwnFiles(it) }
+        }.onFailure(container.bus::showError)
     }
+
+    /** Копия диалога: новые идентификаторы и собственные файлы вложений. */
+    fun duplicateChat(sessionId: String) = viewModelScope.launch {
+        runCatching {
+            workspace.duplicate(sessionId, str(R.string.duplicate_title_suffix))
+                ?.let { _activeSessionId.value = it.id }
+        }.onFailure(container.bus::showError)
+    }
+
+    private val workspace = ChatWorkspace(container)
+
+    private suspend fun workspaceFor(session: ChatSession?): String? = workspace.forSession(session)
 
     fun sendMessage(text: String, editorContext: EditorContext? = null) {
         val attached = _pendingAttachments.value
@@ -203,8 +219,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 Turn(
                     sessionId = sessionId,
                     // Проект берём из самого диалога, а не из текущего выбора: иначе история
-                    // старого проекта применялась бы к файлам нового.
-                    projectId = session?.projectId ?: settings.value.selectedProjectId,
+                    // старого проекта применялась бы к файлам нового. Без проекта — своя «песочница».
+                    projectId = workspaceFor(session),
                     history = session?.messages.orEmpty(),
                     request = UserRequest(text.trim(), attached, editorContext),
                     model = resolveModel(session),
@@ -228,7 +244,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             answerTurn(
                 Turn(
                     sessionId = session.id,
-                    projectId = session.projectId ?: settings.value.selectedProjectId,
+                    projectId = workspaceFor(session),
                     history = session.messages.take(userIndex + 1),
                     request = UserRequest(request.content, request.attachments, null),
                     model = resolveModel(ChatSession(model = ref), session.projectId),

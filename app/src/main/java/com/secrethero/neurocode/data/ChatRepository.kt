@@ -19,17 +19,14 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
         _sessions.value = storage.loadAll().sortedByDescending { it.updatedAt }
     }
 
-    /**
-     * Привязывает диалоги без проекта к [projectId]. Разовая миграция: раньше сессии
-     * не фильтровались по проекту и показывались сразу во всех.
-     */
-    suspend fun adoptOrphanSessions(projectId: String) {
-        if (_sessions.value.none { it.projectId == null }) return
-        persist(
-            _sessions.value.map { session ->
-                if (session.projectId == null) session.copy(projectId = projectId) else session
-            },
-        )
+    /** Добавляет готовый диалог (например, копию) в начало списка. */
+    suspend fun add(session: ChatSession) {
+        persist(listOf(session) + _sessions.value)
+    }
+
+    /** Запоминает скрытую рабочую папку диалога без проекта. */
+    suspend fun setSandbox(sessionId: String, projectId: String) {
+        update(sessionId) { it.copy(sandboxProjectId = projectId) }
     }
 
     suspend fun create(projectId: String?, providerId: String?): ChatSession {

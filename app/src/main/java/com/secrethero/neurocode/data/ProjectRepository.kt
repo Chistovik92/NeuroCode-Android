@@ -32,11 +32,19 @@ class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit 
         defaultValue = { emptyList() },
         onCorrupt = onCorrupt,
     )
+
+    /** Все проекты, включая скрытые «песочницы» диалогов; наружу отдаются только видимые. */
     private val _projects = MutableStateFlow<List<Project>>(emptyList())
-    val projects: StateFlow<List<Project>> = _projects.asStateFlow()
+    private val _visible = MutableStateFlow<List<Project>>(emptyList())
+    val projects: StateFlow<List<Project>> = _visible.asStateFlow()
+
+    private fun publish(all: List<Project>) {
+        _projects.value = all
+        _visible.value = all.filterNot { it.hidden }
+    }
 
     suspend fun initialize() {
-        _projects.value = store.read().filter { File(it.rootPath).isDirectory }
+        publish(store.read().filter { File(it.rootPath).isDirectory })
     }
 
     suspend fun create(name: String): Project = withContext(Dispatchers.IO) {
@@ -47,15 +55,33 @@ class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit 
         project
     }
 
-    suspend fun register(name: String): Project = withContext(Dispatchers.IO) {
+    suspend fun register(name: String, hidden: Boolean = false): Project = withContext(Dispatchers.IO) {
         val cleanName = sanitizeName(name.ifBlank { "Проект" })
         val id = UUID.randomUUID().toString()
         val root = File(workspaceRoot, id).apply { mkdirs() }
         File(root, ".neurocode").mkdirs()
-        val project = Project(id = id, name = cleanName, rootPath = root.absolutePath)
+        val project = Project(id = id, name = cleanName, rootPath = root.absolutePath, hidden = hidden)
         persist(listOf(project) + _projects.value)
         project
     }
+
+    /** Скрытая рабочая папка для диалога без проекта: свои файлы, свои вложения, не видна в списке проектов. */
+    suspend fun createSandbox(label: String): Project = register(label, hidden = true)
+
+    /**
+     * Копия вложения под новым идентификатором в том же проекте: у дубликата диалога нет общих файлов
+     * с оригиналом, поэтому удаление одного не ломает другой. Null, если файла уже нет.
+     */
+    suspend fun duplicateAttachment(projectId: String, attachment: ChatAttachment): ChatAttachment? =
+        withContext(Dispatchers.IO) {
+            val source = attachmentFile(projectId, attachment) ?: return@withContext null
+            val id = UUID.randomUUID().toString()
+            val relativePath = "$ATTACHMENTS_DIR/$id/${attachment.name}"
+            val target = resolve(projectId, relativePath)
+            target.parentFile?.mkdirs()
+            source.copyTo(target, overwrite = true)
+            attachment.copy(id = id, relativePath = relativePath)
+        }
 
     suspend fun importTree(uri: Uri, requestedName: String?): Project =
         withContext(Dispatchers.IO) {
@@ -502,7 +528,7 @@ class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit 
 
     private suspend fun persist(projects: List<Project>) {
         store.write(projects)
-        _projects.value = projects
+        publish(projects)
     }
 
     private suspend fun touch(projectId: String) {

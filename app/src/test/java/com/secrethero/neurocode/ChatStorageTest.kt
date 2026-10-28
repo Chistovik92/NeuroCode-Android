@@ -203,6 +203,49 @@ class ChatStorageTest {
     }
 
     @Test
+    fun chatsWithIdenticalTitlesStaySeparateAndDeletingOneKeepsTheOther() = runBlocking {
+        val first = session("one", title = "Задача", project = "p1")
+        val second = session("two", title = "Задача", project = "p2")
+        val storage = ChatStorage(stateDir)
+        storage.loadAll()
+        storage.apply(listOf(first, second), listOf(first, second), emptySet())
+
+        storage.apply(listOf(second), emptyList(), setOf("one"))
+
+        val reloaded = ChatStorage(stateDir).loadAll()
+        assertEquals(listOf("two"), reloaded.map { it.id })
+        assertEquals("p2", reloaded.single().projectId)
+        assertEquals(second.messages, reloaded.single().messages)
+    }
+
+    @Test
+    fun savedModelSignaturesAndSandboxSurviveRestart() = runBlocking {
+        val withSandbox = session("a", project = null).copy(sandboxProjectId = "sandbox-7")
+        val storage = ChatStorage(stateDir)
+        storage.loadAll()
+        storage.apply(listOf(withSandbox), listOf(withSandbox), emptySet())
+
+        val reloaded = ChatStorage(stateDir).loadAll().single()
+
+        assertEquals("sandbox-7", reloaded.sandboxProjectId)
+        assertNull(reloaded.projectId)
+        assertEquals(withSandbox.messages[1].generatedBy, reloaded.messages[1].generatedBy)
+        assertEquals(withSandbox.model, reloaded.model)
+    }
+
+    @Test
+    fun legacyFileFromVersion077WithoutNewFieldsStillMigrates() = runBlocking {
+        val message = """{"id":"m1","role":"USER","content":"привет"}"""
+        legacyFile.writeText("""[{"id":"s1","title":"Старый","projectId":"p","messages":[$message]}]""")
+
+        val loaded = ChatStorage(stateDir).loadAll()
+
+        assertEquals("Старый", loaded.single().title)
+        assertNull(loaded.single().sandboxProjectId)
+        assertEquals("привет", loaded.single().messages.single().content)
+    }
+
+    @Test
     fun unsafeChatIdsCannotEscapeTheChatsDirectory() = runBlocking {
         val storage = ChatStorage(stateDir)
         storage.loadAll()

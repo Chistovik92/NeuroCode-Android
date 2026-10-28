@@ -331,6 +331,7 @@ fun NeuroCodeApp(
                         },
                         onDeleteChat = activeSessionId?.let { id -> { viewModel.chat.deleteChat(id) } },
                         onOpenSettings = actions.onOpenSettings,
+                        onDuplicateChat = activeSessionId?.let { id -> { viewModel.chat.duplicateChat(id) } },
                     )
                 } else {
                     ClassicTopBar(state = topBar, actions = actions)
