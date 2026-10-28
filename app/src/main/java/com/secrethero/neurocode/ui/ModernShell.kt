@@ -265,11 +265,16 @@ internal fun ModernDrawerContent(
                     )
                 }
             }
+            val duplicatedTitles = NameLabels.duplicated(sessions.map { it.title })
             items(sessions, key = { it.id }) { session ->
                 val selected = session.id == activeSessionId
                 NavigationDrawerItem(
                     label = {
-                        Text(session.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            NameLabels.label(session.title, session.id, duplicatedTitles),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     selected = selected,
                     onClick = { onSelectChat(session.id) },

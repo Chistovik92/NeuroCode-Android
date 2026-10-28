@@ -126,6 +126,10 @@
     <string name="retry_other_model">Retry with another model</string>
     <string name="retry_model_title">Retry with…</string>
     <string name="notice_state_corrupt_format">The data file %1$s was damaged. A copy was kept next to it (.corrupt-…), the app started with an empty list</string>
+    <string name="duplicate_project_title">A project with this name already exists</string>
+    <string name="duplicate_project_message_format">The project “%1$s” already exists. You can create a separate one: they will be told apart by a short id.</string>
+    <string name="duplicate_project_create">Create separate</string>
+    <string name="duplicate_project_rename">Other name</string>
     <string name="model_not_selected">No model selected</string>
     <string name="loading">Loading…</string>
 

@@ -93,6 +93,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.R
 import com.secrethero.neurocode.ai.ModelResolver
+import com.secrethero.neurocode.ui.NameLabels
 import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.ChatAttachment
 import com.secrethero.neurocode.model.ChatMessage
@@ -211,13 +212,14 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                         )
                     }
                 }
+                val duplicatedTitles = NameLabels.duplicated(sessions.map { it.title })
                 items(sessions, key = { it.id }) { session ->
                     FilterChip(
                         selected = session.id == activeId,
                         onClick = { chat.selectChat(session.id) },
                         label = {
                             Text(
-                                session.title,
+                                NameLabels.label(session.title, session.id, duplicatedTitles),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.width(130.dp),

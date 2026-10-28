@@ -126,6 +126,10 @@
     <string name="retry_other_model">Повторить другой моделью</string>
     <string name="retry_model_title">Повторить с…</string>
     <string name="notice_state_corrupt_format">Файл данных %1$s повреждён. Его копия сохранена рядом (.corrupt-…), приложение запущено с пустым списком</string>
+    <string name="duplicate_project_title">Проект с таким названием уже есть</string>
+    <string name="duplicate_project_message_format">Проект «%1$s» уже существует. Можно создать отдельный: они будут различаться коротким идентификатором.</string>
+    <string name="duplicate_project_create">Создать отдельный</string>
+    <string name="duplicate_project_rename">Другое имя</string>
     <string name="model_not_selected">Модель не выбрана</string>
     <string name="loading">Загрузка…</string>
 

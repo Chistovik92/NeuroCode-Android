@@ -176,6 +176,7 @@ fun NeuroCodeApp(
     // В современном дизайне настройки живут в шторке, а не во вкладке.
     val tab = if (modern && storedTab == MainTab.SETTINGS) MainTab.CHAT else storedTab
     var createProjectDialog by remember { mutableStateOf(false) }
+    var duplicateProjectName by remember { mutableStateOf<String?>(null) }
     var deleteProjectDialog by remember { mutableStateOf(false) }
     var showSwitcher by remember { mutableStateOf(false) }
     val retryFor by viewModel.chat.retryRequest.collectAsStateWithLifecycle()
@@ -255,7 +256,9 @@ fun NeuroCodeApp(
         onOpenSettings = { settingsDrawer = true },
     )
     val topBar = TopBarState(
-        projectName = currentProject?.name,
+        projectName = currentProject?.let {
+            NameLabels.label(it.name, it.id, NameLabels.duplicated(projects.map { project -> project.name }))
+        },
         projects = projects,
         hasProject = currentProject != null,
         syncEnabled = syncEnabled,
@@ -487,8 +490,36 @@ fun NeuroCodeApp(
             confirmLabel = stringResource(R.string.action_create),
             onDismiss = { createProjectDialog = false },
             onConfirm = {
-                viewModel.projects.createProject(it)
                 createProjectDialog = false
+                if (NameLabels.collides(it, projects.map { project -> project.name })) {
+                    duplicateProjectName = it
+                } else {
+                    viewModel.projects.createProject(it)
+                }
+            },
+        )
+    }
+
+    duplicateProjectName?.let { name ->
+        AlertDialog(
+            onDismissRequest = { duplicateProjectName = null },
+            title = { Text(stringResource(R.string.duplicate_project_title)) },
+            text = { Text(stringResource(R.string.duplicate_project_message_format, name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.projects.createProject(name)
+                        duplicateProjectName = null
+                    },
+                ) { Text(stringResource(R.string.duplicate_project_create)) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        duplicateProjectName = null
+                        createProjectDialog = true
+                    },
+                ) { Text(stringResource(R.string.duplicate_project_rename)) }
             },
         )
     }
@@ -709,9 +740,10 @@ internal fun ProjectMenuItems(
     actions: ShellActions,
     onDismiss: () -> Unit,
 ) {
+    val duplicated = NameLabels.duplicated(state.projects.map { it.name })
     state.projects.forEach { project ->
         DropdownMenuItem(
-            text = { Text(project.name) },
+            text = { Text(NameLabels.label(project.name, project.id, duplicated)) },
             onClick = {
                 actions.onSelectProject(project.id)
                 onDismiss()
