@@ -132,6 +132,7 @@
     <string name="duplicate_project_rename">Другое имя</string>
     <string name="duplicate_title_suffix"> (копия)</string>
     <string name="menu_duplicate_chat">Дублировать диалог</string>
+    <string name="terminal_start_failed_format">[не удалось запустить оболочку: %1$s]</string>
     <string name="model_not_selected">Модель не выбрана</string>
     <string name="loading">Загрузка…</string>
 

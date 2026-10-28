@@ -27,7 +27,7 @@ android {
         applicationId = "com.secrethero.neurocode"
         minSdk = 33
         targetSdk = 36
-        versionCode = 27
+        versionCode = 28
         versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

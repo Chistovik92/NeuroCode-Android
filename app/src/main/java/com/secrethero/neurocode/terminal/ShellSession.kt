@@ -52,8 +52,7 @@ class ShellSession(
         }
         val root = projects.resolve(projectId, "")
         launchBackgroundInit()
-        val shellCommand = interactiveShellCommand(root)
-        process = createProcess(root, shellCommand).also { shell ->
+        process = launchShell(root)?.also { shell ->
             writer = BufferedWriter(OutputStreamWriter(shell.outputStream))
             readerJob = scope.launch {
                 runCatching {
@@ -71,6 +70,25 @@ class ShellSession(
         }
         activeProjectId = projectId
         append(TerminalLine("NeuroCode shell · ${root.absolutePath}"))
+    }
+
+    /**
+     * Запускает оболочку. Если не стартовал Linux (proot), показывает причину и откатывается на Android shell;
+     * исключение запуска не должно доходить до интерфейса — раньше оно роняло приложение.
+     */
+    private fun launchShell(root: File): Process? {
+        val primary = runCatching { createProcess(root, interactiveShellCommand(root)) }
+        primary.exceptionOrNull()?.let { reportStartFailure(it) }
+        return primary.getOrElse {
+            runCatching { createProcess(root, listOf("/system/bin/sh")) }
+                .onFailure { error -> reportStartFailure(error) }
+                .getOrNull()
+        }
+    }
+
+    private fun reportStartFailure(error: Throwable) {
+        val reason = error.message ?: error::class.java.simpleName
+        append(TerminalLine(appContext.getString(R.string.terminal_start_failed_format, reason), error = true))
     }
 
     @Synchronized
@@ -199,12 +217,7 @@ class ShellSession(
                     "/system/bin:/system/xbin"
                 }
                 environment()["TERM"] = "xterm-256color"
-                if (proot.isReady()) {
-                    // На части устройств ядро конфликтует со встроенным seccomp-ускорителем
-                    // proot (зависания/ошибки трассировки) — это его собственная переменная
-                    // окружения процесса, а не гостевая (--env=), поэтому выставляется здесь.
-                    environment()["PROOT_NO_SECCOMP"] = "1"
-                }
+                // Переменные самого proot (PROOT_NO_SECCOMP, PROOT_TMP_DIR) задаёт ProotManager.command().
             }
             .start()
 

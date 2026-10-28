@@ -42,6 +42,10 @@ class ProotManager(private val context: Context) {
     /** Прогресс текущей загрузки; null, когда ничего не скачивается. */
     val progress: StateFlow<ProotProgress?> = _progress.asStateFlow()
 
+    /** Бинарник, прошедший проверку при установке (встроенный или скачанный). */
+    @Volatile
+    private var verifiedBinary: File? = null
+
     private val linuxDir get() = File(context.filesDir, "linux")
     private val prootBinary get() = File(linuxDir, "proot")
     private val rootfsDir get() = File(linuxDir, "rootfs")
@@ -61,9 +65,12 @@ class ProotManager(private val context: Context) {
         if (error == null) {
             _state.value = ProotState.READY
         } else {
-            _failure.value = error.toProotFailure()
+            val failure = error.toProotFailure()
+            _failure.value = failure
             _state.value = ProotState.UNAVAILABLE
-            cleanup()
+            // Загруженный rootfs не виноват, если не запускается сам proot: оставляем его, чтобы не качать заново
+            // при каждом запуске; «Сбросить» в настройках очищает всё.
+            if (failure.stage != ProotStage.VERIFY) cleanup()
         }
         error == null
     }
@@ -77,34 +84,69 @@ class ProotManager(private val context: Context) {
 
     fun command(wrapped: List<String>, workspace: File): List<String> {
         if (!isReady()) return wrapped
-        return listOf(
-            prootBinary.absolutePath,
-            "--kill-on-exit",
-            "-r", rootfsDir.absolutePath,
-            "-b", "/dev",
-            "-b", "/proc",
-            "-b", "/sys",
-            "-b", "${workspace.absolutePath}:/workspace",
-            "-w", "/workspace",
-            "-0",
-            "--env=HOME=/workspace",
-            "--env=PATH=$GUEST_PATH",
-            "--env=TMPDIR=/tmp",
-            "--env=TERM=xterm-256color",
-        ) + wrapped
+        return guestCommand(wrapped, workspace)
     }
+
+    /** Команда запуска внутри rootfs; не зависит от состояния, поэтому годится и для проверки при установке. */
+    private fun guestCommand(wrapped: List<String>, workspace: File): List<String> =
+        ProotCommand.build(
+            binary = activeBinary().absolutePath,
+            rootfs = rootfsDir.absolutePath,
+            workspace = workspace.absolutePath,
+            tmpDir = File(linuxDir, "tmp").apply { mkdirs() }.absolutePath,
+            guestPath = GUEST_PATH,
+            wrapped = wrapped,
+        )
+
+    /** Тот proot, который прошёл проверку запуска: встроенный `libproot.so`, а при его отсутствии — скачанный. */
+    private fun activeBinary(): File = verifiedBinary ?: resolveBundledBinary() ?: prootBinary
 
     private fun prepare() {
         checkFreeSpace()
         val proot = resolveBundledBinary() ?: installProotStatic()
+        verifiedBinary = proot
         if (!markerFile().exists()) {
             linuxDir.mkdirs()
             rootfsDir.mkdirs()
             downloadAndExtract(rootfsUrl(), rootfsDir)
-            markerFile().writeText("alpine")
         }
+        repairRootfs()
         ensureResolvConf()
         verifyExecutable(proot)
+        verifyGuestShell()
+    }
+
+    /**
+     * Архив распаковывался без прав на исполнение, поэтому в уже установленных rootfs нет ни одного
+     * исполняемого файла. Раз в ревизию права восстанавливаются без повторной загрузки.
+     */
+    private fun repairRootfs() {
+        if (runCatching { markerFile().readText() }.getOrNull() == ROOTFS_REVISION) return
+        ExecutableBits.repair(rootfsDir)
+        markerFile().writeText(ROOTFS_REVISION)
+    }
+
+    /** Запускает настоящую команду в гостевой системе: «proot --version» не ловит ни права, ни параметры. */
+    private fun verifyGuestShell() {
+        val workspace = File(linuxDir, "verify").apply { mkdirs() }
+        val process = try {
+            ProcessBuilder(guestCommand(listOf("/bin/sh", "-c", "echo $GUEST_PROBE"), workspace))
+                .redirectErrorStream(true)
+                .start()
+        } catch (error: IOException) {
+            throw ProotException(ProotStage.VERIFY, "guest shell cannot start: ${error.message}", error)
+        }
+        val finished = process.waitFor(EXEC_CHECK_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
+        val output = if (finished) process.inputStream.bufferedReader().readText() else ""
+        process.destroyForcibly()
+        if (!finished || process.exitValue() != 0 || GUEST_PROBE !in output) {
+            val reason = if (finished) {
+                output.trim().take(PROBE_ERROR_CHARS).ifBlank { describeExit(process.exitValue()) }
+            } else {
+                "timed out"
+            }
+            throw ProotException(ProotStage.VERIFY, "guest shell failed: $reason")
+        }
     }
 
     private fun checkFreeSpace() {
@@ -163,7 +205,7 @@ class ProotManager(private val context: Context) {
         val exit = if (finished) process.exitValue() else null
         process.destroyForcibly()
         if (exit != 0) {
-            val reason = if (exit == null) "proot --version timed out" else "proot exit code $exit"
+            val reason = if (exit == null) "proot --version timed out" else "proot ${describeExit(exit)}"
             throw ProotException(ProotStage.VERIFY, reason)
         }
     }
@@ -316,6 +358,10 @@ class ProotManager(private val context: Context) {
         private const val ALPINE_REPO = "$ALPINE_CD/edge/community"
         private const val ALPINE_VERSION = "3.19"
         private const val ALPINE_MINIROOTFS = "3.19.0"
+        /** Ревизия подготовленного rootfs: при смене права на файлы восстанавливаются один раз. */
+        private const val ROOTFS_REVISION = "alpine-exec-1"
+        private const val GUEST_PROBE = "neurocode-guest-ok"
+        private const val PROBE_ERROR_CHARS = 300
         private const val MIN_FREE_BYTES = 300L * 1024 * 1024
         private const val BYTES_IN_MB = 1024L * 1024
         private const val DOWNLOAD_ATTEMPTS = 3
