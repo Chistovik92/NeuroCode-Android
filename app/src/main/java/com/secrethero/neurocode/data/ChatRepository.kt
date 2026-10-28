@@ -8,21 +8,15 @@ import com.secrethero.neurocode.model.ModelRef
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.serialization.builtins.ListSerializer
 import java.io.File
 
 class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {}) {
-    private val store = JsonFileStore(
-        file = context.filesDir.resolve("state/chats.json"),
-        serializer = ListSerializer(ChatSession.serializer()),
-        defaultValue = { emptyList() },
-        onCorrupt = onCorrupt,
-    )
+    private val storage = ChatStorage(context.filesDir.resolve("state"), onCorrupt)
     private val _sessions = MutableStateFlow<List<ChatSession>>(emptyList())
     val sessions: StateFlow<List<ChatSession>> = _sessions.asStateFlow()
 
     suspend fun initialize() {
-        _sessions.value = store.read().sortedByDescending { it.updatedAt }
+        _sessions.value = storage.loadAll().sortedByDescending { it.updatedAt }
     }
 
     /**
@@ -94,8 +88,12 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
         persist(updated)
     }
 
+    /** Пишет только изменившиеся диалоги и удаляет исчезнувшие: запись одного диалога не трогает остальные. */
     private suspend fun persist(sessions: List<ChatSession>) {
-        store.write(sessions)
+        val previous = _sessions.value.associateBy { it.id }
+        val changed = sessions.filter { previous[it.id] != it }
+        val removed = previous.keys - sessions.map { it.id }.toSet()
+        storage.apply(sessions, changed, removed)
         _sessions.value = sessions
     }
 
