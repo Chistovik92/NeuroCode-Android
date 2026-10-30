@@ -3,6 +3,7 @@ name: Android build
 on:
   push:
     branches: ["main", "master"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -115,6 +116,20 @@ jobs:
           name: neurocode-release-apk
           path: app/build/outputs/apk/release/app-*-release.apk
           if-no-files-found: error
+
+      - name: Publish release APKs
+        if: startsWith(github.ref, 'refs/tags/v') && steps.release_prep.outputs.available == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
+          for f in app/build/outputs/apk/release/app-*-release.apk; do
+            abi="$(basename "$f" | sed -E 's/^app-(.+)-release\.apk$/\1/')"
+            gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "$f#$tag/NeuroCode-$tag-$abi-release.apk"
+          done
 
   instrumented:
     runs-on: ubuntu-latest
