@@ -14,6 +14,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -126,10 +128,12 @@ jobs:
           tag="${GITHUB_REF#refs/tags/}"
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
+          dist="$(mktemp -d)"
           for f in app/build/outputs/apk/release/app-*-release.apk; do
             abi="$(basename "$f" | sed -E 's/^app-(.+)-release\.apk$/\1/')"
-            gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "$f#$tag/NeuroCode-$tag-$abi-release.apk"
+            cp "$f" "$dist/NeuroCode-$tag-$abi-release.apk"
           done
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "$dist"/*.apk
 
   instrumented:
     runs-on: ubuntu-latest
