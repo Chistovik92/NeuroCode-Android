@@ -104,6 +104,12 @@ fun SettingsScreen(vm: SettingsViewModel) {
     ) { uri ->
         uri?.let(vm::importSkills)
     }
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        uri?.let(vm::addFsRoot)
+    }
+    val fsRoots by vm.fsRoots.collectAsStateWithLifecycle()
 
     Column(
         Modifier
@@ -433,6 +439,12 @@ fun SettingsScreen(vm: SettingsViewModel) {
             }
         }
 
+        FilesystemAccessSection(
+            fsRoots = fsRoots,
+            onAddRoot = { picker.launch(null) },
+            onRemoveRoot = vm::removeFsRoot,
+        )
+
         SectionTitle(stringResource(R.string.security))
         Text(
             stringResource(R.string.security_text),
@@ -751,7 +763,7 @@ private fun SkillDialog(
 
 /** Заголовок раздела: крупный в классике, компактный акцентный в стиле Gemini/Material You. */
 @Composable
-private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
+internal fun SectionTitle(text: String, modifier: Modifier = Modifier) {
     if (LocalModernDesign.current) {
         Text(
             text,

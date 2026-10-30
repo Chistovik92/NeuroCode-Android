@@ -5,7 +5,10 @@ import com.secrethero.neurocode.ai.AgentOrchestrator
 import com.secrethero.neurocode.ai.AgentTools
 import com.secrethero.neurocode.ai.LocalLlamaClient
 import com.secrethero.neurocode.ai.OpenAiCompatibleClient
+import com.secrethero.neurocode.ai.FsAgentTools
+import com.secrethero.neurocode.ai.FsTools
 import com.secrethero.neurocode.data.ChatRepository
+import com.secrethero.neurocode.data.FilesystemAccess
 import com.secrethero.neurocode.data.ProjectRepository
 import com.secrethero.neurocode.data.SettingsRepository
 import com.secrethero.neurocode.device.DeviceSpecs
@@ -57,8 +60,23 @@ class AppContainer(application: Application) {
     val prootManager = ProotManager(application)
     val shell = ShellSession(projects, prootManager, application)
     val approvals = ApprovalGate()
+    val filesystem = FilesystemAccess(application)
     val apiClient = OpenAiCompatibleClient()
-    val agentTools = AgentTools(application, projects, git, shell, approvals)
+    val agentTools = AgentTools(
+        application,
+        projects,
+        git,
+        shell,
+        approvals,
+        FsTools(
+            FsAgentTools(
+                application,
+                filesystem,
+                projects,
+                approvals,
+            ) { settings.settings.value.fsRoots },
+        ),
+    )
     val agent = AgentOrchestrator(apiClient, agentTools)
     val localLlama: LocalLlamaClient
     val lsp = LspController(prootManager, settings.settings)

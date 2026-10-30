@@ -121,6 +121,48 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setFallbackProvider(providerId: String?) = updateSettings { it.copy(fallbackProviderId = providerId) }
 
+    /** Выданные модели корни файловой системы (0.8.2). */
+    val fsRoots: StateFlow<List<String>> = fsRootsFlow(container.settings.settings)
+
+    private fun fsRootsFlow(flow: StateFlow<AppSettings>): StateFlow<List<String>> =
+        MutableStateFlow(flow.value.fsRoots).also { mapped ->
+            viewModelScope.launch {
+                flow.collect { mapped.value = it.fsRoots }
+            }
+        }
+
+    fun addFsRoot(uri: Uri) = viewModelScope.launch {
+        runCatching {
+            val resolver = getApplication<Application>().contentResolver
+            resolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+            container.settings.update { current ->
+                if (uri.toString() in current.fsRoots) {
+                    current
+                } else {
+                    current.copy(fsRoots = (current.fsRoots + uri.toString()).takeLast(FS_ROOTS_LIMIT))
+                }
+            }
+        }.onFailure(container.bus::showError)
+    }
+
+    fun removeFsRoot(uri: String) = viewModelScope.launch {
+        runCatching {
+            val app = getApplication<Application>()
+            runCatching {
+                app.contentResolver.releasePersistableUriPermission(
+                    Uri.parse(uri),
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            container.settings.update { current ->
+                current.copy(fsRoots = current.fsRoots - uri)
+            }
+        }.onFailure(container.bus::showError)
+    }
+
     val prootState = container.prootManager.state
 
     val prootFailure = container.prootManager.failure
@@ -237,3 +279,5 @@ data class ProviderModelsState(
     val error: String?,
     val loading: Boolean,
 )
+
+private const val FS_ROOTS_LIMIT = 10

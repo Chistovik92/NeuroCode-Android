@@ -3,6 +3,7 @@ package com.secrethero.neurocode.ai
 import android.content.Context
 import androidx.annotation.StringRes
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.data.FilesystemAccess
 import com.secrethero.neurocode.data.ProjectRepository
 import com.secrethero.neurocode.git.GitRepository
 import com.secrethero.neurocode.model.ApprovalRisk
@@ -23,12 +24,18 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+/** Зависимости инструментов доступа к файловой системе (0.8.2); null — инструменты fs_* недоступны. */
+class FsTools(
+    val tools: FsAgentTools,
+)
+
 class AgentTools(
     private val context: Context,
     private val projects: ProjectRepository,
     private val git: GitRepository,
     private val shell: ShellSession,
     private val approvals: ApprovalGate,
+    private val fsTools: FsTools? = null,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -108,6 +115,7 @@ class AgentTools(
                 "staged" to property("boolean", "true для проиндексированных изменений"),
             ),
         ))
+        addFsDefinitions().forEach { add(it) }
         externalTools.filter { it.enabled }.forEach { external ->
             add(tool(
                 name = externalName(external),
@@ -116,6 +124,10 @@ class AgentTools(
             ))
         }
     }
+
+    /** Инструменты доступа к файловой системе Android за пределами проекта (0.8.2). */
+    private fun addFsDefinitions(): List<JsonObject> =
+        fsTools?.tools?.definitions().orEmpty()
 
     suspend fun execute(
         projectId: String,
@@ -215,10 +227,17 @@ class AgentTools(
                 val staged = arguments["staged"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
                 git.diff(projectId, staged).ifBlank { "Изменений нет" }.take(MAX_TOOL_OUTPUT)
             }
+            "fs_list", "fs_search", "fs_read", "fs_import" ->
+                fsDelegate { tools -> tools.execute(projectId, call.name, arguments) }
             else -> executeExternal(projectId, call, externalTools)
         }
     }.getOrElse { error ->
         str(R.string.tool_error_format, call.name, error.message ?: error::class.java.simpleName)
+    }
+
+    private suspend fun fsDelegate(block: suspend (FsAgentTools) -> String): String {
+        val tools = fsTools?.tools ?: error("Инструменты файловой системы недоступны")
+        return block(tools)
     }
 
     private suspend fun executeExternal(

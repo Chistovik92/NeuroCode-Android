@@ -274,6 +274,21 @@
     <string name="api_key_label">API key</string>
     <string name="api_key_new_label">New API key (optional)</string>
 
+    <!-- Filesystem access (0.8.2) -->
+    <string name="fs_access_title">File access</string>
+    <string name="fs_access_desc">Folders the model may read outside the project. Only listing, search and reading are allowed; writing outside the project is forbidden. Access is logged in the chat.</string>
+    <string name="fs_add_root">Add folder</string>
+    <string name="fs_no_roots">No allowed folders. The user can grant access in Settings → File access.</string>
+    <string name="fs_roots_empty">No folders granted yet — the model sees only the project.</string>
+    <string name="fs_root_cd">Revoke access to %1$s</string>
+    <string name="fs_root_added">Folder access granted</string>
+    <string name="fs_unknown_root_format">Unknown folder “%1$s”. Available roots: %2$s</string>
+    <string name="approve_fs_import">Allow importing a file into the project?</string>
+    <string name="approve_fs_import_details">From: %1$s\nInto the project: %2$s…</string>
+    <string name="deny_fs_import">Import denied: %1$s</string>
+    <string name="fs_imported_format">Imported: %1$s → %2$s</string>
+    <string name="fs_log_entry_format">File access: %1$s(%2$s)</string>
+
     <!-- Runtime environment (proot / LSP) -->
     <string name="runtime_env">Runtime environment</string>
     <string name="linux_env_desc">Installs proot with an Alpine Linux base so the terminal and agent commands run inside a full user-space Linux environment.</string>

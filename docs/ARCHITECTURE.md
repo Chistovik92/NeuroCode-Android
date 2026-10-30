@@ -6,8 +6,8 @@
 
 | Каталог | Назначение |
 |---------|------------|
-| `app/.../ai` | `AgentOrchestrator` (цикл агента), `AgentTools` (инструменты), `OpenAiCompatibleClient` (облако, SSE), `LocalLlamaClient` (GGUF), `ProviderCatalog`, `CommandPolicy`, `ReasoningSplitter` |
-| `app/.../data` | `ProjectRepository`, `ChatRepository`, `SettingsRepository`, `SecureSecretStore`, `JsonFileStore`, `PathGuard` |
+| `app/.../ai` | `AgentOrchestrator` (цикл агента), `AgentTools` (инструменты), `FsAgentTools` (доступ к файлам устройства), `OpenAiCompatibleClient` (облако, SSE), `LocalLlamaClient` (GGUF), `ProviderCatalog`, `CommandPolicy`, `ReasoningSplitter` |
+| `app/.../data` | `ProjectRepository`, `ChatRepository`, `SettingsRepository`, `SecureSecretStore`, `JsonFileStore`, `PathGuard`, `FilesystemAccess` (корни доступа 0.8.2) |
 | `app/.../terminal` | `ShellSession`, `ProotManager` (Linux-окружение), `ApprovalGate` |
 | `app/.../git`, `lsp`, `device` | JGit, LSP-клиент, профиль устройства |
 | `app/.../ui` | ViewModel'и, `NeuroCodeApp`, `ModernShell`, экраны (`screens`), Markdown и редактор (`components`) |
@@ -24,14 +24,16 @@
 4. `OpenAiCompatibleClient` выполняет HTTPS Chat Completions запрос со стримингом SSE; размышления
    (`reasoning_content` / `<think>`) отделяются `ReasoningSplitter`.
 5. Tool call выполняет `AgentTools`: пути проверяет `ProjectRepository.resolve` → `PathGuard`;
-   запись, удаление и shell ждут `ApprovalGate`.
+   запись, удаление и shell ждут `ApprovalGate`. Инструменты `fs_*` работают через
+   `FilesystemAccess` и разрешённые пользователем корни (0.8.2).
 6. Результат возвращается модели; цикл идёт до финального ответа или лимита шагов.
 7. После правок могут выполняться пост-проверки (lint/test). При ошибке основного провайдера запрос
    повторяется через резервного (`fallbackProviderId`).
 
 Инструменты: `list_files`, `read_file`, `write_file`, `replace_in_file`, `delete_file`
 (с подтверждением, помечается как деструктивный), `search_text`, `run_command`, `git_status`,
-`git_diff` и внешние инструменты пользователя.
+`git_diff`, `fs_list`/`fs_search`/`fs_read`/`fs_import` (файлы устройства вне проекта, 0.8.2)
+и внешние инструменты пользователя.
 
 ### Скиллы и внешние инструменты
 

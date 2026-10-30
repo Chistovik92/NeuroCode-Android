@@ -274,6 +274,21 @@
     <string name="api_key_label">API-ключ</string>
     <string name="api_key_new_label">Новый API-ключ (необязательно)</string>
 
+    <!-- Доступ к файловой системе (0.8.2) -->
+    <string name="fs_access_title">Доступ к файлам</string>
+    <string name="fs_access_desc">Папки, которые модель может читать вне проекта. Разрешены только просмотр списка, поиск и чтение; запись вне проекта запрещена. Обращения попадают в журнал диалога.</string>
+    <string name="fs_add_root">Добавить папку</string>
+    <string name="fs_no_roots">Нет разрешённых папок. Пользователь может выдать доступ в «Настройки → Доступ к файлам».</string>
+    <string name="fs_roots_empty">Папки не выданы — модель видит только проект.</string>
+    <string name="fs_root_cd">Отозвать доступ к %1$s</string>
+    <string name="fs_root_added">Доступ к папке выдан</string>
+    <string name="fs_unknown_root_format">Неизвестная папка «%1$s». Доступные корни: %2$s</string>
+    <string name="approve_fs_import">Разрешить импорт файла в проект?</string>
+    <string name="approve_fs_import_details">Откуда: %1$s\nВ проект: %2$s…</string>
+    <string name="deny_fs_import">Импорт отклонён: %1$s</string>
+    <string name="fs_imported_format">Импортировано: %1$s → %2$s</string>
+    <string name="fs_log_entry_format">Обращение к файлам: %1$s(%2$s)</string>
+
     <!-- Runtime environment (proot / LSP) -->
     <string name="runtime_env">Среда выполнения</string>
     <string name="linux_env_desc">Устанавливает proot с базой Alpine Linux, чтобы терминал и команды агента работали внутри полноценного Linux-окружения.</string>

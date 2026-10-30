@@ -553,6 +553,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 activeSkills = request.skills,
                 externalTools = request.externalTools,
                 attachments = request.attachments,
+                fsRoots = runCatching {
+                    container.filesystem.roots(request.current.fsRoots).map { it.displayName }
+                }.getOrDefault(emptyList()),
                 onEvent = { onAgentEvent(request.sessionId, it) },
             )
         } else {
@@ -732,7 +735,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             is AgentEvent.Status -> _chatRunState.value = ChatRunState.Working(event.text)
             is AgentEvent.Delta -> _streamingResponse.value += event.text
             is AgentEvent.Reasoning -> _streamingReasoning.value += event.text
-            is AgentEvent.ToolStarted -> appendAgentLog("→ ${event.name}: ${event.arguments.take(500)}")
+            is AgentEvent.ToolStarted -> {
+                appendAgentLog("→ ${event.name}: ${event.arguments.take(500)}")
+                logFsAccess(sessionId, event.name, event.arguments)
+            }
             is AgentEvent.ToolFinished -> {
                 appendAgentLog("← ${event.name}: ${event.result.take(800)}")
                 viewModelScope.launch {
@@ -755,6 +761,26 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         _agentLog.value = (_agentLog.value + line).takeLast(50)
     }
 
+    /**
+     * Журнал обращений к внешним файлам (0.8.2): каждый вызов fs_* фиксируется в истории
+     * диалога отдельным сообщением с путём и аргументами.
+     */
+    private fun logFsAccess(sessionId: String, toolName: String, arguments: String) {
+        if (!toolName.startsWith("fs_")) return
+        viewModelScope.launch {
+            runCatching {
+                container.chats.append(
+                    sessionId,
+                    ChatMessage(
+                        role = MessageRole.TOOL,
+                        content = str(R.string.fs_log_entry_format, toolName, arguments.take(FS_LOG_ARGS_CHARS)),
+                        toolName = "fs_log",
+                    ),
+                )
+            }
+        }
+    }
+
     private fun str(resId: Int, vararg args: Any?): String =
         getApplication<Application>().getString(resId, *args)
 
@@ -771,6 +797,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         /** Окно контекста локальной модели по умолчанию: движок его не сообщает, берём осторожное значение. */
         const val LOCAL_CONTEXT_TOKENS = 4_096
         const val LOCAL_HISTORY_CHARS = 6_000
+        private const val FS_LOG_ARGS_CHARS = 300
     }
 }
 

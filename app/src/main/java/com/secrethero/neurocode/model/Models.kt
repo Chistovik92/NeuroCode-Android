@@ -142,6 +142,9 @@ data class AppSettings(
     /** Последние выбранные модели (новые первыми, не больше [RECENT_MODELS_LIMIT]). */
     val recentModels: List<ModelRef> = emptyList(),
     val favoriteModels: List<ModelRef> = emptyList(),
+
+    /** Разрешённые модели корни файловой системы (SAF tree URI), по умолчанию доступ закрыт. */
+    val fsRoots: List<String> = emptyList(),
 ) {
     companion object {
         const val RECENT_MODELS_LIMIT = 5

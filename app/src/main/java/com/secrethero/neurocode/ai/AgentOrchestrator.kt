@@ -45,12 +45,13 @@ class AgentOrchestrator(
         activeSkills: List<String> = emptyList(),
         externalTools: List<ExternalAgentTool> = emptyList(),
         attachments: Map<String, PreparedAttachment> = emptyMap(),
+        fsRoots: List<String> = emptyList(),
         onEvent: (AgentEvent) -> Unit = {},
     ): String {
         val messages = mutableListOf(
             ApiMessage(
                 role = "system",
-                content = systemPrompt(projectName, projectSummary, activeSkills),
+                content = systemPrompt(projectName, projectSummary, activeSkills, fsRoots),
             ),
         )
         messages += contextMessages(history, attachments = attachments)
@@ -170,6 +171,7 @@ class AgentOrchestrator(
         projectName: String,
         projectSummary: String = "",
         activeSkills: List<String> = emptyList(),
+        fsRoots: List<String> = emptyList(),
     ): String {
         val projectBlock = projectSummary.take(PROJECT_SUMMARY_CHARS)
             .takeIf { it.isNotBlank() }
@@ -184,6 +186,14 @@ class AgentOrchestrator(
                 activeSkills.joinToString("\n") { skill -> "- $skill" } +
                 "\nПрименяй эти навыки при выполнении задачи."
         }
+        val fsBlock = if (fsRoots.isEmpty()) {
+            ""
+        } else {
+            "\n\n## Доступ к файлам устройства\n" +
+                "Пользователь разрешил чтение этих папок (инструменты fs_*): " +
+                fsRoots.joinToString(", ") { "«$it»" } +
+                ". Запись и удаление вне проекта запрещены."
+        }
         return """
         Ты — агент разработки внутри Android-приложения NeuroCode.
         Активный проект: $projectName.
@@ -192,7 +202,7 @@ class AgentOrchestrator(
         Не выдумывай результаты команд. После изменений проверь Git diff, если Git доступен.
         Android shell ограничен: в нём могут отсутствовать git, python, node и компиляторы.
         Никогда не запрашивай и не выводи API-ключи, токены или другие секреты.
-        Отвечай пользователю по-русски, а имена API, классов и команд сохраняй как в коде.$projectBlock$skillsBlock
+        Отвечай пользователю по-русски, а имена API, классов и команд сохраняй как в коде.$projectBlock$skillsBlock$fsBlock
     """.trimIndent()
     }
 
