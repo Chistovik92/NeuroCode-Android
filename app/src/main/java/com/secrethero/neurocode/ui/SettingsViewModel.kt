@@ -177,15 +177,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 }
                 
                 if (uriString in migrated) {
+                    @Suppress("DEPRECATION")
                     current.copy(
                         fsRootsWithTimestamps = migrated,
-                        @Suppress("DEPRECATION") fsRoots = emptyList()
+                        fsRoots = emptyList()
                     )
                 } else {
+                    @Suppress("DEPRECATION")
                     current.copy(
                         fsRootsWithTimestamps = (migrated + (uriString to System.currentTimeMillis()))
-                            .entries.takeLast(FS_ROOTS_LIMIT).associate { it.key to it.value },
-                        @Suppress("DEPRECATION") fsRoots = emptyList()
+                            .toList().takeLast(FS_ROOTS_LIMIT).associate { it.first to it.second },
+                        fsRoots = emptyList()
                     )
                 }
             }
@@ -206,9 +208,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
             container.settings.update { current ->
                 val updated = current.fsRootsWithTimestamps - uri
+                @Suppress("DEPRECATION")
                 current.copy(
                     fsRootsWithTimestamps = updated,
-                    @Suppress("DEPRECATION") fsRoots = if (updated.isEmpty()) current.fsRoots - uri else emptyList()
+                    fsRoots = if (updated.isEmpty()) current.fsRoots - uri else emptyList()
                 )
             }
         }.onFailure(container.bus::showError)

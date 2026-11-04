@@ -37,7 +37,6 @@ import java.util.Locale
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun FilesystemAccessSection(
-    fsRoots: List<String>,
     fsRootsMeta: List<SettingsViewModel.FsRootMeta>,
     onAddRoot: () -> Unit,
     onRemoveRoot: (String) -> Unit,

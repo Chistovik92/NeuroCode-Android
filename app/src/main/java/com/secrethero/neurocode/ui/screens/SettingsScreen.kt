@@ -114,7 +114,6 @@ fun SettingsScreen(vm: SettingsViewModel) {
     ) { uri ->
         uri?.let(vm::addFsRoot)
     }
-    val fsRoots by vm.fsRoots.collectAsStateWithLifecycle()
     val fsRootsMeta by vm.fsRootsMeta.collectAsStateWithLifecycle()
 
     Column(
@@ -446,7 +445,6 @@ fun SettingsScreen(vm: SettingsViewModel) {
         }
 
         FilesystemAccessSection(
-            fsRoots = fsRoots,
             fsRootsMeta = fsRootsMeta,
             onAddRoot = { picker.launch(null) },
             onRemoveRoot = vm::removeFsRoot,
