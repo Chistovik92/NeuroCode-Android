@@ -447,23 +447,28 @@
 
 ### 0.8.6 — Linux-окружение (proot) на устройствах с targetSdk 29+ 🚧
 
-Две независимые причины, по которым Linux-окружение может быть недоступно; обе требуют исследования.
+Две независимые причины, по которым Linux-окружение может быть недоступно; обе диагностированы и
+исправлены (проверено на эмуляторе `hydra35`, Android 15, `untrusted_app`, targetSdk 36).
 
-- [ ] **`noexec` на `filesDir`** — основная и универсальная причина. Alpine minirootfs распаковывается
-  в `filesDir/linux/rootfs` (SELinux-тип `app_data_file`), а политика `untrusted_app` при
-  `targetSdk ≥ 29` (проект собирается с `targetSdk 36`) запрещает `execve()` любых файлов из
-  собственного writable-каталога. proot запускается (он в `nativeLibraryDir`, как `libproot.so`),
-  но гостевой бинарник не стартует: `proot error: execve("/usr/bin/env"): Permission denied`.
-  По этой причине окружение сломано на **любом** устройстве с Android 10+, не только на Android 15.
-  Варианты (нужна проверка на устройстве):
-  - распаковывать rootfs в `nativeLibraryDir` (там exec разрешён) — но каталог только для чтения
-    после установки и обычно мал под сотни МБ rootfs; возможно, частично (только busybox/ядро);
-  - держать rootfs в `filesDir`, но запускать гостевые бинарники через загрузчик, размещённый
-    в `nativeLibraryDir` (тот exec разрешён и уже работает);
-  - отказаться от полноценной rootfs и полагаться на Android shell там, где exec невозможен.
-- [ ] **SIGSYS на Android 15** (эмулятор `hydra35`): seccomp-фильтр системы убивает сам proot даже без
-  rootfs. Нужна другая сборка proot, запуск через иной механизм или отказ от proot для таких устройств.
-- [ ] От этого зависят 0.10.3 (CLI-агенты в терминале) и запуск LSP-серверов.
+- [x] **SIGSYS на Android 15** — seccomp-фильтр zygote разрешает только syscall-ы из
+  `SYSCALLS.TXT − BLOCKLIST + ALLOWLIST`. Musl-сборка `proot-static` вызывает legacy `stat`(4)/`lstat`(6),
+  которых в `SYSCALLS.TXT` для lp64 нет (bionic отображает их в `newfstatat`(262)), поэтому proot
+  получает SIGSYS. Исправление: bundled-сборка заменена на Termux fork `termux/proot` 5.1.107.102,
+  собранный против bionic (использует только `newfstatat`/`fstat`, которые разрешены). Сборка
+  динамически связана (`libtalloc.so.2` → переименован в `libtalloc.so`, RUNPATH → `$ORIGIN`) и
+  собрана с `PROOT_UNBUNDLE_LOADER` — загрузчик хранится отдельным файлом `libproot_loader.so`,
+  на который proot указывает переменной `PROOT_LOADER`. Загрузка/перепаковка — `third_party/proot/fetch_termux_proot.py`.
+- [x] **`noexec` на `filesDir`** — опасение не подтвердилось. Политика Android 15 явно разрешает
+  `untrusted_app_all` (включая `untrusted_app` для targetSdk ≥ 34) `execute` на `app_data_file`:
+  `allow untrusted_app_all app_data_file:file { r_file_perms execute }` (+ `auditallow`). Гостевые
+  бинарники грузятся из `filesDir/linux/rootfs` через загрузчик в `nativeLibraryDir` (mmap PROT_EXEC
+  по файлу — то же разрешение `execute`), и окружение успешно стартует.
+- [x] От этого зависят 0.10.3 (CLI-агенты в терминале) и запуск LSP-серверов.
+
+**Проверка.** На эмуляторе гостевой Alpine (busybox, `uname -m` → `x86_64`, `cat /etc/alpine-release`
+→ `3.19.0`) запускается как `untrusted_app`. Побочные avc-отказы безвредны: `setattr` на
+`libproot.so`/`libproot_loader.so` (chmod файлов, уже исполняемых после установки) и `search` на
+`/data/local/tests` (proot пробует системные пути при поиске temp-каталога).
 
 ### 0.8.7 — удобный выбор моделей ⬜
 
