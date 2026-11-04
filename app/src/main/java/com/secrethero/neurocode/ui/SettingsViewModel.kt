@@ -41,12 +41,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val modelLimits: StateFlow<com.secrethero.neurocode.model.ModelLimits?> =
         container.apiClient.limits
 
+    /** Корни с метаданными (URI и timestamp). */
+    data class FsRootMeta(val uri: String, val grantedAt: Long, val displayName: String)
+
+    private val _fsRootsMeta = MutableStateFlow<List<FsRootMeta>>(emptyList())
+    val fsRootsMeta: StateFlow<List<FsRootMeta>> = _fsRootsMeta.asStateFlow()
+
     init {
         viewModelScope.launch {
             runCatching { deviceSpecs.snapshot() }
                 .onSuccess { _deviceSnapshot.value = it }
         }
-        // Обновление метаданных корней при изменении настроек
+        // Обновление метаданных корней при изменении настроек.
+        // ВАЖНО: _fsRootsMeta объявлён выше init — collect на Main.immediate
+        // выполняется синхронно и падал с NPE на неинициализированном поле.
         viewModelScope.launch {
             settings.collect { appSettings ->
                 val roots = container.filesystem.roots(fsRootsUris(appSettings))
@@ -152,12 +160,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             @Suppress("DEPRECATION")
             settings.fsRoots
         }
-    
-    /** Корни с метаданными (URI и timestamp). */
-    data class FsRootMeta(val uri: String, val grantedAt: Long, val displayName: String)
-    
-    private val _fsRootsMeta = MutableStateFlow<List<FsRootMeta>>(emptyList())
-    val fsRootsMeta: StateFlow<List<FsRootMeta>> = _fsRootsMeta.asStateFlow()
 
     fun addFsRoot(uri: Uri) = viewModelScope.launch {
         runCatching {
