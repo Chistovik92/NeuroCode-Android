@@ -43,11 +43,10 @@ class AgentTools(
         context.getString(resId, *args)
 
     suspend fun fsRootName(call: ToolCall): String? {
-        val fs = fsTools?.tools ?: return null
-        if (!call.name.startsWith("fs_")) return null
-        val arguments = runCatching { json.parseToJsonElement(call.arguments).jsonObject }
-            .getOrNull() ?: return null
-        return fs.rootLabel(call.name, arguments)
+        val tools = fsTools?.tools
+        if (tools == null || !call.name.startsWith("fs_")) return null
+        val arguments = runCatching { json.parseToJsonElement(call.arguments).jsonObject }.getOrNull()
+        return arguments?.let { tools.rootLabel(call.name, it) }
     }
 
     fun definitions(externalTools: List<ExternalAgentTool> = emptyList()): JsonArray = buildJsonArray {

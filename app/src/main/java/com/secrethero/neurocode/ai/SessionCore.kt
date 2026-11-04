@@ -66,8 +66,10 @@ object SessionContextBuilder {
     fun compact(history: List<ChatMessage>, maxMessages: Int): List<ChatMessage> {
         if (history.size <= maxMessages) return history
         val old = history.dropLast(maxMessages - 1).filter { it.role != MessageRole.SYSTEM }
-        val summary = old.joinToString("\n") { "${it.role}: ${it.content.take(400)}" }
+        val summary = old.joinToString("\n") { "${it.role}: ${it.content.take(SUMMARY_CHAR_LIMIT)}" }
         return listOf(ChatMessage(role = MessageRole.SYSTEM, content = "[Сводка старых ходов]\n$summary")) +
             history.takeLast(maxMessages - 1)
     }
+
+    private const val SUMMARY_CHAR_LIMIT = 400
 }

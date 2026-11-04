@@ -56,7 +56,10 @@ class ProotManager(private val context: Context) {
     suspend fun initialize(): Boolean = mutex.withLock {
         if (fallbackMarker.exists()) {
             _state.value = ProotState.UNAVAILABLE
-            _failure.value = ProotFailure(ProotStage.VERIFY, "Linux disabled after an Android compatibility failure; Android shell is used")
+            _failure.value = ProotFailure(
+                ProotStage.VERIFY,
+                "Linux disabled after an Android compatibility failure; Android shell is used",
+            )
             return false
         }
         when (_state.value) {

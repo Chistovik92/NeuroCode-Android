@@ -52,7 +52,8 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
             null
         }
         val persistedMessage = if (spillName != null) {
-            message.copy(content = message.content.take(8_000) + "\n[полный результат: .neurocode/spill/$spillName]")
+            val inline = message.content.take(SPILL_INLINE_CHARS)
+            message.copy(content = "$inline\n[полный результат: .neurocode/spill/$spillName]")
         } else {
             message
         }
@@ -139,5 +140,6 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
 
     private companion object {
         const val LEGACY_DEFAULT_TITLE = "Новый диалог"
+        const val SPILL_INLINE_CHARS = 8_000
     }
 }

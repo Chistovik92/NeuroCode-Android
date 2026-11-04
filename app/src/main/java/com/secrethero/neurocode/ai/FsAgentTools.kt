@@ -90,12 +90,15 @@ class FsAgentTools(
     fun rootLabel(name: String, arguments: JsonObject): String? {
         if (!name.startsWith("fs_")) return null
         val roots = rootsProvider.invoke()
-        if (roots.isEmpty()) return null
-        if (name == "fs_search") return "Все разрешённые папки"
         val requested = arguments.optional("root").trim()
-        return fs.roots(roots).firstOrNull {
-            it.displayName.equals(requested, ignoreCase = true) || it.uri == requested
-        }?.displayName ?: requested.takeIf { it.isNotBlank() }
+        return when {
+            roots.isEmpty() -> null
+            name == "fs_search" -> "Все разрешённые папки"
+            requested.isNotBlank() -> fs.roots(roots).firstOrNull {
+                it.displayName.equals(requested, ignoreCase = true) || it.uri == requested
+            }?.displayName ?: requested
+            else -> null
+        }
     }
 
     private suspend fun list(arguments: JsonObject): String {

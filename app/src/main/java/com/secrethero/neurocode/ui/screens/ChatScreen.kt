@@ -572,7 +572,14 @@ private fun MessageBubble(
 internal fun FsAccessChip(toolName: String?, rootName: String) {
     AssistChip(
         onClick = {},
-        label = { Text(stringResource(if (toolName == "fs_search") R.string.fs_access_search_chip else R.string.fs_access_chip, rootName)) },
+        label = {
+            Text(
+                stringResource(
+                    if (toolName == "fs_search") R.string.fs_access_search_chip else R.string.fs_access_chip,
+                    rootName,
+                ),
+            )
+        },
         leadingIcon = { Text(if (toolName == "fs_search") "🔍" else "📁") },
     )
 }
