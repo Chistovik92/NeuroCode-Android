@@ -282,6 +282,12 @@
     <string name="fs_roots_empty">No folders granted yet — the model sees only the project.</string>
     <string name="fs_root_cd">Revoke access to %1$s</string>
     <string name="fs_root_added">Folder access granted</string>
+    <string name="fs_presets_title">Quick presets</string>
+    <string name="fs_preset_downloads">Downloads</string>
+    <string name="fs_preset_documents">Documents</string>
+    <string name="fs_preset_pictures">Pictures</string>
+    <string name="fs_preset_all">Entire storage</string>
+    <string name="fs_granted_format">Granted: %1$s</string>
     <string name="fs_unknown_root_format">Unknown folder “%1$s”. Available roots: %2$s</string>
     <string name="approve_fs_import">Allow importing a file into the project?</string>
     <string name="approve_fs_import_details">From: %1$s\nInto the project: %2$s…</string>

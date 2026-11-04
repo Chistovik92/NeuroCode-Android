@@ -144,7 +144,11 @@ data class AppSettings(
     val favoriteModels: List<ModelRef> = emptyList(),
 
     /** Разрешённые модели корни файловой системы (SAF tree URI), по умолчанию доступ закрыт. */
+    @Deprecated("Migrate to fsRootsWithTimestamps", replaceWith = ReplaceWith("fsRootsWithTimestamps"))
     val fsRoots: List<String> = emptyList(),
+    
+    /** Корни файловой системы с датой выдачи (0.8.3). */
+    val fsRootsWithTimestamps: Map<String, Long> = emptyMap(),
 ) {
     companion object {
         const val RECENT_MODELS_LIMIT = 5

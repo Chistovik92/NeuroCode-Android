@@ -1,7 +1,11 @@
 package com.secrethero.neurocode.ui
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
+import android.os.Environment
+import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
@@ -41,6 +45,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             runCatching { deviceSpecs.snapshot() }
                 .onSuccess { _deviceSnapshot.value = it }
+        }
+        // Обновление метаданных корней при изменении настроек
+        viewModelScope.launch {
+            settings.collect { appSettings ->
+                val roots = container.filesystem.roots(fsRootsUris(appSettings))
+                _fsRootsMeta.value = roots.map { root ->
+                    val timestamp = appSettings.fsRootsWithTimestamps[root.uri] ?: System.currentTimeMillis()
+                    FsRootMeta(root.uri, timestamp, root.displayName)
+                }
+            }
         }
     }
 
@@ -125,11 +139,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val fsRoots: StateFlow<List<String>> = fsRootsFlow(container.settings.settings)
 
     private fun fsRootsFlow(flow: StateFlow<AppSettings>): StateFlow<List<String>> =
-        MutableStateFlow(flow.value.fsRoots).also { mapped ->
+        MutableStateFlow(fsRootsUris(flow.value)).also { mapped ->
             viewModelScope.launch {
-                flow.collect { mapped.value = it.fsRoots }
+                flow.collect { mapped.value = fsRootsUris(it) }
             }
         }
+
+    private fun fsRootsUris(settings: AppSettings): List<String> =
+        if (settings.fsRootsWithTimestamps.isNotEmpty()) {
+            settings.fsRootsWithTimestamps.keys.toList()
+        } else {
+            @Suppress("DEPRECATION")
+            settings.fsRoots
+        }
+    
+    /** Корни с метаданными (URI и timestamp). */
+    data class FsRootMeta(val uri: String, val grantedAt: Long, val displayName: String)
+    
+    private val _fsRootsMeta = MutableStateFlow<List<FsRootMeta>>(emptyList())
+    val fsRootsMeta: StateFlow<List<FsRootMeta>> = _fsRootsMeta.asStateFlow()
 
     fun addFsRoot(uri: Uri) = viewModelScope.launch {
         runCatching {
@@ -139,12 +167,31 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
             container.settings.update { current ->
-                if (uri.toString() in current.fsRoots) {
-                    current
+                val uriString = uri.toString()
+                // Миграция: если старый формат есть, переносим в новый
+                @Suppress("DEPRECATION")
+                val migrated = if (current.fsRootsWithTimestamps.isEmpty() && current.fsRoots.isNotEmpty()) {
+                    current.fsRoots.associateWith { System.currentTimeMillis() }
                 } else {
-                    current.copy(fsRoots = (current.fsRoots + uri.toString()).takeLast(FS_ROOTS_LIMIT))
+                    current.fsRootsWithTimestamps
+                }
+                
+                if (uriString in migrated) {
+                    current.copy(
+                        fsRootsWithTimestamps = migrated,
+                        @Suppress("DEPRECATION") fsRoots = emptyList()
+                    )
+                } else {
+                    current.copy(
+                        fsRootsWithTimestamps = (migrated + (uriString to System.currentTimeMillis()))
+                            .entries.takeLast(FS_ROOTS_LIMIT).associate { it.key to it.value },
+                        @Suppress("DEPRECATION") fsRoots = emptyList()
+                    )
                 }
             }
+            container.bus.showNotice(
+                getApplication<Application>().getString(R.string.fs_root_added)
+            )
         }.onFailure(container.bus::showError)
     }
 
@@ -158,9 +205,33 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 )
             }
             container.settings.update { current ->
-                current.copy(fsRoots = current.fsRoots - uri)
+                val updated = current.fsRootsWithTimestamps - uri
+                current.copy(
+                    fsRootsWithTimestamps = updated,
+                    @Suppress("DEPRECATION") fsRoots = if (updated.isEmpty()) current.fsRoots - uri else emptyList()
+                )
             }
         }.onFailure(container.bus::showError)
+    }
+    
+    /** Создаёт Intent для выбора стандартной папки Android. */
+    fun createPresetIntent(type: PresetType): Intent {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+        val initialUri = when (type) {
+            PresetType.DOWNLOADS -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toUri()
+            PresetType.DOCUMENTS -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).toUri()
+            PresetType.PICTURES -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toUri()
+            PresetType.ALL -> Environment.getExternalStorageDirectory().toUri()
+        }
+        intent.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, initialUri)
+        return intent
+    }
+    
+    enum class PresetType {
+        DOWNLOADS,
+        DOCUMENTS,
+        PICTURES,
+        ALL
     }
 
     val prootState = container.prootManager.state

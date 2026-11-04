@@ -1,0 +1,22 @@
+﻿# Claude Code — история диалогов: NeuroCode-Android
+
+- [48771010-2a15-4ad5-9e35-e1dd8a046333](48771010-2a15-4ad5-9e35-e1dd8a046333.md) — user=1, assistant=1
+- [dc545333-dada-44f8-8778-d312f08c4789](dc545333-dada-44f8-8778-d312f08c4789.md) — user=1, assistant=1
+- [e6e4b207-91c7-44ac-91aa-d54c3610c747](e6e4b207-91c7-44ac-91aa-d54c3610c747.md) — user=1, assistant=1
+- [41b4ff30-4534-45ee-9b22-db94409a6092](worktrees/project-review-dfc291/claude-history/41b4ff30-4534-45ee-9b22-db94409a6092.md) — user=45, assistant=258
+- [803badc2-6651-4b14-a6bd-54b337106396](worktrees/project-review-dfc291/claude-history/803badc2-6651-4b14-a6bd-54b337106396.md) — user=10, assistant=198
+- [b5eee715-07e5-4a7d-95e1-9aaa9f19ea76](worktrees/projects-overlap-bug-17cbfa/claude-history/b5eee715-07e5-4a7d-95e1-9aaa9f19ea76.md) — user=11, assistant=349
+- [ff3ec257-916c-400c-b84e-b3662ff3e0fa](worktrees/projects-overlap-bug-17cbfa/claude-history/ff3ec257-916c-400c-b84e-b3662ff3e0fa.md) — user=7, assistant=62
+- [0a42f572-9780-4aee-94c4-860013ef2082](worktrees/roadmap-5c6287/claude-history/0a42f572-9780-4aee-94c4-860013ef2082.md) — user=1, assistant=1
+- [13c53c94-5f38-4062-84e8-fb15c77f3636](worktrees/roadmap-5c6287/claude-history/13c53c94-5f38-4062-84e8-fb15c77f3636.md) — user=1, assistant=1
+- [5d823f67-3886-4f68-a985-f375b8dfb705](worktrees/roadmap-5c6287/claude-history/5d823f67-3886-4f68-a985-f375b8dfb705.md) — user=34, assistant=628
+- [63e979e3-4e1b-4df4-98e2-5164700d4984](worktrees/roadmap-5c6287/claude-history/63e979e3-4e1b-4df4-98e2-5164700d4984.md) — user=1, assistant=1
+- [6e51ccac-5437-4db1-8f29-3f233fda583b](worktrees/roadmap-5c6287/claude-history/6e51ccac-5437-4db1-8f29-3f233fda583b.md) — user=1, assistant=1
+- [784df38f-5041-4d05-a170-ae2d5ef98f4e](worktrees/roadmap-5c6287/claude-history/784df38f-5041-4d05-a170-ae2d5ef98f4e.md) — user=1, assistant=1
+- [7d1756e2-6c6d-49da-b33c-22fd2fffabac](worktrees/roadmap-5c6287/claude-history/7d1756e2-6c6d-49da-b33c-22fd2fffabac.md) — user=1, assistant=1
+- [96a96e67-9e6b-4c76-83c8-49773ae1ebe4](worktrees/roadmap-5c6287/claude-history/96a96e67-9e6b-4c76-83c8-49773ae1ebe4.md) — user=1, assistant=1
+- [a0b75844-e559-46fe-8401-122adf8038fe](worktrees/roadmap-5c6287/claude-history/a0b75844-e559-46fe-8401-122adf8038fe.md) — user=1, assistant=1
+- [b42dea59-331b-4c5f-89a7-5f49d59f0e7b](worktrees/roadmap-5c6287/claude-history/b42dea59-331b-4c5f-89a7-5f49d59f0e7b.md) — user=1, assistant=1
+- [b8fbe737-ddaf-4adc-8925-f4858a463d9b](worktrees/roadmap-5c6287/claude-history/b8fbe737-ddaf-4adc-8925-f4858a463d9b.md) — user=1, assistant=1
+- [bb9b853f-965f-452c-b401-075e69b3815b](worktrees/roadmap-5c6287/claude-history/bb9b853f-965f-452c-b401-075e69b3815b.md) — user=1, assistant=1
+- [e075af86-5a3f-4240-88f3-a6ffd1fe0458](worktrees/roadmap-5c6287/claude-history/e075af86-5a3f-4240-88f3-a6ffd1fe0458.md) — user=1, assistant=1

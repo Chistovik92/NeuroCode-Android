@@ -109,7 +109,13 @@ fun SettingsScreen(vm: SettingsViewModel) {
     ) { uri ->
         uri?.let(vm::addFsRoot)
     }
+    val presetPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        uri?.let(vm::addFsRoot)
+    }
     val fsRoots by vm.fsRoots.collectAsStateWithLifecycle()
+    val fsRootsMeta by vm.fsRootsMeta.collectAsStateWithLifecycle()
 
     Column(
         Modifier
@@ -441,8 +447,13 @@ fun SettingsScreen(vm: SettingsViewModel) {
 
         FilesystemAccessSection(
             fsRoots = fsRoots,
+            fsRootsMeta = fsRootsMeta,
             onAddRoot = { picker.launch(null) },
             onRemoveRoot = vm::removeFsRoot,
+            onPresetDownloads = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.DOWNLOADS).data) },
+            onPresetDocuments = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.DOCUMENTS).data) },
+            onPresetPictures = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.PICTURES).data) },
+            onPresetAll = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.ALL).data) },
         )
 
         SectionTitle(stringResource(R.string.security))

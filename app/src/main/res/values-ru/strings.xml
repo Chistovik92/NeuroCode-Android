@@ -282,6 +282,12 @@
     <string name="fs_roots_empty">Папки не выданы — модель видит только проект.</string>
     <string name="fs_root_cd">Отозвать доступ к %1$s</string>
     <string name="fs_root_added">Доступ к папке выдан</string>
+    <string name="fs_presets_title">Быстрые пресеты</string>
+    <string name="fs_preset_downloads">Загрузки</string>
+    <string name="fs_preset_documents">Документы</string>
+    <string name="fs_preset_pictures">Изображения</string>
+    <string name="fs_preset_all">Вся память</string>
+    <string name="fs_granted_format">Выдано: %1$s</string>
     <string name="fs_unknown_root_format">Неизвестная папка «%1$s». Доступные корни: %2$s</string>
     <string name="approve_fs_import">Разрешить импорт файла в проект?</string>
     <string name="approve_fs_import_details">Откуда: %1$s\nВ проект: %2$s…</string>
