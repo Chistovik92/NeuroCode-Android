@@ -11,8 +11,8 @@ sealed interface AgentEvent {
 
     /** Кусок размышлений модели (reasoning), если провайдер их отдаёт. */
     data class Reasoning(val text: String) : AgentEvent
-    data class ToolStarted(val name: String, val arguments: String) : AgentEvent
-    data class ToolFinished(val name: String, val result: String) : AgentEvent
+    data class ToolStarted(val name: String, val arguments: String, val fsRootName: String? = null) : AgentEvent
+    data class ToolFinished(val name: String, val result: String, val fsRootName: String? = null) : AgentEvent
 }
 
 /**
@@ -54,7 +54,13 @@ class AgentOrchestrator(
                 content = systemPrompt(projectName, projectSummary, activeSkills, fsRoots),
             ),
         )
-        messages += contextMessages(history, attachments = attachments)
+        messages += contextMessages(
+            SessionContextBuilder.build(
+                history,
+                TargetCapabilities(true, true, client.contextWindow(provider.model)),
+            ).messages,
+            attachments = attachments,
+        )
 
         repeat(maxSteps.coerceIn(1, 20)) { index ->
             onEvent(AgentEvent.Status("Шаг агента ${index + 1}"))
@@ -78,9 +84,10 @@ class AgentOrchestrator(
             }
 
             turn.toolCalls.forEach { call ->
-                onEvent(AgentEvent.ToolStarted(call.name, call.arguments))
+                val fsRootName = tools.fsRootName(call)
+                onEvent(AgentEvent.ToolStarted(call.name, call.arguments, fsRootName))
                 val result = tools.execute(projectId, call, allowAgentShell, externalTools)
-                onEvent(AgentEvent.ToolFinished(call.name, result))
+                onEvent(AgentEvent.ToolFinished(call.name, result, fsRootName))
                 messages += ApiMessage(
                     role = "tool",
                     content = result,

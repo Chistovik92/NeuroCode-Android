@@ -200,6 +200,7 @@ data class ChatMessage(
     val reasoning: String? = null,
     /** Какая модель сгенерировала ответ (для сообщений ассистента). */
     val generatedBy: ModelRef? = null,
+    val fsRootName: String? = null,
 )
 
 @Serializable

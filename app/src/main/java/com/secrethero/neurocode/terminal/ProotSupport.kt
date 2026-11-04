@@ -100,7 +100,7 @@ internal fun describeExit(code: Int): String {
         SIGABRT -> "SIGABRT, aborted"
         SIGKILL -> "SIGKILL, killed"
         SIGSEGV -> "SIGSEGV, crash"
-        SIGSYS -> "SIGSYS, system call blocked by Android"
+        SIGSYS -> "SIGSYS, system call blocked by Android; Linux disabled and Android shell fallback enabled"
         else -> null
     }
     return if (code > SIGNAL_OFFSET && name != null) "exit $code (signal $signal: $name)" else "exit $code"

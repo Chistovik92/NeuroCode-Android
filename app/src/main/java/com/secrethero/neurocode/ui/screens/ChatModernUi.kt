@@ -231,6 +231,7 @@ internal fun ModernMessage(
     val context = LocalContext.current
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         GeminiAvatar()
+        if (message.fsRootName != null) FsAccessChip(message.toolName, message.fsRootName)
         message.reasoning?.takeIf { it.isNotBlank() }?.let { ReasoningBlock(text = it) }
         SelectionContainer {
             MarkdownText(

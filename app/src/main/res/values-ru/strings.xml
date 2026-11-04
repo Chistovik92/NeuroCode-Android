@@ -294,6 +294,8 @@
     <string name="deny_fs_import">Импорт отклонён: %1$s</string>
     <string name="fs_imported_format">Импортировано: %1$s → %2$s</string>
     <string name="fs_log_entry_format">Обращение к файлам: %1$s(%2$s)</string>
+    <string name="fs_access_chip">Использована папка «%1$s»</string>
+    <string name="fs_access_search_chip">Поиск в «%1$s»</string>
 
     <!-- Runtime environment (proot / LSP) -->
     <string name="runtime_env">Среда выполнения</string>

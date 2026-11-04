@@ -37,6 +37,7 @@ class ProotManager(private val context: Context) {
 
     /** Причина последнего сбоя; null, пока не было ошибки или после сброса. */
     val failure: StateFlow<ProotFailure?> = _failure.asStateFlow()
+    private val fallbackMarker get() = File(linuxDir, ".android-shell-fallback")
     private val _progress = MutableStateFlow<ProotProgress?>(null)
 
     /** Прогресс текущей загрузки; null, когда ничего не скачивается. */
@@ -53,6 +54,11 @@ class ProotManager(private val context: Context) {
     fun isReady(): Boolean = _state.value == ProotState.READY
 
     suspend fun initialize(): Boolean = mutex.withLock {
+        if (fallbackMarker.exists()) {
+            _state.value = ProotState.UNAVAILABLE
+            _failure.value = ProotFailure(ProotStage.VERIFY, "Linux disabled after an Android compatibility failure; Android shell is used")
+            return false
+        }
         when (_state.value) {
             ProotState.READY -> return true
             ProotState.PREPARING -> return false
@@ -68,6 +74,13 @@ class ProotManager(private val context: Context) {
             val failure = error.toProotFailure()
             _failure.value = failure
             _state.value = ProotState.UNAVAILABLE
+            if (failure.detail.contains("SIGSYS", ignoreCase = true) ||
+                failure.detail.contains("Permission denied", ignoreCase = true) ||
+                failure.detail.contains("noexec", ignoreCase = true)
+            ) {
+                linuxDir.mkdirs()
+                fallbackMarker.writeText(failure.detail)
+            }
             // Загруженный rootfs не виноват, если не запускается сам proot: оставляем его, чтобы не качать заново
             // при каждом запуске; «Сбросить» в настройках очищает всё.
             if (failure.stage != ProotStage.VERIFY) cleanup()
@@ -79,6 +92,7 @@ class ProotManager(private val context: Context) {
         if (_state.value == ProotState.PREPARING) return
         _state.value = ProotState.IDLE
         _failure.value = null
+        fallbackMarker.delete()
         cleanup()
     }
 

@@ -5,6 +5,10 @@ import com.secrethero.neurocode.R
 import com.secrethero.neurocode.model.ChatMessage
 import com.secrethero.neurocode.model.ChatSession
 import com.secrethero.neurocode.model.ModelRef
+import com.secrethero.neurocode.ai.SessionEvent
+import com.secrethero.neurocode.ai.SessionJournal
+import com.secrethero.neurocode.ai.SpillStore
+import com.secrethero.neurocode.model.MessageRole
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +16,8 @@ import java.io.File
 
 class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {}) {
     private val storage = ChatStorage(context.filesDir.resolve("state"), onCorrupt)
+    private val journals = context.filesDir.resolve("state/session-events")
+    private val spill = SpillStore(context.filesDir.resolve(".neurocode/spill"))
     private val _sessions = MutableStateFlow<List<ChatSession>>(emptyList())
     val sessions: StateFlow<List<ChatSession>> = _sessions.asStateFlow()
 
@@ -40,8 +46,33 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
     }
 
     suspend fun append(sessionId: String, message: ChatMessage) {
+        val spillName = if (message.role == MessageRole.TOOL) {
+            spill.save("$sessionId-${message.id}", message.content)
+        } else {
+            null
+        }
+        val persistedMessage = if (spillName != null) {
+            message.copy(content = message.content.take(8_000) + "\n[полный результат: .neurocode/spill/$spillName]")
+        } else {
+            message
+        }
+        SessionJournal(File(journals, "$sessionId.jsonl")).append(
+            SessionEvent(
+                type = when (message.role) {
+                    com.secrethero.neurocode.model.MessageRole.TOOL -> "tool_result"
+                    com.secrethero.neurocode.model.MessageRole.ASSISTANT -> "assistant_message"
+                    com.secrethero.neurocode.model.MessageRole.USER -> "user_message"
+                    com.secrethero.neurocode.model.MessageRole.SYSTEM -> "system_message"
+                },
+                messageId = message.id,
+                role = message.role.name,
+                toolName = message.toolName,
+                content = persistedMessage.content,
+                modelKey = message.generatedBy?.key,
+            ),
+        )
         update(sessionId) { session ->
-            val firstUser = (session.messages + message).firstOrNull {
+            val firstUser = (session.messages + persistedMessage).firstOrNull {
                 it.role.name == "USER"
             }?.content
             val defaults = setOf(
@@ -56,7 +87,7 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
             session.copy(
                 title = title,
                 updatedAt = System.currentTimeMillis(),
-                messages = session.messages + message,
+                messages = session.messages + persistedMessage,
             )
         }
     }
@@ -78,6 +109,18 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
 
     fun get(sessionId: String?): ChatSession? =
         _sessions.value.firstOrNull { it.id == sessionId }
+
+    fun search(query: String, projectId: String? = null): List<ChatSession> {
+        val needle = query.trim()
+        if (needle.isEmpty()) return emptyList()
+        return _sessions.value.filter { session ->
+            (projectId == null || session.projectId == projectId) &&
+                (session.title.contains(needle, true) || session.messages.any {
+                    it.content.contains(needle, true) || it.toolName?.contains(needle, true) == true ||
+                        it.generatedBy?.key?.contains(needle, true) == true
+                })
+        }
+    }
 
     private suspend fun update(sessionId: String, block: (ChatSession) -> ChatSession) {
         val updated = _sessions.value.map { if (it.id == sessionId) block(it) else it }

@@ -294,6 +294,8 @@
     <string name="deny_fs_import">Import denied: %1$s</string>
     <string name="fs_imported_format">Imported: %1$s → %2$s</string>
     <string name="fs_log_entry_format">File access: %1$s(%2$s)</string>
+    <string name="fs_access_chip">Used folder “%1$s”</string>
+    <string name="fs_access_search_chip">Searched in “%1$s”</string>
 
     <!-- Runtime environment (proot / LSP) -->
     <string name="runtime_env">Runtime environment</string>

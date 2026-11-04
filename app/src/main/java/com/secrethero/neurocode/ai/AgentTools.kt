@@ -42,6 +42,14 @@ class AgentTools(
     private fun str(@StringRes resId: Int, vararg args: Any?): String =
         context.getString(resId, *args)
 
+    suspend fun fsRootName(call: ToolCall): String? {
+        val fs = fsTools?.tools ?: return null
+        if (!call.name.startsWith("fs_")) return null
+        val arguments = runCatching { json.parseToJsonElement(call.arguments).jsonObject }
+            .getOrNull() ?: return null
+        return fs.rootLabel(call.name, arguments)
+    }
+
     fun definitions(externalTools: List<ExternalAgentTool> = emptyList()): JsonArray = buildJsonArray {
         add(tool(
             name = "list_files",

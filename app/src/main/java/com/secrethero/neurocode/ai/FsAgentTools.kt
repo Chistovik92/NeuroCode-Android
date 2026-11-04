@@ -87,6 +87,17 @@ class FsAgentTools(
             else -> error("Неизвестный инструмент $name")
         }
 
+    fun rootLabel(name: String, arguments: JsonObject): String? {
+        if (!name.startsWith("fs_")) return null
+        val roots = rootsProvider.invoke()
+        if (roots.isEmpty()) return null
+        if (name == "fs_search") return "Все разрешённые папки"
+        val requested = arguments.optional("root").trim()
+        return fs.roots(roots).firstOrNull {
+            it.displayName.equals(requested, ignoreCase = true) || it.uri == requested
+        }?.displayName ?: requested.takeIf { it.isNotBlank() }
+    }
+
     private suspend fun list(arguments: JsonObject): String {
         val roots = rootsProvider.invoke()
         val rootUri = resolveRoot(arguments, roots)

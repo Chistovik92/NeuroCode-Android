@@ -493,6 +493,7 @@ private fun MessageBubble(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        if (message.fsRootName != null) FsAccessChip(message.toolName, message.fsRootName)
         message.reasoning?.takeIf { it.isNotBlank() }?.let { ReasoningBlock(text = it) }
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -565,6 +566,15 @@ private fun MessageBubble(
         }
         ModelSignature(signature?.modelLabel, signature?.onRetry)
     }
+}
+
+@Composable
+internal fun FsAccessChip(toolName: String?, rootName: String) {
+    AssistChip(
+        onClick = {},
+        label = { Text(stringResource(if (toolName == "fs_search") R.string.fs_access_search_chip else R.string.fs_access_chip, rootName)) },
+        leadingIcon = { Text(if (toolName == "fs_search") "🔍" else "📁") },
+    )
 }
 
 /** Скругления пузыря: компактные в классике, «капля» пользователя в современном дизайне. */
