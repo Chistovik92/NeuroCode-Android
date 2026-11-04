@@ -14,3 +14,5 @@ app/release/
 keystore.properties
 secrets.properties
 third_party/llama.cpp/build/
+third_party/proot/.fetch-cache/
+__pycache__/

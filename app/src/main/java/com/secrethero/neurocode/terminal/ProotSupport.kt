@@ -26,29 +26,40 @@ internal object ProotCommand {
     private const val GUEST_ENV = "/usr/bin/env"
 
     /**
-     * Переменные proot ставит оболочка хоста, а не `env`: путь встроенного `libproot.so` содержит `==`
-     * (`~~…==/com.…/lib/…`), и `env` принимает такой путь за присваивание переменной. Значения передаются
-     * позиционными аргументами (`$1` — каталог для загрузчика), а не вставляются в текст скрипта.
+     * Собственные переменные proot ставит оболочка хоста, а не `env`: путь `nativeLibraryDir` содержит
+     * `==` (`~~…==/com.…/lib/…`), и `env` принял бы такой путь за присваивание переменной. Значения
+     * передаются позиционными аргументами, а не вставляются в текст скрипта.
+     *
+     * Загрузчик (`PROOT_LOADER`) нужен только Termux-сборке proot (bionic), которая собирается с
+     * `PROOT_UNBUNDLE_LOADER` и хранит его отдельным файлом. Статическая musl-сборка несёт загрузчик
+     * внутри себя и `PROOT_LOADER` не использует — поэтому [loader] может быть `null`.
      */
     private const val LAUNCHER_SCRIPT =
         "export PROOT_TMP_DIR=\"$1\" PROOT_NO_SECCOMP=1; shift; exec \"$@\""
 
+    private const val LAUNCHER_SCRIPT_WITH_LOADER =
+        "export PROOT_TMP_DIR=\"$1\" PROOT_LOADER=\"$2\" PROOT_NO_SECCOMP=1; shift 2; exec \"$@\""
+
     /**
      * У proot нет параметра `--env`: переменные гостя задаются запуском `env -i` внутри rootfs, а
-     * собственные переменные proot (`PROOT_TMP_DIR` — без неё он не может создать загрузчик,
-     * `PROOT_NO_SECCOMP`) — запуском через оболочку хоста, чтобы их получили все, кто строит команду
-     * (терминал, команды агента, LSP).
+     * собственные переменные proot (`PROOT_TMP_DIR` — каталог для временных файлов и встроенного
+     * загрузчика, `PROOT_LOADER` — внешний загрузчик Termux-сборки, `PROOT_NO_SECCOMP`) — запуском
+     * через оболочку хоста, чтобы их получили все, кто строит команду (терминал, команды агента, LSP).
      */
     @Suppress("LongParameterList")
     fun build(
         binary: String,
+        loader: String?,
         rootfs: String,
         workspace: String,
         tmpDir: String,
         guestPath: String,
         wrapped: List<String>,
-    ): List<String> = listOf(
-        HOST_SHELL, "-c", LAUNCHER_SCRIPT, "proot-launcher", tmpDir,
+    ): List<String> = (if (loader != null) {
+        listOf(HOST_SHELL, "-c", LAUNCHER_SCRIPT_WITH_LOADER, "proot-launcher", tmpDir, loader)
+    } else {
+        listOf(HOST_SHELL, "-c", LAUNCHER_SCRIPT, "proot-launcher", tmpDir)
+    }) + listOf(
         binary,
         "--kill-on-exit",
         "-r", rootfs,

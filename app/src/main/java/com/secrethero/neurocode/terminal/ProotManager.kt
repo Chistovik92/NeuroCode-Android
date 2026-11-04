@@ -47,6 +47,13 @@ class ProotManager(private val context: Context) {
     @Volatile
     private var verifiedBinary: File? = null
 
+    /**
+     * Путь к внешнему загрузчику Termux-сборки proot; `null` для статической musl-сборки, которая
+     * несёт загрузчик внутри себя.
+     */
+    @Volatile
+    private var loaderPath: String? = null
+
     private val linuxDir get() = File(context.filesDir, "linux")
     private val prootBinary get() = File(linuxDir, "proot")
     private val rootfsDir get() = File(linuxDir, "rootfs")
@@ -108,6 +115,7 @@ class ProotManager(private val context: Context) {
     private fun guestCommand(wrapped: List<String>, workspace: File): List<String> =
         ProotCommand.build(
             binary = activeBinary().absolutePath,
+            loader = loaderPath,
             rootfs = rootfsDir.absolutePath,
             workspace = workspace.absolutePath,
             tmpDir = File(linuxDir, "tmp").apply { mkdirs() }.absolutePath,
@@ -120,8 +128,16 @@ class ProotManager(private val context: Context) {
 
     private fun prepare() {
         checkFreeSpace()
-        val proot = resolveBundledBinary() ?: installProotStatic()
+        val bundled = resolveBundledBinary()
+        val proot = bundled ?: installProotStatic()
         verifiedBinary = proot
+        loaderPath = if (bundled != null) {
+            // Termux-сборка proot не несёт загрузчик внутри себя: он должен лежать рядом с libproot.so.
+            resolveBundledLoader()?.absolutePath
+                ?: throw ProotException(ProotStage.PROOT, "bundled proot loader (libproot_loader.so) is missing")
+        } else {
+            null
+        }
         if (!markerFile().exists()) {
             linuxDir.mkdirs()
             rootfsDir.mkdirs()
@@ -205,6 +221,15 @@ class ProotManager(private val context: Context) {
         if (!bundled.exists()) return null
         bundled.setExecutable(true, false)
         return bundled
+    }
+
+    /** Внешний загрузчик Termux-сборки proot из того же `nativeLibraryDir`, что и `libproot.so`. */
+    private fun resolveBundledLoader(): File? {
+        val loader = context.applicationInfo.nativeLibraryDir
+            ?.let { dir -> File(dir, "libproot_loader.so").takeIf { it.exists() } }
+            ?: return null
+        loader.setExecutable(true, false)
+        return loader
     }
 
     private fun verifyExecutable(proot: File) {

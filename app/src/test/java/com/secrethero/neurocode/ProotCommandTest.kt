@@ -16,10 +16,12 @@ class ProotCommandTest {
     val tmp = TemporaryFolder()
 
     private val binary = "/data/app/lib/x86_64/libproot.so"
+    private val loader = "/data/app/lib/x86_64/libproot_loader.so"
     private val elfHeader = byteArrayOf(0x7F, 'E'.code.toByte(), 'L'.code.toByte(), 'F'.code.toByte())
 
     private fun build(wrapped: List<String> = listOf("/bin/sh", "-l")) = ProotCommand.build(
         binary = binary,
+        loader = loader,
         rootfs = "/data/files/linux/rootfs",
         workspace = "/data/files/workspaces/p1",
         tmpDir = "/data/files/linux/tmp",
@@ -37,22 +39,45 @@ class ProotCommandTest {
         val command = build()
 
         assertEquals(listOf("/system/bin/sh", "-c"), command.take(2))
-        assertTrue("PROOT_TMP_DIR" in command[2] && "PROOT_NO_SECCOMP=1" in command[2])
+        assertTrue("PROOT_TMP_DIR" in command[2])
+        assertTrue("PROOT_LOADER" in command[2])
+        assertTrue("PROOT_NO_SECCOMP=1" in command[2])
         assertEquals("/data/files/linux/tmp", command[command.indexOf("proot-launcher") + 1])
+        assertEquals(loader, command[command.indexOf("proot-launcher") + 2])
         assertTrue(command.indexOf("/data/files/linux/tmp") < command.indexOf(binary))
+    }
+
+    @Test
+    fun staticProotWithoutExternalLoaderDoesNotExportProotLoader() {
+        val command = ProotCommand.build(
+            binary = binary,
+            loader = null,
+            rootfs = "/r",
+            workspace = "/w",
+            tmpDir = "/t",
+            guestPath = "/bin",
+            wrapped = listOf("/bin/sh"),
+        )
+
+        assertEquals(listOf("/system/bin/sh", "-c"), command.take(2))
+        assertFalse("PROOT_LOADER" in command[2])
+        assertTrue("PROOT_TMP_DIR" in command[2])
     }
 
     @Test
     fun binaryPathWithEqualsSignIsNotTakenForAnEnvAssignment() {
         val androidPath = "/data/app/~~j4Dxoif1ONx3aege2gqRBw==/" +
             "com.secrethero.neurocode-RTpvofJz3msukIsKq3fMog==/lib/x86_64/libproot.so"
+        val androidLoader = "/data/app/~~j4Dxoif1ONx3aege2gqRBw==/" +
+            "com.secrethero.neurocode-RTpvofJz3msukIsKq3fMog==/lib/x86_64/libproot_loader.so"
 
-        val command = ProotCommand.build(androidPath, "/r", "/w", "/t", "/bin", listOf("/bin/sh"))
+        val command = ProotCommand.build(androidPath, androidLoader, "/r", "/w", "/t", "/bin", listOf("/bin/sh"))
 
         assertEquals("/system/bin/sh", command.first())
         assertTrue(androidPath in command)
+        assertTrue(androidLoader in command)
         assertTrue(command.none { it.startsWith("PROOT_") })
-        assertEquals("exec \"\$@\"", command[2].substringAfter("shift; "))
+        assertEquals("exec \"\$@\"", command[2].substringAfter("shift 2; "))
     }
 
     @Test
