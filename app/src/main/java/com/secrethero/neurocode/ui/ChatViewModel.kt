@@ -99,6 +99,20 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         ResolvedModel(null, ModelSource.GLOBAL, problem = ModelProblem.NOTHING_SELECTED),
     )
 
+    /**
+     * Облачные провайдеры с подключённым (непустым) API-ключом. В окне выбора модели показываются
+     * только они, чтобы не предлагать роутер, которым нельзя воспользоваться без ключа.
+     */
+    val connectedProviderIds: StateFlow<Set<String>> = container.settings.settings
+        .map { current ->
+            current.providers.mapNotNull { provider ->
+                runCatching { container.settings.apiKey(provider) }.getOrNull()
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { provider.id }
+            }.toSet()
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
     private val _localModels = MutableStateFlow<List<ImportedModel>>(emptyList())
 
     /** Импортированные GGUF для окна выбора модели. */
@@ -659,6 +673,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }.onFailure { error ->
             _switcherModels.value =
                 ProviderModelsState(emptyList(), error.message ?: "ошибка", false)
+        }
+    }
+
+    /**
+     * Первичная загрузка списка моделей для окна выбора: берётся активный провайдер, если у него
+     * подключён ключ, иначе первый подключённый. Если ключа нет ни у кого — список очищается, и окно
+     * показывает подсказку вместо неудачного запроса к API без ключа.
+     */
+    fun loadInitialSwitcherModels() = viewModelScope.launch {
+        val current = settings.value
+        val hasKey: (ProviderConfig) -> Boolean =
+            { runCatching { container.settings.apiKey(it) }.getOrNull()?.isNotBlank() == true }
+        val target = activeModel.value.provider?.takeIf(hasKey)
+            ?: current.providers.firstOrNull { it.id == current.selectedProviderId }?.takeIf(hasKey)
+            ?: current.providers.firstOrNull(hasKey)
+        if (target == null) {
+            _switcherModels.value = null
+        } else {
+            loadSwitcherModels(target)
         }
     }
 

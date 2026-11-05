@@ -120,6 +120,7 @@
     <string name="model_reset_project">Reset the project model</string>
     <string name="model_chip_local">Local (GGUF)</string>
     <string name="model_local_empty">No GGUF imported. Import a file in Settings.</string>
+    <string name="model_no_connected_providers">No provider has an API key yet. Add a key in Settings to browse cloud models.</string>
     <string name="model_recent">Recent</string>
     <string name="model_favorite_cd">Favorite</string>
     <string name="model_unavailable_badge">unavailable</string>
