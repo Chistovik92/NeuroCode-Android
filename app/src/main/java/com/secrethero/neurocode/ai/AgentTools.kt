@@ -239,6 +239,9 @@ class AgentTools(
             else -> executeExternal(projectId, call, externalTools)
         }
     }.getOrElse { error ->
+        // Отмена пользователя («Стоп») — не ошибка инструмента: пробрасываем, чтобы агентный
+        // цикл оборвался немедленно, а не продолжал шаги со «сбойным» результатом.
+        if (error is kotlinx.coroutines.CancellationException) throw error
         str(R.string.tool_error_format, call.name, error.message ?: error::class.java.simpleName)
     }
 

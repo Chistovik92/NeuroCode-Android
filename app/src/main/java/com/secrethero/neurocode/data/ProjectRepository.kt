@@ -116,9 +116,9 @@ class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit 
         persist(_projects.value.map { if (it.id == projectId) it.copy(model = model) else it })
     }
 
-    /** Проекты, у которых переопределение модели — локальная GGUF с указанным путём или именем. */
+    /** Проекты, у которых переопределение модели — локальная GGUF с указанным путём или именем. Скрытые песочницы не считаем. */
     fun projectsUsingLocalModel(localPath: String, localName: String?): List<Project> =
-        _projects.value.filter { it.usesLocalModel(localPath, localName) }
+        _projects.value.filterNot { it.hidden }.filter { it.usesLocalModel(localPath, localName) }
 
     /**
      * Сбрасывает проекты, использующие удаляемую локальную GGUF, на глобальную модель

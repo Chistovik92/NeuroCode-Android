@@ -13,8 +13,6 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
@@ -31,6 +29,7 @@ private const val COPY_BUFFER_SIZE = 64 * 1024
 
 class ProotManager(private val context: Context) {
     private val mutex = Mutex()
+    private val downloads = com.secrethero.neurocode.downloads.DownloadQueue(context)
     private val _state = MutableStateFlow(ProotState.IDLE)
     val state: StateFlow<ProotState> = _state.asStateFlow()
     private val _failure = MutableStateFlow<ProotFailure?>(null)
@@ -97,8 +96,8 @@ class ProotManager(private val context: Context) {
         error == null
     }
 
-    fun reset() {
-        if (_state.value == ProotState.PREPARING) return
+    suspend fun reset() = mutex.withLock {
+        if (_state.value == ProotState.PREPARING) return@withLock
         _state.value = ProotState.IDLE
         _failure.value = null
         fallbackMarker.delete()
@@ -165,8 +164,11 @@ class ProotManager(private val context: Context) {
         } catch (error: IOException) {
             throw ProotException(ProotStage.VERIFY, "guest shell cannot start: ${error.message}", error)
         }
+        // Читаем параллельно ожиданию: если гость напишет больше буфера пайпа, он завис бы до тайм-аута.
+        val outputFuture = java.util.concurrent.FutureTask { process.inputStream.bufferedReader().readText() }
+        Thread(outputFuture, "proot-verify-reader").apply { isDaemon = true }.start()
         val finished = process.waitFor(EXEC_CHECK_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
-        val output = if (finished) process.inputStream.bufferedReader().readText() else ""
+        val output = if (finished) runCatching { outputFuture.get(2, TimeUnit.SECONDS) }.getOrDefault("") else ""
         process.destroyForcibly()
         if (!finished || process.exitValue() != 0 || GUEST_PROBE !in output) {
             val reason = if (finished) {
@@ -228,8 +230,14 @@ class ProotManager(private val context: Context) {
         } catch (error: IOException) {
             throw ProotException(ProotStage.VERIFY, "bundled proot cannot start: ${error.message}", error)
         }
+        // Вывод вычитывается параллельно ожиданию: зависание пайпа не должно ломать проверку.
+        val outputFuture = java.util.concurrent.FutureTask {
+            process.inputStream.bufferedReader().readText()
+        }
+        Thread(outputFuture, "proot-version-reader").apply { isDaemon = true }.start()
         val finished = process.waitFor(EXEC_CHECK_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
         val exit = if (finished) process.exitValue() else null
+        runCatching { outputFuture.get(2, TimeUnit.SECONDS) }
         process.destroyForcibly()
         if (exit != 0) {
             val reason = if (exit == null) "proot --version timed out" else "proot ${describeExit(exit)}"
@@ -266,51 +274,20 @@ class ProotManager(private val context: Context) {
 
     /** Скачивает [url] в [target] с повтором при обрыве; 404 и прочие HTTP-ошибки называют адрес. */
     private fun downloadTo(url: String, target: File, stage: ProotStage) {
-        retrying(DOWNLOAD_ATTEMPTS, DOWNLOAD_RETRY_DELAY_MS) { downloadOnce(url, target, stage) }
-    }
-
-    private fun downloadOnce(url: String, target: File, stage: ProotStage) {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = CONNECT_TIMEOUT_MS
-        connection.readTimeout = READ_TIMEOUT_MS
-        connection.instanceFollowRedirects = true
         try {
-            connection.connect()
-            checkHttpStatus(connection.responseCode, url, stage)
-            val total = connection.contentLengthLong.coerceAtLeast(0L)
-            connection.inputStream.use { input ->
-                target.outputStream().use { output -> copyWithProgress(input, output, stage, total) }
+            downloads.download(
+                url,
+                target,
+                attempts = DOWNLOAD_ATTEMPTS,
+                retryDelayMs = DOWNLOAD_RETRY_DELAY_MS,
+            ) { copied, total ->
+                _progress.value = ProotProgress(stage, copied, total)
             }
         } catch (error: ProotException) {
             throw error
         } catch (error: IOException) {
             throw ProotException(stage, "${error.message ?: error::class.java.simpleName} ($url)", error)
-        } finally {
-            connection.disconnect()
         }
-    }
-
-    private fun checkHttpStatus(code: Int, url: String, stage: ProotStage) {
-        if (code in 200..299) return
-        val note = if (code == HTTP_NOT_FOUND) " (file not found, check the Alpine version)" else ""
-        throw ProotException(stage, "HTTP $code for $url$note")
-    }
-
-    private fun copyWithProgress(input: InputStream, output: OutputStream, stage: ProotStage, total: Long) {
-        val buffer = ByteArray(BUFFER_SIZE)
-        var downloaded = 0L
-        var reported = 0L
-        while (true) {
-            val read = input.read(buffer)
-            if (read < 0) break
-            output.write(buffer, 0, read)
-            downloaded += read
-            if (downloaded - reported >= PROGRESS_STEP_BYTES) {
-                reported = downloaded
-                _progress.value = ProotProgress(stage, downloaded, total)
-            }
-        }
-        _progress.value = ProotProgress(stage, downloaded, total)
     }
 
     companion object {
@@ -326,13 +303,8 @@ class ProotManager(private val context: Context) {
         private const val BYTES_IN_MB = 1024L * 1024
         private const val DOWNLOAD_ATTEMPTS = 3
         private const val DOWNLOAD_RETRY_DELAY_MS = 2_000L
-        private const val PROGRESS_STEP_BYTES = 256L * 1024
-        private const val HTTP_NOT_FOUND = 404
         const val GUEST_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-        private const val CONNECT_TIMEOUT_MS = 15_000
-        private const val READ_TIMEOUT_MS = 120_000
         private const val EXEC_CHECK_TIMEOUT_MS = 10_000
-        private const val BUFFER_SIZE = 64 * 1024
     }
 }
 
@@ -462,31 +434,51 @@ private class TarReader(private val input: InputStream) {
 }
 
 private fun extractTarGz(stream: InputStream, destination: File, include: (String) -> Boolean) {
+    val destinationPath = destination.toPath()
     GZIPInputStream(stream, COPY_BUFFER_SIZE).use { gz ->
         val reader = TarReader(gz)
         while (true) {
             val entry = reader.nextEntry() ?: break
             val safePath = Paths.get(destination.absolutePath, *entry.name.split('/').toTypedArray())
                 .normalize()
-            if (!safePath.startsWith(destination.absolutePath)) {
+            // Посегментная проверка: строковый префикс пропускал «rootfs2» рядом с «rootfs».
+            if (!safePath.startsWith(destinationPath) || !include(entry.name)) {
                 reader.skipCurrent()
                 continue
             }
-            if (!include(entry.name)) {
-                reader.skipCurrent()
-                continue
-            }
-            if (entry.isDirectory) {
-                Files.createDirectories(safePath)
-            } else if (entry.isSymlink) {
-                safePath.parent?.let { Files.createDirectories(it) }
-                runCatching { Files.deleteIfExists(safePath) }
-                runCatching { Files.createSymbolicLink(safePath, Paths.get(entry.linkTarget)) }
-                    .onFailure { reader.readCurrentTo(OutputStream.nullOutputStream()) }
-            } else {
-                safePath.parent?.let { Files.createDirectories(it) }
-                Files.newOutputStream(safePath).use { reader.readCurrentTo(it) }
+            when {
+                entry.isDirectory -> Files.createDirectories(safePath)
+                entry.isSymlink -> extractSymlink(reader, entry, safePath)
+                else -> extractRegularFile(reader, safePath)
             }
         }
     }
 }
+
+private fun extractSymlink(reader: TarReader, entry: TarEntry, safePath: java.nio.file.Path) {
+    // Цель симлинка не проверялась: «../x» или абсолютный путь выводили бы последующие
+    // обычные записи за пределы rootfs (tar-slip). Alpine такие цели не использует —
+    // небезопасные просто пропускаем.
+    if (!isSafeSymlinkTarget(entry.linkTarget)) {
+        reader.readCurrentTo(OutputStream.nullOutputStream())
+        return
+    }
+    safePath.parent?.let { Files.createDirectories(it) }
+    runCatching { Files.deleteIfExists(safePath) }
+    runCatching { Files.createSymbolicLink(safePath, Paths.get(entry.linkTarget)) }
+        .onFailure { reader.readCurrentTo(OutputStream.nullOutputStream()) }
+}
+
+private fun extractRegularFile(reader: TarReader, safePath: java.nio.file.Path) {
+    // NOFOLLOW: запись не пойдёт по ранее созданному симлинку наружу.
+    safePath.parent?.let { Files.createDirectories(it) }
+    runCatching { Files.deleteIfExists(safePath) }
+    Files.newOutputStream(safePath).use { reader.readCurrentTo(it) }
+}
+
+/**
+ * Цель симлинка внутри rootfs: относительный путь без `..`-сегментов. Абсолютные цели
+ * (например, `/data/...`) и выходы за корень отклоняются — это tar-slip.
+ */
+internal fun isSafeSymlinkTarget(target: String): Boolean =
+    target.isNotBlank() && !target.startsWith("/") && target.split('/').none { it == ".." }

@@ -43,7 +43,13 @@ class JsonFileStore<T>(
     /** Переносит повреждённый файл в сторону и возвращает путь копии; null, если перенести не удалось. */
     private fun quarantine(): File? {
         val target = File(file.parentFile, "${file.name}$CORRUPT_MARK${System.currentTimeMillis()}")
-        val moved = file.renameTo(target) || runCatching { file.copyTo(target, overwrite = true) }.isSuccess
+        val moved = if (file.renameTo(target)) {
+            true
+        } else {
+            // copyTo оставляет оригинал: следующий read снова его карантинил бы.
+            runCatching { file.copyTo(target, overwrite = true) }.isSuccess &&
+                runCatching { file.delete() }.isSuccess
+        }
         if (!moved) return null
         pruneQuarantine()
         return target
@@ -69,9 +75,8 @@ class JsonFileStore<T>(
             }
             if (!pending.renameTo(file)) {
                 pending.copyTo(file, overwrite = true)
-                check(pending.delete()) {
-                    "Не удалось завершить сохранение ${file.name}"
-                }
+                // Остаток .tmp — мусор, но не повод ронять сохранение целиком.
+                runCatching { pending.delete() }
             }
         }
     }

@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.terminal.TerminalLine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class TerminalViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container
@@ -14,17 +16,19 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     fun runTerminal(command: String) {
         val projectId = settings.value.selectedProjectId ?: return
-        container.shell.start(projectId)
-        container.shell.send(command)
+        // fork/exec и блокирующая запись — не для главного потока (ANR при старте proot).
+        container.appScope.launch(Dispatchers.IO) {
+            container.shell.start(projectId)
+            container.shell.send(command)
+        }
     }
 
     fun startTerminal() {
-        settings.value.selectedProjectId?.let(container.shell::start)
+        val projectId = settings.value.selectedProjectId ?: return
+        container.appScope.launch(Dispatchers.IO) { container.shell.start(projectId) }
     }
 
     fun clearTerminal() = container.shell.clear()
 
     fun interruptTerminal() = container.shell.interrupt()
-
-    fun shutdown() = container.close()
 }

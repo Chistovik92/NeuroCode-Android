@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedWriter
 import java.io.File
 import java.io.OutputStreamWriter
@@ -118,7 +119,8 @@ class ShellSession(
 
     @Synchronized
     fun stop() {
-        writer?.close()
+        // close() писателя умершего процесса кидает IOException — не роняем из-за него запуск.
+        runCatching { writer?.close() }
         writer = null
         process?.destroy()
         process = null
@@ -148,14 +150,20 @@ class ShellSession(
         coroutineScope {
             val child = createProcess(root, commandList)
             val reader = async(Dispatchers.IO) {
-                child.inputStream.bufferedReader().readText()
+                runCatching { child.inputStream.bufferedReader().readText() }.getOrDefault("")
             }
             try {
                 val completed = child.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
                 if (!completed) {
                     child.destroyForcibly()
                 }
-                val output = reader.await()
+                // Процесс-«внук», унаследовавший stdout, держит пайп: reader.await() без
+                // тайм-аута висел бы вечно и блокировал ход агента. Закрытие потока будит читателя.
+                val output = withTimeoutOrNull(timeoutMs) { reader.await() }
+                    ?: run {
+                        runCatching { child.inputStream.close() }
+                        withTimeoutOrNull(2_000) { reader.await() } ?: ""
+                    }
                 if (completed) {
                     "$output\n[код: ${child.exitValue()}]".trim()
                 } else {
@@ -163,6 +171,7 @@ class ShellSession(
                 }
             } finally {
                 if (child.isAlive) child.destroyForcibly()
+                runCatching { child.inputStream.close() }
                 reader.cancel()
             }
         }

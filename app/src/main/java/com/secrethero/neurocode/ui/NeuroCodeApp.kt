@@ -559,6 +559,7 @@ fun NeuroCodeApp(
                 localModels = localModels,
                 retry = retryId != null,
                 connectedProviderIds = connectedProviderIds,
+                contextWindows = viewModel.chat::contextWindowOf,
             ),
             actions = ModelPickerActions(
                 onBrowseProvider = viewModel.chat::loadSwitcherModels,

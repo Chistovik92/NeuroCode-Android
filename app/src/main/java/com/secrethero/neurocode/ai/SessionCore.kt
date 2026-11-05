@@ -51,6 +51,13 @@ class SpillStore(private val directory: File) {
     fun read(name: String, maxChars: Int = DEFAULT_READ_CHARS): String? =
         File(directory, name).takeIf { it.isFile }?.readText()?.take(maxChars)
 
+    /** Файлы диалога растут без предела, если их не чистить при удалении диалога. */
+    fun removeSession(sessionId: String) {
+        directory.listFiles { file -> file.isFile && file.name.startsWith("$sessionId-") }
+            .orEmpty()
+            .forEach { runCatching { it.delete() } }
+    }
+
     private companion object { const val DEFAULT_THRESHOLD = 8_000; const val DEFAULT_READ_CHARS = 12_000 }
 }
 

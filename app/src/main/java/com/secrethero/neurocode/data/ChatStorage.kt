@@ -215,6 +215,16 @@ class ChatStorage(
 
     override suspend fun apply(all: List<ChatSession>, changed: List<ChatSession>, removed: Set<String>) =
         mutex.withLock {
-            checkNotNull(backend) { "Хранилище диалогов не загружено" }.apply(all, changed, removed)
+            // Гонка запуска (append до initialize) раньше валила ISE; теперь бэкенд выбирается
+            // лениво — тем же правилом, что и в loadAll.
+            val chosen = backend ?: run {
+                val legacy = File(stateDir, "chats.json")
+                val split = SplitChatStore(File(stateDir, "chats"), onCorrupt)
+                when (ChatMigration.run(legacy, split, onCorrupt)) {
+                    MigrationResult.FAILED -> LegacyChatFile(legacy, onCorrupt)
+                    else -> split
+                }.also { backend = it }
+            }
+            chosen.apply(all, changed, removed)
         }
 }

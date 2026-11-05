@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.R
 import com.secrethero.neurocode.ai.ImportedModel
+import com.secrethero.neurocode.ai.LocalDocModelsClient
 import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.device.DeviceSnapshot
 import com.secrethero.neurocode.device.DeviceSpecs
@@ -18,13 +19,16 @@ import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ExternalAgentTool
+import com.secrethero.neurocode.model.ModelKind
 import com.secrethero.neurocode.model.Project
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.text.Charsets
@@ -278,8 +282,33 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }.onFailure(container.bus::showError)
     }
 
-    fun resetLinuxEnvironment() {
-        container.prootManager.reset()
+    fun resetLinuxEnvironment() = viewModelScope.launch {
+        runCatching { container.prootManager.reset() }
+    }
+
+    /** Размер cacheDir (загрузки, временные файлы) — для раздела «Среда выполнения». */
+    private val _cacheSizeBytes = MutableStateFlow(0L)
+    val cacheSizeBytes: StateFlow<Long> = _cacheSizeBytes.asStateFlow()
+
+    fun refreshCacheSize() = viewModelScope.launch {
+        _cacheSizeBytes.value = withContext(Dispatchers.IO) {
+            getApplication<Application>().cacheDir?.walkBottomUp()?.filter { it.isFile }
+                ?.sumOf { it.length() } ?: 0L
+        }
+    }
+
+    /** Очищает cacheDir (установленный rootfs лежит в filesDir и не трогается). */
+    fun clearCache() = viewModelScope.launch {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                getApplication<Application>().cacheDir?.listFiles()?.forEach { it.deleteRecursively() }
+            }
+        }.onSuccess {
+            container.bus.showNotice(
+                getApplication<Application>().getString(R.string.notice_cache_cleared),
+            )
+        }.onFailure(container.bus::showError)
+        refreshCacheSize()
     }
 
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
@@ -333,7 +362,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /** Свободное место в каталоге моделей — для сводки памяти. */
-    fun modelsFreeBytes(): Long = container.localLlama.modelsFreeBytes()
+    fun modelsFreeBytes(): Long = container.localLlama.modelsFreeBytes() ?: -1L
 
     /** Делает модель активной локальной GGUF (переключает глобальную локальную модель). */
     fun selectLocalModel(model: ImportedModel) = updateSettings {
@@ -344,15 +373,36 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun projectsUsing(model: ImportedModel): List<Project> =
         container.projects.projectsUsingLocalModel(model.path, model.name)
 
-    /** Удаляет модель: сбрасывает проекты на глобальную модель, стирает файл и обновляет список. */
+    /**
+     * Удаляет модель: сначала файл (неудачное удаление — ошибка, а не молчаливый сброс),
+     * затем проекты, диалоги и глобальные настройки. Недавние/избранные чистятся от битой ссылки.
+     */
     fun deleteLocalModel(model: ImportedModel) = viewModelScope.launch {
         runCatching {
-            container.projects.resetLocalModel(model.path, model.name)
-            container.localLlama.deleteModel(model.path)
-            val current = container.settings.settings.value
-            if (current.localModelPath == model.path || current.localModelName == model.name) {
-                container.settings.update {
-                    it.copy(localModelPath = null, localModelName = null, useLocalModel = false)
+            val deleted = container.localLlama.deleteModel(model.path)
+            if (deleted) {
+                container.projects.resetLocalModel(model.path, model.name)
+                container.chats.resetLocalModel(model.path, model.name)
+                container.settings.update { current ->
+                    val isGlobal = current.localModelPath == model.path ||
+                        current.localModelName == model.name
+                    val favorites = current.favoriteModels.filterNot {
+                        it.kind == ModelKind.LOCAL && it.localName == model.name
+                    }
+                    val recent = current.recentModels.filterNot {
+                        it.kind == ModelKind.LOCAL && it.localName == model.name
+                    }
+                    if (isGlobal || favorites != current.favoriteModels || recent != current.recentModels) {
+                        current.copy(
+                            localModelPath = if (isGlobal) null else current.localModelPath,
+                            localModelName = if (isGlobal) null else current.localModelName,
+                            useLocalModel = if (isGlobal) false else current.useLocalModel,
+                            favoriteModels = favorites,
+                            recentModels = recent,
+                        )
+                    } else {
+                        current
+                    }
                 }
             }
         }.onFailure(container.bus::showError)
@@ -390,6 +440,47 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         refreshLocalModels()
     }
 
+    // --- LocalDoc AI: модели, уже скачанные его приложением, — импорт без повторной загрузки ---
+
+    private val _localDocState = MutableStateFlow<LocalDocState>(LocalDocState.Loading)
+    val localDocState: StateFlow<LocalDocState> = _localDocState.asStateFlow()
+
+    fun refreshLocalDocModels() = viewModelScope.launch {
+        _localDocState.value = if (!container.localDoc.isInstalled()) {
+            LocalDocState.NotInstalled
+        } else {
+            LocalDocState.Ready(container.localDoc.list())
+        }
+    }
+
+    /** Импорт модели LocalDoc AI копированием в files/models (тот же путь, что и SAF-импорт). */
+    fun importLocalDocModel(model: LocalDocModelsClient.LocalDocModel) = viewModelScope.launch {
+        runCatching {
+            val input = container.localDoc.open(model.id)
+                ?: error(getApplication<Application>().getString(R.string.error_localdoc_gone))
+            input.use { stream ->
+                _modelImportProgress.value = 0L to model.sizeBytes
+                val imported = container.localLlama.importStream(
+                    stream,
+                    model.name,
+                    model.sizeBytes,
+                ) { copied, total ->
+                    _modelImportProgress.value = copied to total
+                }
+                container.settings.update {
+                    it.copy(
+                        localModelPath = imported.path,
+                        localModelName = imported.name,
+                        useLocalModel = true,
+                    )
+                }
+            }
+        }.onFailure(container.bus::showError)
+        _modelImportProgress.value = null
+        refreshLocalModels()
+        refreshLocalDocModels()
+    }
+
     private fun updateSettings(transform: (AppSettings) -> AppSettings) =
         viewModelScope.launch {
             runCatching { container.settings.update(transform) }
@@ -402,5 +493,12 @@ data class ProviderModelsState(
     val error: String?,
     val loading: Boolean,
 )
+
+/** Состояние группы «LocalDoc AI» в «Моделях на устройстве». */
+sealed interface LocalDocState {
+    data object Loading : LocalDocState
+    data object NotInstalled : LocalDocState
+    data class Ready(val models: List<LocalDocModelsClient.LocalDocModel>) : LocalDocState
+}
 
 private const val FS_ROOTS_LIMIT = 10

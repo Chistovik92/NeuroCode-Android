@@ -8,6 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.serializer
 import java.io.File
@@ -54,20 +57,23 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
         refreshConnectedProviders()
     }
 
-    suspend fun update(transform: (AppSettings) -> AppSettings) {
+    /**
+     * Все обновления — под мьютексом и через атомарный CAS: параллельные `update`
+     * из нескольких ViewModel раньше теряли изменения между чтением и записью.
+     */
+    suspend fun update(transform: suspend (AppSettings) -> AppSettings) = mutex.withLock {
         val updated = transform(_settings.value)
         store.write(updated)
         _settings.value = updated
-        refreshConnectedProviders()
+        refreshConnectedProvidersLocked()
     }
 
     suspend fun upsertProvider(provider: ProviderConfig, apiKey: String?) {
-        val providers = _settings.value.providers
-            .filterNot { it.id == provider.id } + provider
         if (apiKey != null) {
             withContext(Dispatchers.IO) { secrets.put(provider.apiKeyName, apiKey.trim()) }
         }
         update {
+            val providers = it.providers.filterNot { p -> p.id == provider.id } + provider
             it.copy(
                 providers = providers,
                 selectedProviderId = it.selectedProviderId ?: provider.id,
@@ -109,10 +115,16 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
             _settings.value.providers.firstOrNull { it.id == providerId }
                 ?.let { secrets.delete(it.apiKeyName) }
         }
-        refreshConnectedProviders()
+        mutex.withLock { refreshConnectedProvidersLocked() }
     }
 
+    private val mutex = Mutex()
+
     private suspend fun refreshConnectedProviders() {
+        mutex.withLock { refreshConnectedProvidersLocked() }
+    }
+
+    private suspend fun refreshConnectedProvidersLocked() {
         _connectedProviderIds.value = withContext(Dispatchers.IO) {
             _settings.value.providers.mapNotNull { provider ->
                 runCatching { secrets.get(provider.apiKeyName) }.getOrNull()

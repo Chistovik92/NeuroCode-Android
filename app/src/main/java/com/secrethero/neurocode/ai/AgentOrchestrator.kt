@@ -88,9 +88,11 @@ class AgentOrchestrator(
                 onEvent(AgentEvent.ToolStarted(call.name, call.arguments, fsRootName))
                 val result = tools.execute(projectId, call, allowAgentShell, externalTools)
                 onEvent(AgentEvent.ToolFinished(call.name, result, fsRootName))
+                // Огромный вывод (например, find по всему проекту) не должен съедать окно
+                // контекста и бюджет токенов следующих шагов.
                 messages += ApiMessage(
                     role = "tool",
-                    content = result,
+                    content = result.take(MAX_TOOL_RESULT_CHARS),
                     toolCallId = call.id,
                 )
             }
@@ -215,6 +217,7 @@ class AgentOrchestrator(
 
     companion object {
         private const val TOOL_SUMMARY_CHARS = 1_200
+        private const val MAX_TOOL_RESULT_CHARS = 24_000
         private const val PROJECT_SUMMARY_CHARS = 8_000
         private const val ATTACHMENT_TEXT_CHARS = 24_000
     }

@@ -33,7 +33,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
-        container.close()
+        // Контейнер общий на процесс: его закрытие здесь (ViewModel активити может быть
+        // пересоздана, а процесс — нет) оставляло приложение с мёртвым контейнером —
+        // без proot, шелла и LSP. Жизненный цикл контейнера = жизненный цикл процесса.
         super.onCleared()
     }
 }

@@ -87,7 +87,7 @@ class FsAgentTools(
             else -> error("Неизвестный инструмент $name")
         }
 
-    fun rootLabel(name: String, arguments: JsonObject): String? {
+    suspend fun rootLabel(name: String, arguments: JsonObject): String? {
         if (!name.startsWith("fs_")) return null
         val roots = rootsProvider.invoke()
         val requested = arguments.optional("root").trim()
@@ -150,7 +150,7 @@ class FsAgentTools(
     }
 
     /** Разрешённый корень по имени из списка корней доступа; имя регистронезависимо. */
-    private fun resolveRoot(arguments: JsonObject, granted: List<String>): String {
+    private suspend fun resolveRoot(arguments: JsonObject, granted: List<String>): String {
         require(granted.isNotEmpty()) { str(R.string.fs_no_roots) }
         val requested = arguments.optional("root").trim()
         val available = fs.roots(granted)

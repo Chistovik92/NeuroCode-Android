@@ -30,6 +30,7 @@ import com.secrethero.neurocode.model.MessageRole
 import com.secrethero.neurocode.model.ProviderConfig
 import java.io.File
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as NeuroCodeApplication).container
@@ -114,9 +116,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            runCatching { container.chats.initialize() }.onFailure(container.bus::showError)
-        }
-        viewModelScope.launch {
             // Вложения лежат в папке проекта, где их выбрали, — в другом проекте файла не будет.
             container.settings.settings.map { it.selectedProjectId }.distinctUntilChanged()
                 .collect { _pendingAttachments.value = emptyList() }
@@ -186,6 +185,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteChat(sessionId: String) = viewModelScope.launch {
+        // Если в этом диалоге идёт генерация — сначала отменяем её: иначе агент продолжал
+        // писать в удалённый диалог, а стрим-события обновляли уже невидимые состояния.
+        if (_activeSessionId.value == sessionId) cancelChat()
         val session = container.chats.get(sessionId)
         // Следующий активный диалог выберет коллектор sessions в init.
         runCatching {
@@ -411,12 +413,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Предупреждает, если выбранная GGUF тяжелее рекомендованного для этого телефона размера. */
-    private fun warnIfHeavy(ref: ModelRef) {
-        val file = ref.localPath?.takeIf { ref.kind == ModelKind.LOCAL }?.let(::File)?.takeIf { it.isFile }
-        val recommendation = file?.let {
-            runCatching { DeviceSpecs(getApplication()).snapshot().recommendation() }.getOrNull()
+    private suspend fun warnIfHeavy(ref: ModelRef) {
+        // File-статистика и чтение полей файлов — диск, не главный поток.
+        val (file, recommendation, sizeMb) = withContext(Dispatchers.IO) {
+            val file = ref.localPath?.takeIf { ref.kind == ModelKind.LOCAL }?.let(::File)?.takeIf { it.isFile }
+            val recommendation = file?.let {
+                runCatching { DeviceSpecs(getApplication()).snapshot().recommendation() }.getOrNull()
+            }
+            Triple(file, recommendation, (file?.length() ?: 0L) / DeviceProfile.MB)
         }
-        val sizeMb = (file?.length() ?: 0L) / DeviceProfile.MB
         if (recommendation != null && sizeMb > recommendation.maxModelSizeMb) {
             container.bus.showNotice(
                 str(R.string.notice_model_oversize_format, sizeMb, recommendation.maxModelSizeMb),
@@ -585,40 +590,43 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     ): Map<String, PreparedAttachment> {
         val attachments = if (projectId == null) emptyList() else history.flatMap { it.attachments }
         if (projectId == null || attachments.isEmpty()) return emptyMap()
-        return attachments.associate { attachment ->
-            val prepared = when (attachment.kind) {
-                AttachmentKind.IMAGE -> {
-                    val bytes = runCatching {
-                        container.projects.readAttachmentBytes(projectId, attachment)
-                    }.getOrNull()
-                    val dataUrl = bytes
-                        ?.takeIf { it.size <= MAX_INLINE_IMAGE_BYTES }
-                        ?.let { "data:${attachment.mimeType};base64," + encodeBase64(it) }
-                    PreparedAttachment(
+        // Base64 картинок (до 8 МБ) — чистый CPU: на главном потоке это фриз на сотни мс.
+        return withContext(Dispatchers.Default) {
+            attachments.associate { attachment ->
+                val prepared = when (attachment.kind) {
+                    AttachmentKind.IMAGE -> {
+                        val bytes = runCatching {
+                            container.projects.readAttachmentBytes(projectId, attachment)
+                        }.getOrNull()
+                        val dataUrl = bytes
+                            ?.takeIf { it.size <= MAX_INLINE_IMAGE_BYTES }
+                            ?.let { "data:${attachment.mimeType};base64," + encodeBase64(it) }
+                        PreparedAttachment(
+                            name = attachment.name,
+                            mimeType = attachment.mimeType,
+                            sizeBytes = attachment.sizeBytes,
+                            dataUrl = dataUrl,
+                            path = attachment.relativePath.takeIf { dataUrl == null },
+                        )
+                    }
+                    AttachmentKind.TEXT -> PreparedAttachment(
                         name = attachment.name,
                         mimeType = attachment.mimeType,
                         sizeBytes = attachment.sizeBytes,
-                        dataUrl = dataUrl,
-                        path = attachment.relativePath.takeIf { dataUrl == null },
+                        text = runCatching {
+                            container.projects.readAttachmentText(projectId, attachment)
+                        }.getOrNull(),
+                        path = attachment.relativePath,
+                    )
+                    AttachmentKind.BINARY -> PreparedAttachment(
+                        name = attachment.name,
+                        mimeType = attachment.mimeType,
+                        sizeBytes = attachment.sizeBytes,
+                        path = attachment.relativePath,
                     )
                 }
-                AttachmentKind.TEXT -> PreparedAttachment(
-                    name = attachment.name,
-                    mimeType = attachment.mimeType,
-                    sizeBytes = attachment.sizeBytes,
-                    text = runCatching {
-                        container.projects.readAttachmentText(projectId, attachment)
-                    }.getOrNull(),
-                    path = attachment.relativePath,
-                )
-                AttachmentKind.BINARY -> PreparedAttachment(
-                    name = attachment.name,
-                    mimeType = attachment.mimeType,
-                    sizeBytes = attachment.sizeBytes,
-                    path = attachment.relativePath,
-                )
+                attachment.id to prepared
             }
-            attachment.id to prepared
         }
     }
 
@@ -668,6 +676,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 ProviderModelsState(emptyList(), error.message ?: "ошибка", false)
         }
     }
+
+    /** Окно контекста модели из каталога провайдера (для subtitle в окне выбора). */
+    fun contextWindowOf(model: String): Int? = container.apiClient.contextWindow(model)
 
     /**
      * Первичная загрузка списка моделей для окна выбора: берётся активный провайдер, если у него
@@ -759,8 +770,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun onAgentEvent(sessionId: String, event: AgentEvent) {
         when (event) {
             is AgentEvent.Status -> _chatRunState.value = ChatRunState.Working(event.text)
-            is AgentEvent.Delta -> _streamingResponse.value += event.text
-            is AgentEvent.Reasoning -> _streamingReasoning.value += event.text
+            is AgentEvent.Delta -> _streamingResponse.value = _streamingResponse.value + event.text
+            is AgentEvent.Reasoning -> _streamingReasoning.value = _streamingReasoning.value + event.text
             is AgentEvent.ToolStarted -> {
                 appendAgentLog("→ ${event.name}: ${event.arguments.take(500)}")
             }
