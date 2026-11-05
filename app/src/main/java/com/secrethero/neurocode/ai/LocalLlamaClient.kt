@@ -20,6 +20,7 @@ data class ImportedModel(
     val name: String,
     val path: String,
     val size: Long,
+    val lastModified: Long = 0L,
 )
 
 class LocalLlamaClient(
@@ -72,16 +73,32 @@ class LocalLlamaClient(
             pending.copyTo(target, overwrite = true)
             pending.delete()
         }
-        ImportedModel(target.name, target.absolutePath, target.length())
+        ImportedModel(target.name, target.absolutePath, target.length(), target.lastModified())
     }
 
-    /** GGUF-модели, импортированные в `files/models`, — для окна выбора модели. */
+    /** GGUF-модели, импортированные в `files/models`, — для окна выбора модели и «Моделей на устройстве». */
     suspend fun listModels(): List<ImportedModel> = withContext(Dispatchers.IO) {
         modelsDirectory.listFiles { file -> file.isFile && file.extension.equals("gguf", ignoreCase = true) }
             .orEmpty()
             .sortedBy { it.name.lowercase() }
-            .map { ImportedModel(it.name, it.absolutePath, it.length()) }
+            .map { ImportedModel(it.name, it.absolutePath, it.length(), it.lastModified()) }
     }
+
+    /** Удаляет файл модели с диска. Возвращает true, если файл существовал и был удалён. */
+    suspend fun deleteModel(path: String): Boolean = withContext(Dispatchers.IO) {
+        val file = File(path)
+        if (!file.isFile) return@withContext false
+        if (file.canonicalPath == loadedPath) {
+            loadedPath = null
+            loadedConversationKey = null
+        }
+        file.delete()
+    }
+
+    /** Свободное место в каталоге моделей (байт) — для сводки памяти на экране моделей. */
+    fun modelsFreeBytes(): Long = runCatching {
+        StatFs(modelsDirectory.absolutePath).availableBytes
+    }.getOrDefault(0L)
 
     /** true, если модель уже загружена именно для этого диалога и контекст в памяти движка актуален. */
     fun isLoadedFor(path: String, conversationKey: String): Boolean =

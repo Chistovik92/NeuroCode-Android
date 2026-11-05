@@ -116,6 +116,23 @@ class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit 
         persist(_projects.value.map { if (it.id == projectId) it.copy(model = model) else it })
     }
 
+    /** Проекты, у которых переопределение модели — локальная GGUF с указанным путём или именем. */
+    fun projectsUsingLocalModel(localPath: String, localName: String?): List<Project> =
+        _projects.value.filter { it.usesLocalModel(localPath, localName) }
+
+    /**
+     * Сбрасывает проекты, использующие удаляемую локальную GGUF, на глобальную модель
+     * (`model = null`). Нужно перед удалением файла, чтобы не оставить «битую» ссылку.
+     */
+    suspend fun resetLocalModel(localPath: String, localName: String?) {
+        if (_projects.value.none { it.usesLocalModel(localPath, localName) }) return
+        persist(
+            _projects.value.map {
+                if (it.usesLocalModel(localPath, localName)) it.copy(model = null) else it
+            },
+        )
+    }
+
     suspend fun exportTree(
         projectId: String,
         target: Uri,
@@ -627,4 +644,11 @@ class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit 
         private val ignoredDirectories = setOf(".git", "build", ".gradle", ".idea", "node_modules")
         private val exportIgnoredDirectories = setOf(".neurocode")
     }
+}
+
+/** true, если переопределение модели проекта — локальная GGUF с указанным путём или именем. */
+private fun Project.usesLocalModel(localPath: String, localName: String?): Boolean {
+    val ref = model ?: return false
+    return ref.kind == ModelKind.LOCAL &&
+        (ref.localPath == localPath || (localName != null && ref.localName == localName))
 }

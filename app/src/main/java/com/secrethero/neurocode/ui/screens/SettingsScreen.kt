@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.BuildConfig
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.ai.ImportedModel
+import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.device.DeviceSnapshot
 import com.secrethero.neurocode.device.ModelTier
 import com.secrethero.neurocode.model.AgentSkill
@@ -77,9 +79,12 @@ fun SettingsScreen(vm: SettingsViewModel) {
     val prootProgress by vm.prootProgress.collectAsStateWithLifecycle()
     val deviceSnapshot by vm.deviceSnapshot.collectAsStateWithLifecycle()
     val modelLimits by vm.modelLimits.collectAsStateWithLifecycle()
+    val localModels by vm.localModels.collectAsStateWithLifecycle()
+    val projects by vm.projects.collectAsStateWithLifecycle()
     var editingProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var providerDialog by remember { mutableStateOf(false) }
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
+    var deleteModelTarget by remember { mutableStateOf<ImportedModel?>(null) }
     var editingSkill by remember { mutableStateOf<AgentSkill?>(null) }
     var skillDialog by remember { mutableStateOf(false) }
     var fallbackMenu by remember { mutableStateOf(false) }
@@ -223,6 +228,16 @@ fun SettingsScreen(vm: SettingsViewModel) {
         }
 
         ModelLimitsCard(modelLimits)
+
+        LocalModelsSection(
+            models = localModels,
+            projects = projects,
+            activePath = settings.localModelPath,
+            recommendedMb = deviceSnapshot?.recommendation()?.maxModelSizeMb ?: 0L,
+            freeBytes = vm.modelsFreeBytes(),
+            onSelect = vm::selectLocalModel,
+            onDelete = { deleteModelTarget = it },
+        )
 
         SettingSwitch(
             title = stringResource(R.string.agent_mode),
@@ -508,6 +523,47 @@ fun SettingsScreen(vm: SettingsViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { deleteProvider = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
+    deleteModelTarget?.let { model ->
+        val usedBy = vm.projectsUsing(model)
+        AlertDialog(
+            onDismissRequest = { deleteModelTarget = null },
+            title = { Text(stringResource(R.string.models_delete_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(
+                            R.string.models_delete_text,
+                            model.name,
+                            model.size / DeviceProfile.MB,
+                        ),
+                    )
+                    if (usedBy.isNotEmpty()) {
+                        Text(
+                            stringResource(
+                                R.string.models_delete_used_text,
+                                usedBy.joinToString { it.name },
+                            ),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        vm.deleteLocalModel(model)
+                        deleteModelTarget = null
+                    },
+                ) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteModelTarget = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }

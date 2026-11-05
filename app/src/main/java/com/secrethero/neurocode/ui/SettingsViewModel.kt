@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.ai.ImportedModel
 import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.device.DeviceSnapshot
 import com.secrethero.neurocode.device.DeviceSpecs
@@ -17,6 +18,7 @@ import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ExternalAgentTool
+import com.secrethero.neurocode.model.Project
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,10 +66,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 }
             }
         }
+        refreshLocalModels()
     }
 
     private val _modelImportProgress = MutableStateFlow<Pair<Long, Long>?>(null)
     val modelImportProgress: StateFlow<Pair<Long, Long>?> = _modelImportProgress.asStateFlow()
+
+    /** Импортированные GGUF на устройстве — для экрана «Модели на устройстве». */
+    private val _localModels = MutableStateFlow<List<ImportedModel>>(emptyList())
+    val localModels: StateFlow<List<ImportedModel>> = _localModels.asStateFlow()
+
+    /** Видимые проекты — для показа, какие проекты используют ту или иную модель. */
+    val projects = container.projects.projects
 
     private val _providerModels =
         MutableStateFlow<ProviderModelsState>(ProviderModelsState(emptyList(), null, false))
@@ -318,6 +328,37 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             .onFailure(container.bus::showError)
     }
 
+    fun refreshLocalModels() = viewModelScope.launch {
+        _localModels.value = runCatching { container.localLlama.listModels() }.getOrDefault(emptyList())
+    }
+
+    /** Свободное место в каталоге моделей — для сводки памяти. */
+    fun modelsFreeBytes(): Long = container.localLlama.modelsFreeBytes()
+
+    /** Делает модель активной локальной GGUF (переключает глобальную локальную модель). */
+    fun selectLocalModel(model: ImportedModel) = updateSettings {
+        it.copy(localModelPath = model.path, localModelName = model.name, useLocalModel = true)
+    }
+
+    /** Проекты, которые используют эту модель как переопределение модели проекта. */
+    fun projectsUsing(model: ImportedModel): List<Project> =
+        container.projects.projectsUsingLocalModel(model.path, model.name)
+
+    /** Удаляет модель: сбрасывает проекты на глобальную модель, стирает файл и обновляет список. */
+    fun deleteLocalModel(model: ImportedModel) = viewModelScope.launch {
+        runCatching {
+            container.projects.resetLocalModel(model.path, model.name)
+            container.localLlama.deleteModel(model.path)
+            val current = container.settings.settings.value
+            if (current.localModelPath == model.path || current.localModelName == model.name) {
+                container.settings.update {
+                    it.copy(localModelPath = null, localModelName = null, useLocalModel = false)
+                }
+            }
+        }.onFailure(container.bus::showError)
+        refreshLocalModels()
+    }
+
     fun importLocalModel(uri: Uri) = viewModelScope.launch {
         runCatching {
             _modelImportProgress.value = 0L to -1L
@@ -346,6 +387,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
         }.onFailure(container.bus::showError)
         _modelImportProgress.value = null
+        refreshLocalModels()
     }
 
     private fun updateSettings(transform: (AppSettings) -> AppSettings) =
