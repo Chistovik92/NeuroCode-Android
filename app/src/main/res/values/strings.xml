@@ -274,6 +274,7 @@
     <string name="models_error_format">Failed to fetch model list: %1$s</string>
     <string name="api_key_label">API key</string>
     <string name="api_key_new_label">New API key (optional)</string>
+    <string name="provider_remove_key">Remove key</string>
 
     <!-- Filesystem access (0.8.2) -->
     <string name="fs_access_title">File access</string>

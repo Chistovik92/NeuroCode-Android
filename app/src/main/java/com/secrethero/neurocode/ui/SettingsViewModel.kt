@@ -75,8 +75,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun loadProviderModels(provider: ProviderConfig) = viewModelScope.launch {
         _providerModels.value = _providerModels.value.copy(loading = true)
+        val key = container.settings.apiKey(provider).orEmpty()
         runCatching {
-            val key = container.settings.apiKey(provider).orEmpty()
             container.apiClient.models(provider, key)
         }.onSuccess { models ->
             _providerModels.value = ProviderModelsState(models, null, false)
@@ -310,6 +310,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun removeProvider(providerId: String) = viewModelScope.launch {
         runCatching { container.settings.removeProvider(providerId) }
+            .onFailure(container.bus::showError)
+    }
+
+    fun removeApiKey(providerId: String) = viewModelScope.launch {
+        runCatching { container.settings.removeApiKey(providerId) }
             .onFailure(container.bus::showError)
     }
 

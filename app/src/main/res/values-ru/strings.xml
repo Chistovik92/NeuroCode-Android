@@ -274,6 +274,7 @@
     <string name="models_error_format">Не удалось получить список моделей: %1$s</string>
     <string name="api_key_label">API-ключ</string>
     <string name="api_key_new_label">Новый API-ключ (необязательно)</string>
+    <string name="provider_remove_key">Удалить ключ</string>
 
     <!-- Доступ к файловой системе (0.8.2) -->
     <string name="fs_access_title">Доступ к файлам</string>

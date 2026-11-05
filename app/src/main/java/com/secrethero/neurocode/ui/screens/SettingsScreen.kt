@@ -475,6 +475,10 @@ fun SettingsScreen(vm: SettingsViewModel) {
                 vm.saveProvider(provider, key.ifBlank { null })
                 providerDialog = false
             },
+            onRemoveKey = {
+                editingProvider?.let { vm.removeApiKey(it.id) }
+                providerDialog = false
+            },
         )
     }
 
@@ -851,6 +855,7 @@ private fun ModelSelectorField(
     }
 }
 
+@Suppress("LongParameterList", "LongMethod")
 @Composable
 private fun ProviderDialog(
     current: ProviderConfig?,
@@ -858,6 +863,7 @@ private fun ProviderDialog(
     onLoadModels: (ProviderConfig) -> Unit,
     onDismiss: () -> Unit,
     onSave: (ProviderConfig, String) -> Unit,
+    onRemoveKey: () -> Unit,
 ) {
     var name by remember { mutableStateOf(current?.name.orEmpty()) }
     var baseUrl by remember { mutableStateOf(current?.baseUrl.orEmpty()) }
@@ -944,6 +950,11 @@ private fun ProviderDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                 )
+                if (current != null) {
+                    TextButton(onClick = onRemoveKey) {
+                        Text(stringResource(R.string.provider_remove_key))
+                    }
+                }
             }
         },
         confirmButton = {

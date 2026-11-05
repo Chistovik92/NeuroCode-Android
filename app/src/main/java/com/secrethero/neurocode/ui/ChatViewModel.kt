@@ -85,13 +85,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         container.projects.projects,
         container.chats.sessions,
         _activeSessionId,
-    ) { current, projects, all, activeId ->
+        container.settings.connectedProviderIds,
+    ) { current, projects, all, activeId, connectedIds ->
         ModelResolver.resolve(
             session = all.firstOrNull { it.id == activeId },
             project = projects.firstOrNull { it.id == current.selectedProjectId },
             settings = current,
-            // Поток не должен падать, если хранилище ключей не читается: модель просто считается без ключа.
-            hasKey = { runCatching { container.settings.apiKey(it) }.getOrNull() != null },
+            hasKey = { it.id in connectedIds },
         )
     }.stateIn(
         viewModelScope,
@@ -100,18 +100,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     /**
-     * Облачные провайдеры с подключённым (непустым) API-ключом. В окне выбора модели показываются
-     * только они, чтобы не предлагать роутер, которым нельзя воспользоваться без ключа.
+     * Облачные провайдеры с подключённым (непустым) API-ключом. Вычисляется в [SettingsRepository]
+     * вне главного потока; в окне выбора модели показываются только эти провайдеры.
      */
-    val connectedProviderIds: StateFlow<Set<String>> = container.settings.settings
-        .map { current ->
-            current.providers.mapNotNull { provider ->
-                runCatching { container.settings.apiKey(provider) }.getOrNull()
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { provider.id }
-            }.toSet()
-        }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    val connectedProviderIds: StateFlow<Set<String>> = container.settings.connectedProviderIds
 
     private val _localModels = MutableStateFlow<List<ImportedModel>>(emptyList())
 
@@ -350,7 +342,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             session = session,
             project = container.projects.get(projectId ?: current.selectedProjectId),
             settings = current,
-            hasKey = { container.settings.apiKey(it) != null },
+            hasKey = { it.id in container.settings.connectedProviderIds.value },
         )
     }
 
@@ -666,8 +658,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadSwitcherModels(provider: ProviderConfig) = viewModelScope.launch {
         _switcherModels.value = ProviderModelsState(emptyList(), null, true)
+        val key = container.settings.apiKey(provider).orEmpty()
         runCatching {
-            container.apiClient.models(provider, container.settings.apiKey(provider).orEmpty())
+            container.apiClient.models(provider, key)
         }.onSuccess { models ->
             _switcherModels.value = ProviderModelsState(models, null, false)
         }.onFailure { error ->
@@ -683,8 +676,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun loadInitialSwitcherModels() = viewModelScope.launch {
         val current = settings.value
-        val hasKey: (ProviderConfig) -> Boolean =
-            { runCatching { container.settings.apiKey(it) }.getOrNull()?.isNotBlank() == true }
+        val connected = container.settings.connectedProviderIds.value
+        val hasKey: (ProviderConfig) -> Boolean = { it.id in connected }
         val target = activeModel.value.provider?.takeIf(hasKey)
             ?: current.providers.firstOrNull { it.id == current.selectedProviderId }?.takeIf(hasKey)
             ?: current.providers.firstOrNull(hasKey)

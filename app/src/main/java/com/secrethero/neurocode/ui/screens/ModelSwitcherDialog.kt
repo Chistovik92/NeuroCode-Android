@@ -105,7 +105,7 @@ fun ModelSwitcherDialog(picker: ModelPickerModel, actions: ModelPickerActions) {
     val settings = picker.settings
     val modern = settings.appDesign == AppDesign.MODERN
     val connectedIds = picker.connectedProviderIds
-    val visibleProviders = settings.providers.filter { it.id in connectedIds }
+    val visibleProviders = settings.providers.filter { it.id in connectedIds && it.enabled }
     var query by remember { mutableStateOf("") }
     var forProject by remember { mutableStateOf(false) }
     var showLocal by remember { mutableStateOf(picker.active.isLocal) }
@@ -140,7 +140,7 @@ fun ModelSwitcherDialog(picker: ModelPickerModel, actions: ModelPickerActions) {
         ) {
             Column(Modifier.fillMaxSize()) {
                 SwitcherHeader(picker.retry, actions.onDismiss)
-                CurrentModelCard(picker, browsed, loading, modern, actions)
+                CurrentModelCard(picker, browsed, loading, modern, showLocal, actions)
                 QuickChoices(picker, choose)
                 if (picker.project != null && !picker.retry) {
                     ScopeRow(picker.project.name, forProject) { forProject = it }
@@ -189,12 +189,14 @@ fun ModelSwitcherDialog(picker: ModelPickerModel, actions: ModelPickerActions) {
 }
 
 /** Действующая модель и откуда она взята; кнопки сброса возвращают диалог к проекту, а проект — к умолчанию. */
+@Suppress("LongParameterList", "CyclomaticComplexMethod")
 @Composable
 private fun CurrentModelCard(
     picker: ModelPickerModel,
     browsed: ProviderConfig?,
     loading: Boolean,
     modern: Boolean,
+    showLocal: Boolean,
     actions: ModelPickerActions,
 ) {
     val active = picker.active
@@ -245,7 +247,10 @@ private fun CurrentModelCard(
                         Text(stringResource(R.string.model_reset_project))
                     }
                 }
-                TextButton(onClick = { browsed?.let(actions.onRefresh) }, enabled = browsed != null && !loading) {
+                TextButton(
+                    onClick = { browsed?.let(actions.onRefresh) },
+                    enabled = browsed != null && !loading && !showLocal,
+                ) {
                     Text(stringResource(if (loading) R.string.loading else R.string.action_refresh))
                 }
             }
