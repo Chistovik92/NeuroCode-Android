@@ -73,6 +73,7 @@ internal fun breakableModelId(id: String): String =
 internal fun isFreeModel(id: String): Boolean = id.endsWith(FREE_SUFFIX, ignoreCase = true)
 
 /** Что показывает окно выбора модели. [retry] — выбор модели для повтора ответа, без области «диалог / проект». */
+@Suppress("LongParameterList")
 class ModelPickerModel(
     val settings: AppSettings,
     val active: ResolvedModel,
@@ -80,6 +81,8 @@ class ModelPickerModel(
     val cloudModels: ProviderModelsState?,
     val localModels: List<ImportedModel>,
     val retry: Boolean = false,
+    /** Облачные провайдеры с подключённым API-ключом — только они показываются в роутерах. */
+    val connectedProviderIds: Set<String> = emptySet(),
 )
 
 class ModelPickerActions(
@@ -96,20 +99,24 @@ class ModelPickerActions(
  * (этот диалог или весь проект), недавние и избранные. Цвета и скругления берутся из активной темы.
  */
 @OptIn(ExperimentalLayoutApi::class)
-@Suppress("LongMethod")
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 fun ModelSwitcherDialog(picker: ModelPickerModel, actions: ModelPickerActions) {
     val settings = picker.settings
     val modern = settings.appDesign == AppDesign.MODERN
+    val connectedIds = picker.connectedProviderIds
+    val visibleProviders = settings.providers.filter { it.id in connectedIds }
     var query by remember { mutableStateOf("") }
     var forProject by remember { mutableStateOf(false) }
     var showLocal by remember { mutableStateOf(picker.active.isLocal) }
     var browsedId by remember {
         mutableStateOf(
-            picker.active.provider?.id ?: settings.selectedProviderId ?: settings.providers.firstOrNull()?.id,
+            picker.active.provider?.takeIf { it.id in connectedIds }?.id
+                ?: settings.selectedProviderId?.takeIf { it in connectedIds }
+                ?: visibleProviders.firstOrNull()?.id,
         )
     }
-    val browsed = settings.providers.firstOrNull { it.id == browsedId }
+    val browsed = visibleProviders.firstOrNull { it.id == browsedId }
     val allModels = picker.cloudModels?.models.orEmpty()
     val models = allModels.filter { query.isBlank() || it.contains(query, ignoreCase = true) }
     val loading = picker.cloudModels?.loading == true
@@ -142,7 +149,7 @@ fun ModelSwitcherDialog(picker: ModelPickerModel, actions: ModelPickerActions) {
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    settings.providers.forEach { item ->
+                    visibleProviders.forEach { item ->
                         FilterChip(
                             selected = !showLocal && item.id == browsedId,
                             onClick = {
@@ -160,10 +167,10 @@ fun ModelSwitcherDialog(picker: ModelPickerModel, actions: ModelPickerActions) {
                         label = { Text(stringResource(R.string.model_chip_local)) },
                     )
                 }
-                if (showLocal) {
-                    LocalModelList(picker, modern, choose)
-                } else {
-                    CloudModelList(
+                when {
+                    showLocal -> LocalModelList(picker, modern, choose)
+                    browsed == null -> NoConnectedProviderHint()
+                    else -> CloudModelList(
                         modifier = Modifier.weight(1f),
                         picker = picker,
                         browsed = browsed,
@@ -338,4 +345,18 @@ private fun androidx.compose.foundation.layout.ColumnScope.LocalModelList(
             )
         }
     }
+}
+
+/** Нет ни одного облачного провайдера с подключённым ключом: подсказка вместо пустого списка. */
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.NoConnectedProviderHint() {
+    Text(
+        stringResource(R.string.model_no_connected_providers),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxWidth()
+            .padding(16.dp),
+    )
 }

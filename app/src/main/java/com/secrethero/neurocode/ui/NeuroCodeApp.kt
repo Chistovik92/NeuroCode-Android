@@ -169,7 +169,6 @@ fun NeuroCodeApp(
     val exportProgress by viewModel.projects.exportProgress.collectAsStateWithLifecycle()
     val zipProgress by viewModel.projects.zipProgress.collectAsStateWithLifecycle()
     val currentProject = projects.firstOrNull { it.id == settings.selectedProjectId }
-    val currentProvider = settings.providers.firstOrNull { it.id == settings.selectedProviderId }
     val modern = settings.appDesign == AppDesign.MODERN
     var tabName by rememberSaveable { mutableStateOf(MainTab.CHAT.name) }
     val storedTab = MainTab.entries.firstOrNull { it.name == tabName } ?: MainTab.CHAT
@@ -182,6 +181,7 @@ fun NeuroCodeApp(
     val retryFor by viewModel.chat.retryRequest.collectAsStateWithLifecycle()
     val activeModel by viewModel.chat.activeModel.collectAsStateWithLifecycle()
     val localModels by viewModel.chat.localModels.collectAsStateWithLifecycle()
+    val connectedProviderIds by viewModel.chat.connectedProviderIds.collectAsStateWithLifecycle()
     var settingsDrawer by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -227,10 +227,10 @@ fun NeuroCodeApp(
         }
     }
 
-    LaunchedEffect(showSwitcher || retryFor != null, activeModel.provider?.id) {
+    LaunchedEffect(showSwitcher || retryFor != null) {
         if (showSwitcher || retryFor != null) {
             viewModel.chat.refreshLocalModels()
-            (activeModel.provider ?: currentProvider)?.let { viewModel.chat.loadSwitcherModels(it) }
+            viewModel.chat.loadInitialSwitcherModels()
         }
     }
 
@@ -558,6 +558,7 @@ fun NeuroCodeApp(
                 cloudModels = viewModel.chat.switcherModels.collectAsStateWithLifecycle().value,
                 localModels = localModels,
                 retry = retryId != null,
+                connectedProviderIds = connectedProviderIds,
             ),
             actions = ModelPickerActions(
                 onBrowseProvider = viewModel.chat::loadSwitcherModels,

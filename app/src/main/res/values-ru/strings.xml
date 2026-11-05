@@ -120,6 +120,7 @@
     <string name="model_reset_project">Сбросить модель проекта</string>
     <string name="model_chip_local">Локальные (GGUF)</string>
     <string name="model_local_empty">Нет импортированных GGUF. Импортируйте файл в настройках.</string>
+    <string name="model_no_connected_providers">Ни у одного провайдера нет API-ключа. Добавьте ключ в настройках, чтобы выбрать облачную модель.</string>
     <string name="model_recent">Недавние</string>
     <string name="model_favorite_cd">Избранное</string>
     <string name="model_unavailable_badge">недоступна</string>
