@@ -492,6 +492,17 @@
 - [ ] очистка кэша загрузок (`cacheDir`: rootfs, индексы);
 - [ ] общий менеджер загрузок для 0.9.1: очередь, возобновление, проверка хэша, уведомление с
   прогрессом (фоновая работа через `WorkManager`/foreground service).
+- [ ] **Совместное использование GGUF с LocalDoc AI (KMP).** Брать уже скачанные локальные модели
+  из приложения [LocalDoc AI](https://github.com/Chistovik92/LocalDoc-AI---KMP) без повторного
+  скачивания — см. [PLAN-0.9-shared-models.md](PLAN-0.9-shared-models.md):
+  - LocalDoc AI публикует модели через `ContentProvider` `com.localdoc.ai.models` (read-only):
+    `query` отдаёт список скачанных GGUF (id, имя, размер из `ModelCatalog`), `openFile` — байты;
+  - NeuroCode видит установленный LocalDoc AI (`<queries>` на `com.localdoc.ai`) и показывает его модели
+    в «Моделях на устройстве» отдельной группой «LocalDoc AI»; импорт — копирование в `files/models`
+    с переиспользованием прогресса, предупреждения о размере и проверки magic GGUF;
+  - запасной путь без провайдера: LocalDoc AI отдаёт модель через `ACTION_SEND` (FileProvider), NeuroCode
+    принимает `content://`-URI и импортирует как обычный GGUF;
+  - только чтение и только файлы моделей; удаление LocalDoc AI не влияет на уже импортированные модели.
 
 ### 0.9.1 — автоматическая загрузка подходящих GGUF с Hugging Face
 
