@@ -17,12 +17,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.secrethero.neurocode.ui.AppViewModel
 import com.secrethero.neurocode.ui.NeuroCodeApp
 import com.secrethero.neurocode.ui.NeuroCodeTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleSharedModel()
         setContent {
             val windowSize = calculateWindowSizeClass(this)
             val viewModel: AppViewModel = viewModel()
@@ -54,6 +56,29 @@ class MainActivity : ComponentActivity() {
                     expanded = windowSize.widthSizeClass >= WindowWidthSizeClass.Medium,
                 )
             }
+        }
+    }
+
+    /**
+     * «Поделиться моделью» из LocalDoc AI (ACTION_SEND с content://-URI GGUF):
+     * импортируем как обычную модель через LocalLlamaClient.importModel.
+     */
+    private fun handleSharedModel() {
+        val uri = if (intent?.action == android.content.Intent.ACTION_SEND) {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM)
+        } else {
+            intent?.data
+        } as? android.net.Uri ?: return
+        val app = application as NeuroCodeApplication
+        app.container.scope.launch {
+            runCatching { app.container.localLlama.importModel(uri) }
+                .onSuccess {
+                    app.container.bus.showNotice(
+                        getString(R.string.notice_model_imported_format, it.name),
+                    )
+                }
+                .onFailure(app.container.bus::showError)
         }
     }
 }

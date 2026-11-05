@@ -83,6 +83,8 @@ class ModelPickerModel(
     val retry: Boolean = false,
     /** Облачные провайдеры с подключённым API-ключом — только они показываются в роутерах. */
     val connectedProviderIds: Set<String> = emptySet(),
+    /** Окно контекста модели из каталога провайдера (subtitle строки); null — неизвестно. */
+    val contextWindows: (model: String) -> Int? = { null },
 )
 
 class ModelPickerActions(
@@ -310,6 +312,8 @@ private fun CloudModelList(
                     modern = modern,
                     onClick = { ref?.let(onChoose) },
                     onFavorite = ref?.let { { onToggleFavorite(it) } },
+                    // Отложенный пункт 0.7.6: окно контекста из каталога провайдера, если известно.
+                    subtitle = picker.contextWindows(model)?.let { "$it tokens" },
                 )
             }
         }
@@ -341,7 +345,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.LocalModelList(
             ModelRow(
                 title = breakableModelId(local.name),
                 subtitle = "${local.size / BYTES_IN_MB} MB",
-                selected = ref.key == picker.active.ref?.key && picker.active.ref.kind == ModelKind.LOCAL,
+                selected = picker.active.ref
+                    ?.let { it.key == ref.key && it.kind == ModelKind.LOCAL } == true,
                 free = false,
                 favorite = false,
                 modern = modern,

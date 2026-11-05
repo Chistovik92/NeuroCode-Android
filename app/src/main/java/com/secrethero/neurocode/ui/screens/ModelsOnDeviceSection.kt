@@ -47,8 +47,10 @@ internal fun LocalModelsSection(
     activePath: String?,
     recommendedMb: Long,
     freeBytes: Long,
+    localDocState: com.secrethero.neurocode.ui.LocalDocState,
     onSelect: (ImportedModel) -> Unit,
     onDelete: (ImportedModel) -> Unit,
+    onImportLocalDoc: (com.secrethero.neurocode.ai.LocalDocModelsClient.LocalDocModel) -> Unit,
 ) {
     SectionTitle(stringResource(R.string.models_on_device))
 
@@ -63,10 +65,12 @@ internal fun LocalModelsSection(
                 stringResource(R.string.models_memory_used, usedMb),
                 style = MaterialTheme.typography.bodySmall,
             )
-            Text(
-                stringResource(R.string.models_memory_free, freeBytes / DeviceProfile.MB),
-                style = MaterialTheme.typography.bodySmall,
-            )
+            if (freeBytes >= 0) {
+                Text(
+                    stringResource(R.string.models_memory_free, freeBytes / DeviceProfile.MB),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             if (recommendedMb > 0) {
                 Text(
                     stringResource(R.string.models_memory_recommended, recommendedMb),
@@ -91,6 +95,60 @@ internal fun LocalModelsSection(
                 onSelect = { onSelect(model) },
                 onDelete = { onDelete(model) },
             )
+        }
+    }
+
+    LocalDocModelsSection(localDocState, onImportLocalDoc)
+}
+
+/** Группа «LocalDoc AI»: модели, уже скачанные соседним приложением, — импорт без сети. */
+@Composable
+private fun LocalDocModelsSection(
+    state: com.secrethero.neurocode.ui.LocalDocState,
+    onImport: (com.secrethero.neurocode.ai.LocalDocModelsClient.LocalDocModel) -> Unit,
+) {
+    SectionTitle(stringResource(R.string.localdoc_group_title))
+    when (state) {
+        com.secrethero.neurocode.ui.LocalDocState.Loading -> Unit
+        com.secrethero.neurocode.ui.LocalDocState.NotInstalled -> Text(
+            stringResource(R.string.localdoc_not_installed),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        is com.secrethero.neurocode.ui.LocalDocState.Ready -> {
+            if (state.models.isEmpty()) {
+                Text(
+                    stringResource(R.string.localdoc_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                state.models.forEach { model ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(model.name, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(
+                                        R.string.models_memory_used,
+                                        model.sizeBytes / DeviceProfile.MB,
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            FilledTonalButton(onClick = { onImport(model) }) {
+                                Text(stringResource(R.string.localdoc_import))
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

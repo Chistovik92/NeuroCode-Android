@@ -46,6 +46,9 @@ class NeuroCodeApplication : Application() {
 
 class AppContainer(application: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Скоуп для фоновых операций UI (терминал и т.п.); живёт с контейнером, отменяется в [close]. */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val bus = UiMessageBus()
 
     /** Повреждённый файл состояния сохранён рядом, данные не затёрты — сообщаем пользователю. */
@@ -79,6 +82,7 @@ class AppContainer(application: Application) {
     )
     val agent = AgentOrchestrator(apiClient, agentTools)
     val localLlama: LocalLlamaClient
+    val localDoc = com.secrethero.neurocode.ai.LocalDocModelsClient(application)
     val lsp = LspController(prootManager, settings.settings)
 
     private val _ready = MutableStateFlow(false)
@@ -109,6 +113,7 @@ class AppContainer(application: Application) {
     fun close() {
         shell.close()
         lsp.close()
+        appScope.cancel()
         scope.cancel()
     }
 }

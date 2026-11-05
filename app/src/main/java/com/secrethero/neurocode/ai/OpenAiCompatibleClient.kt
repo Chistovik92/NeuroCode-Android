@@ -5,10 +5,15 @@ import com.secrethero.neurocode.model.ModelLimits
 import com.secrethero.neurocode.model.ProviderConfig
 import com.secrethero.neurocode.model.ToolCall
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -57,8 +62,8 @@ class OpenAiCompatibleClient {
     val limits: StateFlow<ModelLimits?> = _limits.asStateFlow()
 
     /** Окна контекста из каталога моделей, если провайдер их отдаёт. */
-    private val contextWindows = mutableMapOf<String, Int>()
-    private val maxOutputTokens = mutableMapOf<String, Int>()
+    private val contextWindows = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private val maxOutputTokens = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     /** Окно контекста модели из каталога провайдера; null, если провайдер его не отдавал. */
     fun contextWindow(model: String): Int? = contextWindows[model]
@@ -130,8 +135,12 @@ class OpenAiCompatibleClient {
                     onDelta(chunk)
                 },
                 onReasoningChunk = { chunk ->
-                    received = true
-                    onReasoning?.invoke(chunk)
+                    // Reasoning без обработчика — тоже полученные данные: ретрай после обрыва
+                    // дублировал бы уже отданный пользователю ответ.
+                    if (onReasoning != null) {
+                        received = true
+                        onReasoning(chunk)
+                    }
                 },
                 providerForHeaders = provider,
             )
@@ -266,75 +275,95 @@ class OpenAiCompatibleClient {
         validate(providerForHeaders, apiKey)
         val payload = buildPayload(providerForHeaders, messages, tools, stream = true)
         val request = buildRequest(endpoint, providerForHeaders, apiKey, payload)
-        streamingHttp.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                val body = response.body?.string().orEmpty()
-                throw apiError(response.code, body, response.message)
+        val call = streamingHttp.newCall(request)
+        // «Стоп» должен рвать соединение сразу: без cancel() стрим читался бы до
+        // readTimeout (90 с) и продолжал тратить токены после отмены пользователем.
+        val disconnect = CompletableDeferred<Unit>()
+        try {
+            currentCoroutineContext().job.invokeOnCompletion {
+                if (!disconnect.isCompleted) call.cancel()
             }
-            captureLimits(providerForHeaders, response, body = null)
-            val source = response.body?.source()
-                ?: throw IOException("Провайдер вернул пустой поток")
-            val content = StringBuilder()
-            val reasoning = StringBuilder()
-            val splitter = ReasoningSplitter()
-            val builders = mutableMapOf<Int, StreamToolCall>()
-            fun emit(chunk: ReasoningSplitter.Chunk) {
-                if (chunk.content.isNotEmpty()) {
-                    content.append(chunk.content)
-                    onChunk(chunk.content)
+            call.execute().use { response ->
+                if (!response.isSuccessful) {
+                    val body = response.body?.string().orEmpty()
+                    throw apiError(response.code, body, response.message)
                 }
-                if (chunk.reasoning.isNotEmpty()) {
-                    reasoning.append(chunk.reasoning)
-                    onReasoningChunk(chunk.reasoning)
-                }
-            }
-            while (true) {
-                val line = source.readUtf8Line() ?: break
-                val data = line.takeIf { it.startsWith("data:") }
-                    ?.removePrefix("data:")?.trim() ?: continue
-                if (data == "[DONE]") break
-                if (data.isEmpty()) continue
-                val element = runCatching { json.parseToJsonElement(data).jsonObject }
-                    .getOrNull() ?: continue
-                element["usage"]?.let { usage ->
-                    updateUsage(providerForHeaders.model, usage as? JsonObject)
-                }
-                val delta = element["choices"]?.jsonArray?.firstOrNull()
-                    ?.jsonObject?.get("delta") as? JsonObject ?: continue
-                reasoningField(delta)?.takeIf { it.isNotEmpty() }?.let { chunk ->
-                    reasoning.append(chunk)
-                    onReasoningChunk(chunk)
-                }
-                (delta["content"] as? JsonPrimitive)?.contentOrNull
-                    ?.takeIf { it.isNotEmpty() }
-                    ?.let { chunk -> emit(splitter.push(chunk)) }
-                (delta["tool_calls"] as? JsonArray)?.forEach { raw ->
-                    val item = raw.jsonObject
-                    val index = (item["index"] as? JsonPrimitive)?.intOrNull ?: builders.size
-                    val accumulator = builders.getOrPut(index) { StreamToolCall() }
-                    (item["id"] as? JsonPrimitive)?.contentOrNull
-                        ?.takeIf { it.isNotBlank() }?.let { accumulator.id = it }
-                    val function = item["function"] as? JsonObject ?: return@forEach
-                    (function["name"] as? JsonPrimitive)?.contentOrNull
-                        ?.takeIf { it.isNotBlank() }?.let { accumulator.name = it }
-                    (function["arguments"] as? JsonPrimitive)?.contentOrNull
-                        ?.let { accumulator.arguments.append(it) }
-                }
-            }
-            emit(splitter.flush())
-            AssistantTurn(
-                content = content.toString(),
-                toolCalls = builders.toSortedMap().values.mapIndexedNotNull { index, accumulator ->
-                    accumulator.name.takeIf { it.isNotBlank() }?.let { name ->
-                        ToolCall(
-                            id = accumulator.id.ifBlank { "call-stream-$index" },
-                            name = name,
-                            arguments = accumulator.arguments.toString(),
-                        )
+                captureLimits(providerForHeaders, response, body = null)
+                val source = response.body?.source()
+                    ?: throw IOException("Провайдер вернул пустой поток")
+                val content = StringBuilder()
+                val reasoning = StringBuilder()
+                val splitter = ReasoningSplitter()
+                val builders = mutableMapOf<Int, StreamToolCall>()
+                // Счётчик вызовов без индекса: Fallback-ключи -1, -2… не сливаются с реальными
+                // индексами (0, 1, …) и не сбрасываются при добавлении в builders.
+                var missingIndex = 0
+                fun emit(chunk: ReasoningSplitter.Chunk) {
+                    if (chunk.content.isNotEmpty()) {
+                        content.append(chunk.content)
+                        onChunk(chunk.content)
                     }
-                },
-                reasoning = reasoning.toString(),
-            )
+                    if (chunk.reasoning.isNotEmpty()) {
+                        reasoning.append(chunk.reasoning)
+                        onReasoningChunk(chunk.reasoning)
+                    }
+                }
+                readLoop@ while (true) {
+                    // Отмена корутины = закрытие соединения, а не ожидание сетевого тайм-аута.
+                    currentCoroutineContext().ensureActive()
+                    val line = source.readUtf8Line() ?: break
+                    val data = line.takeIf { it.startsWith("data:") }
+                        ?.removePrefix("data:")?.trim() ?: continue
+                    if (data == "[DONE]") break
+                    if (data.isEmpty()) continue
+                    val element = runCatching { json.parseToJsonElement(data) as? JsonObject }
+                        .getOrNull() ?: continue
+                    element["usage"]?.let { usage ->
+                        updateUsage(providerForHeaders.model, usage as? JsonObject)
+                    }
+                    val delta = (element["choices"] as? JsonArray)
+                        ?.firstOrNull()?.let { it as? JsonObject }?.get("delta") as? JsonObject
+                        ?: continue@readLoop
+                    reasoningField(delta)?.takeIf { it.isNotEmpty() }?.let { chunk ->
+                        reasoning.append(chunk)
+                        onReasoningChunk(chunk)
+                    }
+                    (delta["content"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { chunk -> emit(splitter.push(chunk)) }
+                    (delta["tool_calls"] as? JsonArray)?.forEach { raw ->
+                        val item = raw as? JsonObject ?: return@forEach
+                        val index = (item["index"] as? JsonPrimitive)?.intOrNull
+                            ?: --missingIndex
+                        val accumulator = builders.getOrPut(index) { StreamToolCall() }
+                        (item["id"] as? JsonPrimitive)?.contentOrNull
+                            ?.takeIf { it.isNotBlank() }?.let { accumulator.id = it }
+                        val function = item["function"] as? JsonObject ?: return@forEach
+                        (function["name"] as? JsonPrimitive)?.contentOrNull
+                            ?.takeIf { it.isNotBlank() }?.let { accumulator.name = it }
+                        (function["arguments"] as? JsonPrimitive)?.contentOrNull
+                            ?.let { accumulator.arguments.append(it) }
+                    }
+                }
+                emit(splitter.flush())
+                disconnect.complete(Unit)
+                AssistantTurn(
+                    content = content.toString(),
+                    toolCalls = builders.toSortedMap().values.mapIndexedNotNull { index, accumulator ->
+                        accumulator.name.takeIf { it.isNotBlank() }?.let { name ->
+                            ToolCall(
+                                id = accumulator.id.ifBlank { "call-stream-$index" },
+                                name = name,
+                                arguments = accumulator.arguments.toString(),
+                            )
+                        }
+                    },
+                    reasoning = reasoning.toString(),
+                )
+            }
+        } finally {
+            disconnect.complete(Unit)
+            call.cancel()
         }
     }
 
@@ -404,33 +433,38 @@ class OpenAiCompatibleClient {
                 .getOrNull()
         }
         val previous = _limits.value?.takeIf { it.model == provider.model }
-        _limits.value = ModelLimits(
-            model = provider.model,
-            contextWindow = contextWindows[provider.model] ?: previous?.contextWindow,
-            maxOutputTokens = maxOutputTokens[provider.model] ?: previous?.maxOutputTokens,
-            promptTokens = usage.int("prompt_tokens") ?: previous?.promptTokens,
-            completionTokens = usage.int("completion_tokens") ?: previous?.completionTokens,
-            totalTokens = usage.int("total_tokens") ?: previous?.totalTokens,
-            requestsRemaining = header("x-ratelimit-remaining-requests")
-                ?: previous?.requestsRemaining,
-            requestsLimit = header("x-ratelimit-limit-requests") ?: previous?.requestsLimit,
-            tokensRemaining = header("x-ratelimit-remaining-tokens") ?: previous?.tokensRemaining,
-            tokensLimit = header("x-ratelimit-limit-tokens") ?: previous?.tokensLimit,
-            resetHint = header("x-ratelimit-reset-requests", "x-ratelimit-reset-tokens")
-                ?: previous?.resetHint,
-        )
+        // Атомарный read-modify-write: captureLimits/updateUsage идут из разных IO-потоков.
+        _limits.update { current ->
+            ModelLimits(
+                model = provider.model,
+                contextWindow = contextWindows[provider.model] ?: previous?.contextWindow,
+                maxOutputTokens = maxOutputTokens[provider.model] ?: previous?.maxOutputTokens,
+                promptTokens = usage.int("prompt_tokens") ?: previous?.promptTokens,
+                completionTokens = usage.int("completion_tokens") ?: previous?.completionTokens,
+                totalTokens = usage.int("total_tokens") ?: previous?.totalTokens,
+                requestsRemaining = header("x-ratelimit-remaining-requests")
+                    ?: previous?.requestsRemaining,
+                requestsLimit = header("x-ratelimit-limit-requests") ?: previous?.requestsLimit,
+                tokensRemaining = header("x-ratelimit-remaining-tokens") ?: previous?.tokensRemaining,
+                tokensLimit = header("x-ratelimit-limit-tokens") ?: previous?.tokensLimit,
+                resetHint = header("x-ratelimit-reset-requests", "x-ratelimit-reset-tokens")
+                    ?: previous?.resetHint,
+            )
+        }
     }
 
     /** Обновляет расход токенов из `usage`, который стрим присылает последним событием. */
     private fun updateUsage(model: String, usage: JsonObject?) {
         if (usage == null) return
-        val current = _limits.value?.takeIf { it.model == model } ?: ModelLimits(model = model)
-        _limits.value = current.copy(
-            promptTokens = usage.int("prompt_tokens") ?: current.promptTokens,
-            completionTokens = usage.int("completion_tokens") ?: current.completionTokens,
-            totalTokens = usage.int("total_tokens") ?: current.totalTokens,
-            updatedAt = System.currentTimeMillis(),
-        )
+        _limits.update { current ->
+            val base = current?.takeIf { it.model == model } ?: ModelLimits(model = model)
+            base.copy(
+                promptTokens = usage.int("prompt_tokens") ?: base.promptTokens,
+                completionTokens = usage.int("completion_tokens") ?: base.completionTokens,
+                totalTokens = usage.int("total_tokens") ?: base.totalTokens,
+                updatedAt = System.currentTimeMillis(),
+            )
+        }
     }
 
     /** Каталоги моделей (OpenRouter и совместимые) отдают окно контекста прямо в `/models`. */

@@ -223,6 +223,12 @@
     <string name="gguf_recommendation">Quantized 1–3B models are recommended. GGUF is copied to internal storage; for a 2 GB model at least 6 GB RAM is desirable.</string>
     <string name="models_on_device">Models on device</string>
     <string name="models_on_device_empty">No models on device yet. Import a GGUF above.</string>
+    <string name="localdoc_group_title">LocalDoc AI models</string>
+    <string name="localdoc_not_installed">Install LocalDoc AI to reuse its downloaded models without downloading them again.</string>
+    <string name="localdoc_empty">LocalDoc AI has no downloaded models yet.</string>
+    <string name="localdoc_import">Import</string>
+    <string name="error_localdoc_gone">Model is no longer available in LocalDoc AI</string>
+    <string name="notice_model_imported_format">Model imported: %1$s</string>
     <string name="models_memory_title">Storage</string>
     <string name="models_memory_used">Used by models: %1$d MB</string>
     <string name="models_memory_free">Free: %1$d MB</string>
@@ -235,6 +241,7 @@
     <string name="models_delete_title">Delete model</string>
     <string name="models_delete_text">Delete %1$s? This frees %2$d MB.</string>
     <string name="models_delete_used_text">Projects %1$s use this model. They will switch back to the global model.</string>
+    <string name="models_delete_active_text">This model is currently active. It will be unloaded from memory before deletion.</string>
     <string name="device_title">This device</string>
     <string name="device_info_format">Architecture: %1$s · CPU cores: %2$d · RAM: %3$s GB</string>
     <string name="recommend_model_format">Recommended local GGUF: up to ~%1$d MB (%2$s)</string>
@@ -329,6 +336,10 @@
     <string name="linux_stage_verify">launch check</string>
     <string name="install_linux">Install Linux environment</string>
     <string name="reset_linux">Reset Linux environment</string>
+    <string name="cache_section_title">Cache</string>
+    <string name="cache_size_format">Downloads cache: %1$d MB</string>
+    <string name="clear_cache">Clear cache</string>
+    <string name="notice_cache_cleared">Cache cleared</string>
     <string name="lsp_switch">Language Server Protocol (LSP)</string>
     <string name="lsp_desc">Runs an LSP server command and shows diagnostics for the open file. Works best when the Linux environment is installed.</string>
     <string name="lsp_command_label">LSP server command</string>

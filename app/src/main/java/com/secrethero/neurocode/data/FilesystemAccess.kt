@@ -39,16 +39,21 @@ class FilesystemAccess(private val context: Context) {
         val displayName: String,
     )
 
-    /** Корни, разрешение на которые ещё действительно (SAF-доступ может быть отозван системой). */
-    fun roots(rootUris: List<String>): List<FsRoot> = rootUris.mapNotNull { raw ->
-        runCatching {
-            val tree = DocumentFile.fromTreeUri(context, Uri.parse(raw))
-            if (tree?.canRead() == true) {
-                FsRoot(uri = raw, displayName = tree.name ?: raw)
-            } else {
-                null
-            }
-        }.getOrNull()
+    /**
+     * Корни, разрешение на которые ещё действительно (SAF-доступ может быть отозван системой).
+     * Binder-запросы к DocumentsProvider — на IO: из агентного цикла вызывался на главном потоке.
+     */
+    suspend fun roots(rootUris: List<String>): List<FsRoot> = withContext(Dispatchers.IO) {
+        rootUris.mapNotNull { raw ->
+            runCatching {
+                val tree = DocumentFile.fromTreeUri(context, Uri.parse(raw))
+                if (tree?.canRead() == true) {
+                    FsRoot(uri = raw, displayName = tree.name ?: raw)
+                } else {
+                    null
+                }
+            }.getOrNull()
+        }
     }
 
     /**
@@ -179,7 +184,7 @@ class FilesystemAccess(private val context: Context) {
     }
 
     /** Человекочитаемый путь корня с подпутём для журнала и подтверждений. */
-    fun displayPath(rootUris: List<String>, rootUri: String, path: String): String {
+    suspend fun displayPath(rootUris: List<String>, rootUri: String, path: String): String {
         val name = roots(rootUris).firstOrNull { it.uri == rootUri }?.displayName ?: rootUri
         return if (path.isBlank()) name else "$name/$path"
     }

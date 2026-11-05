@@ -39,6 +39,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,6 +78,10 @@ fun SettingsScreen(vm: SettingsViewModel) {
     val prootState by vm.prootState.collectAsStateWithLifecycle()
     val prootFailure by vm.prootFailure.collectAsStateWithLifecycle()
     val prootProgress by vm.prootProgress.collectAsStateWithLifecycle()
+    val cacheSizeBytes by vm.cacheSizeBytes.collectAsStateWithLifecycle()
+    val localDocState by vm.localDocState.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { vm.refreshCacheSize() }
+    LaunchedEffect(Unit) { vm.refreshLocalDocModels() }
     val deviceSnapshot by vm.deviceSnapshot.collectAsStateWithLifecycle()
     val modelLimits by vm.modelLimits.collectAsStateWithLifecycle()
     val localModels by vm.localModels.collectAsStateWithLifecycle()
@@ -235,8 +240,10 @@ fun SettingsScreen(vm: SettingsViewModel) {
             activePath = settings.localModelPath,
             recommendedMb = deviceSnapshot?.recommendation()?.maxModelSizeMb ?: 0L,
             freeBytes = vm.modelsFreeBytes(),
+            localDocState = localDocState,
             onSelect = vm::selectLocalModel,
             onDelete = { deleteModelTarget = it },
+            onImportLocalDoc = vm::importLocalDocModel,
         )
 
         SettingSwitch(
@@ -390,11 +397,13 @@ fun SettingsScreen(vm: SettingsViewModel) {
             lspEnabled = settings.lspEnabled,
             lspCommandText = lspCommandText,
             savedLspCommand = settings.lspCommand,
+            cacheSizeBytes = cacheSizeBytes,
             onInstallLinux = vm::installLinuxEnvironment,
             onResetLinux = vm::resetLinuxEnvironment,
             onSetLspEnabled = vm::setLspEnabled,
             onLspCommandChanged = { lspCommandText = it },
             onSaveLspCommand = { vm.setLspCommand(lspCommandText) },
+            onClearCache = vm::clearCache,
         )
 
         SectionTitle(stringResource(R.string.skills_title))
@@ -529,6 +538,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
 
     deleteModelTarget?.let { model ->
         val usedBy = vm.projectsUsing(model)
+        val isActive = settings.localModelPath == model.path || settings.localModelName == model.name
         AlertDialog(
             onDismissRequest = { deleteModelTarget = null },
             title = { Text(stringResource(R.string.models_delete_title)) },
@@ -541,6 +551,12 @@ fun SettingsScreen(vm: SettingsViewModel) {
                             model.size / DeviceProfile.MB,
                         ),
                     )
+                    if (isActive) {
+                        Text(
+                            stringResource(R.string.models_delete_active_text),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                     if (usedBy.isNotEmpty()) {
                         Text(
                             stringResource(
@@ -705,11 +721,13 @@ private fun RuntimeEnvironmentSection(
     lspEnabled: Boolean,
     lspCommandText: String,
     savedLspCommand: String,
+    cacheSizeBytes: Long,
     onInstallLinux: () -> Unit,
     onResetLinux: () -> Unit,
     onSetLspEnabled: (Boolean) -> Unit,
     onLspCommandChanged: (String) -> Unit,
     onSaveLspCommand: () -> Unit,
+    onClearCache: () -> Unit,
 ) {
     SectionTitle(stringResource(R.string.runtime_env))
     Text(
@@ -740,6 +758,18 @@ private fun RuntimeEnvironmentSection(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(stringResource(R.string.reset_linux))
+    }
+    // Кэш загрузок (cacheDir): установленный rootfs лежит в filesDir и не затрагивается.
+    Text(
+        stringResource(R.string.cache_size_format, cacheSizeBytes / (1024 * 1024)),
+        style = MaterialTheme.typography.bodySmall,
+    )
+    OutlinedButton(
+        onClick = onClearCache,
+        enabled = cacheSizeBytes > 0,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(stringResource(R.string.clear_cache))
     }
     SettingSwitch(
         title = stringResource(R.string.lsp_switch),
