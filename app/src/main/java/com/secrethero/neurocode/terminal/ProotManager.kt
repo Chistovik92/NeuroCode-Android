@@ -55,7 +55,6 @@ class ProotManager(private val context: Context) {
     private var loaderPath: String? = null
 
     private val linuxDir get() = File(context.filesDir, "linux")
-    private val prootBinary get() = File(linuxDir, "proot")
     private val rootfsDir get() = File(linuxDir, "rootfs")
 
     fun isReady(): Boolean = _state.value == ProotState.READY
@@ -123,21 +122,18 @@ class ProotManager(private val context: Context) {
             wrapped = wrapped,
         )
 
-    /** Тот proot, который прошёл проверку запуска: встроенный `libproot.so`, а при его отсутствии — скачанный. */
-    private fun activeBinary(): File = verifiedBinary ?: resolveBundledBinary() ?: prootBinary
+    /** Тот proot, который прошёл проверку запуска при подготовке: всегда встроенный `libproot.so`. */
+    private fun activeBinary(): File = verifiedBinary ?: resolveBundledBinary()
+        ?: throw ProotException(ProotStage.PROOT, "bundled proot (libproot.so) is missing")
 
     private fun prepare() {
         checkFreeSpace()
-        val bundled = resolveBundledBinary()
-        val proot = bundled ?: installProotStatic()
+        // Встроенный proot — всегда Termux-сборка (bionic); её загрузчик лежит рядом отдельным файлом.
+        val proot = resolveBundledBinary()
+            ?: throw ProotException(ProotStage.PROOT, "bundled proot (libproot.so) is missing for this ABI")
         verifiedBinary = proot
-        loaderPath = if (bundled != null) {
-            // Termux-сборка proot не несёт загрузчик внутри себя: он должен лежать рядом с libproot.so.
-            resolveBundledLoader()?.absolutePath
-                ?: throw ProotException(ProotStage.PROOT, "bundled proot loader (libproot_loader.so) is missing")
-        } else {
-            null
-        }
+        loaderPath = resolveBundledLoader()?.absolutePath
+            ?: throw ProotException(ProotStage.PROOT, "bundled proot loader (libproot_loader.so) is missing")
         if (!markerFile().exists()) {
             linuxDir.mkdirs()
             rootfsDir.mkdirs()
@@ -210,7 +206,6 @@ class ProotManager(private val context: Context) {
     private fun cleanup() {
         runCatching {
             markerFile().delete()
-            prootBinary.delete()
             rootfsDir.deleteRecursively()
         }
     }
@@ -218,30 +213,20 @@ class ProotManager(private val context: Context) {
     private fun resolveBundledBinary(): File? {
         val nativeDir = context.applicationInfo.nativeLibraryDir ?: return null
         val bundled = File(nativeDir, "libproot.so")
-        if (!bundled.exists()) return null
-        bundled.setExecutable(true, false)
-        return bundled
+        // nativeLibraryDir уже отдаёт .so с битом исполнения (0755): лишний chmod
+        // только порождает avc setattr denial и ничего не меняет.
+        return bundled.takeIf { it.exists() }
     }
 
     /** Внешний загрузчик Termux-сборки proot из того же `nativeLibraryDir`, что и `libproot.so`. */
-    private fun resolveBundledLoader(): File? {
-        val loader = context.applicationInfo.nativeLibraryDir
-            ?.let { dir -> File(dir, "libproot_loader.so").takeIf { it.exists() } }
-            ?: return null
-        loader.setExecutable(true, false)
-        return loader
-    }
+    private fun resolveBundledLoader(): File? = context.applicationInfo.nativeLibraryDir
+        ?.let { dir -> File(dir, "libproot_loader.so").takeIf { it.exists() } }
 
     private fun verifyExecutable(proot: File) {
         val process = try {
             ProcessBuilder(proot.absolutePath, "--version").redirectErrorStream(true).start()
         } catch (error: IOException) {
-            val source = if (proot.parentFile == File(context.applicationInfo.nativeLibraryDir.orEmpty())) {
-                "bundled"
-            } else {
-                "downloaded"
-            }
-            throw ProotException(ProotStage.VERIFY, "$source proot cannot start: ${error.message}", error)
+            throw ProotException(ProotStage.VERIFY, "bundled proot cannot start: ${error.message}", error)
         }
         val finished = process.waitFor(EXEC_CHECK_TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS)
         val exit = if (finished) process.exitValue() else null
@@ -252,69 +237,6 @@ class ProotManager(private val context: Context) {
         }
     }
 
-    private fun installProotStatic(): File {
-        val arch = alpineArch()
-        val version = resolveProotVersion(arch)
-            ?: throw ProotException(ProotStage.PROOT, "proot-static not found in repository index")
-        val apk = File(context.cacheDir, "proot-static-$version-$arch.apk")
-        downloadTo(apkDownloadUrl(arch, version), apk, ProotStage.PROOT)
-        return extractProotBinary(apk)
-    }
-
-    private fun extractProotBinary(apk: File): File {
-        linuxDir.mkdirs()
-        try {
-            extractTarGz(apk.inputStream(), linuxDir) { path ->
-                path == PROOT_APK_PATH_BIN || path == PROOT_APK_PATH_SBIN
-            }
-        } catch (error: IOException) {
-            throw ProotException(ProotStage.EXTRACT, "proot package: ${error.message}", error)
-        } finally {
-            apk.delete()
-        }
-        val extracted = sequenceOf(
-            File(linuxDir, PROOT_APK_PATH_BIN),
-            File(linuxDir, PROOT_APK_PATH_SBIN),
-        ).firstOrNull { it.exists() } ?: throw ProotException(ProotStage.EXTRACT, "proot.static missing inside package")
-        extracted.setExecutable(true, false)
-        extracted.copyTo(prootBinary, overwrite = true)
-        prootBinary.setExecutable(true, false)
-        extracted.delete()
-        extracted.parentFile?.let { parent ->
-            if (parent != linuxDir) parent.deleteRecursively()
-        }
-        return prootBinary
-    }
-
-    private fun resolveProotVersion(arch: String): String? {
-        val index = File(context.cacheDir, "APKINDEX-proot.tar.gz")
-        downloadTo(APKINDEX_URL.format(arch), index, ProotStage.PROOT)
-        var name: String? = null
-        var version: String? = null
-        var result: String? = null
-        GZIPInputStream(index.inputStream()).use { gz ->
-            val reader = TarReader(gz)
-            while (true) {
-                val entry = reader.nextEntry() ?: break
-                if (entry.isDirectory || entry.name.contains("/")) {
-                    reader.skipCurrent()
-                    continue
-                }
-                val text = reader.readCurrentAsString()
-                text.lineSequence().forEach { line ->
-                    when {
-                        line.startsWith("P:") -> name = line.removePrefix("P:")
-                        line.startsWith("V:") -> version = line.removePrefix("V:")
-                        line.isEmpty() && name == "proot-static" -> result = version
-                    }
-                }
-                reader.skipCurrent()
-            }
-        }
-        index.delete()
-        return result
-    }
-
     private fun alpineArch(): String = when (Build.SUPPORTED_ABIS.firstOrNull()) {
         "arm64-v8a" -> "aarch64"
         "armeabi-v7a", "armeabi" -> "armv7"
@@ -322,9 +244,6 @@ class ProotManager(private val context: Context) {
         "x86" -> "x86"
         else -> throw ProotException(ProotStage.PRECHECK, "Unsupported ABI: ${Build.SUPPORTED_ABIS.joinToString()}")
     }
-
-    private fun apkDownloadUrl(arch: String, version: String): String =
-        "$ALPINE_REPO/$arch/proot-static-$version.apk"
 
     private fun rootfsUrl(): String {
         val arch = alpineArch()
@@ -397,7 +316,6 @@ class ProotManager(private val context: Context) {
     companion object {
         /** Версия Alpine для rootfs и обязательный подкаталог на зеркале; при смене проверить доступность 404-ответом. */
         private const val ALPINE_CD = "https://dl-cdn.alpinelinux.org/alpine"
-        private const val ALPINE_REPO = "$ALPINE_CD/edge/community"
         private const val ALPINE_VERSION = "3.19"
         private const val ALPINE_MINIROOTFS = "3.19.0"
         /** Ревизия подготовленного rootfs: при смене права на файлы восстанавливаются один раз. */
@@ -410,9 +328,6 @@ class ProotManager(private val context: Context) {
         private const val DOWNLOAD_RETRY_DELAY_MS = 2_000L
         private const val PROGRESS_STEP_BYTES = 256L * 1024
         private const val HTTP_NOT_FOUND = 404
-        private const val APKINDEX_URL = "$ALPINE_REPO/%s/APKINDEX.tar.gz"
-        private const val PROOT_APK_PATH_BIN = "usr/bin/proot.static"
-        private const val PROOT_APK_PATH_SBIN = "usr/sbin/proot.static"
         const val GUEST_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val READ_TIMEOUT_MS = 120_000
@@ -455,13 +370,6 @@ private class TarReader(private val input: InputStream) {
                 size = size,
             )
         }
-    }
-
-    fun readCurrentAsString(): String {
-        val buffer = ByteArray(currentSize().toInt())
-        input.readFully(buffer)
-        skipPadding(currentSize())
-        return String(buffer, Charsets.UTF_8)
     }
 
     fun readCurrentTo(output: OutputStream) {
