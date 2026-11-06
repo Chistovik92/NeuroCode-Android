@@ -460,5 +460,4 @@
     <string name="skill_preview">Preview prompt</string>
     <string name="skill_preview_empty">No active skills — the prompt block is empty.</string>
     <string name="notice_skill_imported_format">Skill imported: %1$s</string>
-    <string name="action_close">Close</string>
 </resources>

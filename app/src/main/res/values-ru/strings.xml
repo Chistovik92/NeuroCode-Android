@@ -460,5 +460,4 @@
     <string name="skill_preview">Предпросмотр промпта</string>
     <string name="skill_preview_empty">Активных скиллов нет — блок промпта пуст.</string>
     <string name="notice_skill_imported_format">Скилл импортирован: %1$s</string>
-    <string name="action_close">Закрыть</string>
 </resources>
