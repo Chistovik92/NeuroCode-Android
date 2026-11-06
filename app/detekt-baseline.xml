@@ -20,6 +20,7 @@
     <ID>LongMethod:FilesystemAccessSection.kt$@OptIn(ExperimentalLayoutApi::class) @Composable internal fun FilesystemAccessSection( fsRootsMeta: List&lt;SettingsViewModel.FsRootMeta&gt;, onAddRoot: () -&gt; Unit, onRemoveRoot: (String) -&gt; Unit, onPresetDownloads: () -&gt; Unit, onPresetDocuments: () -&gt; Unit, onPresetPictures: () -&gt; Unit, onPresetAll: () -&gt; Unit, )</ID>
     <ID>LongMethod:ModelsOnDeviceSection.kt$@Composable internal fun HuggingFaceSearchSection( query: String, onQueryChange: (String) -&gt; Unit, state: com.secrethero.neurocode.ui.HfSearchState, onSearch: () -&gt; Unit, onPickRepo: (HuggingFaceModel) -&gt; Unit, )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
+    <ID>LongMethod:SettingsScreen.kt$@Composable private fun SkillDialog( current: AgentSkill?, onDismiss: () -&gt; Unit, onSave: (AgentSkill) -&gt; Unit, )</ID>
     <ID>LongMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightXml(ref: ContentReference)</ID>
     <ID>LongMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun scanCodeLine(lineIndex: Int, line: String)</ID>
     <ID>LongMethod:TerminalScreen.kt$@Composable fun TerminalScreen(terminal: TerminalViewModel)</ID>
@@ -81,6 +82,7 @@
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$16</ID>
     <ID>MagicNumber:SettingsViewModel.kt$SettingsViewModel$20</ID>
     <ID>MagicNumber:ShellSession.kt$ShellSession$2_000</ID>
+    <ID>MatchingDeclarationName:SkillImport.kt$SkillMarkdown</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "${external.name}: ${external.description}. Команда фиксирована настройками и потребует подтверждения."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Заменить уникальный фрагмент текстового файла. Экономнее полной перезаписи. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Создать или полностью перезаписать текстовый файл проекта. Требует подтверждения пользователя."</ID>
@@ -109,6 +111,7 @@
     <ID>ReturnCount:HuggingFaceClient.kt$HuggingFaceClient$private fun isOnWifi(): Boolean</ID>
     <ID>ReturnCount:LspClient.kt$LspClient$private fun handleMessage(raw: String)</ID>
     <ID>ReturnCount:LspController.kt$LspController$private fun ensureStarted(root: File): LspClient?</ID>
+    <ID>ReturnCount:SkillImport.kt$SkillMarkdown$fun parse(text: String): AgentSkill?</ID>
     <ID>SpreadOperator:ProotManager.kt$(destination.absolutePath, *entry.name.split('/').toTypedArray())</ID>
     <ID>ThrowsCount:HuggingFaceClient.kt$HuggingFaceClient$private suspend fun downloadResuming( url: String, partial: File, target: File, expectedSha256: String?, onProgress: (Long, Long) -&gt; Unit, ): File</ID>
     <ID>ThrowsCount:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun tryChatEndpoints( provider: ProviderConfig, shouldRethrow: () -&gt; Boolean = { false }, block: suspend (String) -&gt; AssistantTurn, ): AssistantTurn</ID>
