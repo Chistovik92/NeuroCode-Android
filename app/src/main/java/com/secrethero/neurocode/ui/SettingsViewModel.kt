@@ -58,6 +58,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _fsRootsMeta = MutableStateFlow<List<FsRootMeta>>(emptyList())
     val fsRootsMeta: StateFlow<List<FsRootMeta>> = _fsRootsMeta.asStateFlow()
 
+    /** Импортированные GGUF на устройстве — для экрана «Модели на устройстве». */
+    private val _localModels = MutableStateFlow<List<ImportedModel>>(emptyList())
+    val localModels: StateFlow<List<ImportedModel>> = _localModels.asStateFlow()
+
+    /** Рекомендованные модели из встроенного каталога, помещающиеся в память телефона. */
+    private val _catalogRecommendations = MutableStateFlow<List<ModelSpec>>(emptyList())
+    val catalogRecommendations: StateFlow<List<ModelSpec>> =
+        _catalogRecommendations.asStateFlow()
+
+    /** Токен Hugging Face задан ли (для gated-моделей). */
+    private val _hfTokenSet = MutableStateFlow(false)
+    val hfTokenSet: StateFlow<Boolean> = _hfTokenSet.asStateFlow()
+
     init {
         viewModelScope.launch {
             runCatching { deviceSpecs.snapshot() }
@@ -82,10 +95,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _modelImportProgress = MutableStateFlow<Pair<Long, Long>?>(null)
     val modelImportProgress: StateFlow<Pair<Long, Long>?> = _modelImportProgress.asStateFlow()
-
-    /** Импортированные GGUF на устройстве — для экрана «Модели на устройстве». */
-    private val _localModels = MutableStateFlow<List<ImportedModel>>(emptyList())
-    val localModels: StateFlow<List<ImportedModel>> = _localModels.asStateFlow()
 
     /** Видимые проекты — для показа, какие проекты используют ту или иную модель. */
     val projects = container.projects.projects
@@ -499,11 +508,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     // --- 0.9.1: каталог моделей Hugging Face и подбор под устройство ---
 
-    /** Рекомендованные модели из встроенного каталога, помещающиеся в память телефона. */
-    private val _catalogRecommendations = MutableStateFlow<List<ModelSpec>>(emptyList())
-    val catalogRecommendations: StateFlow<List<ModelSpec>> =
-        _catalogRecommendations.asStateFlow()
-
     /** Состояние живого поиска по Hugging Face. */
     private val _hfSearchState = MutableStateFlow<HfSearchState>(HfSearchState.Idle)
     val hfSearchState: StateFlow<HfSearchState> = _hfSearchState.asStateFlow()
@@ -515,10 +519,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** Скачивается ли модель из каталога прямо сейчас (по id). */
     private val _catalogDownloadingId = MutableStateFlow<String?>(null)
     val catalogDownloadingId: StateFlow<String?> = _catalogDownloadingId.asStateFlow()
-
-    /** Токен Hugging Face задан ли (для gated-моделей). */
-    private val _hfTokenSet = MutableStateFlow(false)
-    val hfTokenSet: StateFlow<Boolean> = _hfTokenSet.asStateFlow()
 
     fun refreshCatalogRecommendations() = viewModelScope.launch {
         _catalogRecommendations.value = withContext(Dispatchers.IO) {
