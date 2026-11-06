@@ -50,15 +50,20 @@ class AgentWorkflowsTest {
 
     @Test
     fun cancelCancelsRunningStep() = runBlocking {
+        val started = CompletableDeferred<Unit>()
         val cancelled = CompletableDeferred<Unit>()
         AgentWorkflows().use { workflows ->
             val run = workflows.start(AgentWorkflow("id", "name", listOf("one"))) {
+                started.complete(Unit)
                 try {
                     awaitCancellation()
                 } finally {
                     cancelled.complete(Unit)
                 }
             }
+            // Ждём, пока шаг реально стартует: иначе cancel() может обогнать тело корутины
+            // (CoroutineStart.LAZY) и блок finally с complete() просто не выполнится.
+            started.await()
             run.cancel()
             withTimeout(5_000) { cancelled.await() }
             assertEquals(AgentWorkflowStatus.CANCELLED, run.await().status)

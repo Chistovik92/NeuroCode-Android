@@ -47,9 +47,11 @@ class AgentJobsTest {
 
     @Test
     fun stopCancelsRunningCoroutine() = runBlocking {
+        val started = CompletableDeferred<Unit>()
         val cancelled = CompletableDeferred<Unit>()
         AgentJobs(
             runner = { _, _, _ ->
+                started.complete(Unit)
                 try {
                     kotlinx.coroutines.awaitCancellation()
                 } finally {
@@ -58,6 +60,9 @@ class AgentJobsTest {
             },
         ).use { jobs ->
             val id = jobs.start("project", "long command").id
+            // Ждём, пока команда реально стартует: иначе stop() может обогнать тело корутины
+            // и блок finally с complete() не выполнится.
+            started.await()
             assertTrue(jobs.stop(id))
             withTimeout(5_000) { cancelled.await() }
             assertEquals(AgentJobStatus.CANCELLED, jobs.wait(id).status)

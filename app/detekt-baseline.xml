@@ -6,14 +6,14 @@
     <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$end &lt; line.length &amp;&amp; (line[end].isLetterOrDigit() || line[end] == '.' || line[end] == '_')</ID>
     <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$index &lt; line.length &amp;&amp; (line[index].isLetterOrDigit() || line[index] == '/' || line[index] == '!' || line[index] == '?')</ID>
     <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$spec.useEscape &amp;&amp; index &lt; line.length &amp;&amp; line[index] == '\\' &amp;&amp; !multiline</ID>
-    <ID>CyclomaticComplexMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), ): String</ID>
+    <ID>CyclomaticComplexMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), permissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS, planMode: Boolean = false, onEvent: suspend (AgentEvent) -&gt; Unit = {}, ): String</ID>
     <ID>CyclomaticComplexMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
     <ID>CyclomaticComplexMethod:HuggingFaceClient.kt$HuggingFaceClient$private suspend fun downloadResuming( url: String, partial: File, target: File, expectedSha256: String?, onProgress: (Long, Long) -&gt; Unit, ): File</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
     <ID>CyclomaticComplexMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightXml(ref: ContentReference)</ID>
     <ID>CyclomaticComplexMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun scanCodeLine(lineIndex: Int, line: String)</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$fun definitions(externalTools: List&lt;ExternalAgentTool&gt; = emptyList()): JsonArray</ID>
-    <ID>LongMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), ): String</ID>
+    <ID>LongMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), permissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS, planMode: Boolean = false, onEvent: suspend (AgentEvent) -&gt; Unit = {}, ): String</ID>
     <ID>LongMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
     <ID>LongMethod:EditorScreen.kt$@Composable fun EditorScreen(editor: EditorViewModel)</ID>
     <ID>LongMethod:EditorScreen.kt$@OptIn(ExperimentalFoundationApi::class) @Composable private fun FileTreeNode( node: FileNode, depth: Int, onOpen: (String) -&gt; Unit, onRename: (String) -&gt; Unit, onDelete: (String) -&gt; Unit, )</ID>
@@ -24,6 +24,9 @@
     <ID>LongMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightXml(ref: ContentReference)</ID>
     <ID>LongMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun scanCodeLine(lineIndex: Int, line: String)</ID>
     <ID>LongMethod:TerminalScreen.kt$@Composable fun TerminalScreen(terminal: TerminalViewModel)</ID>
+    <ID>LongParameterList:AgentOrchestrator.kt$AgentOrchestrator$( projectName: String, projectSummary: String = "", activeSkills: List&lt;String&gt; = emptyList(), fsRoots: List&lt;String&gt; = emptyList(), planMode: Boolean = false, goal: String? = null, tasks: List&lt;AgentTask&gt; = emptyList(), )</ID>
+    <ID>LongParameterList:AgentTools.kt$AgentTools$( private val context: Context, private val projects: ProjectRepository, private val git: GitRepository, private val shell: ShellSession, private val approvals: ApprovalGate, private val fsTools: FsTools? = null, private val interaction: AgentInteraction = AgentInteraction(), private val jobs: AgentJobs? = null, private val runSubagent: (suspend (String, String, String, Int) -&gt; String)? = null, private val subagentPolicy: SubagentPolicy = SubagentPolicy(), private val subagentDepth: Int = 0, )</ID>
+    <ID>LongParameterList:AgentTools.kt$AgentTools$( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), permissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS, planMode: Boolean = false, onEvent: suspend (AgentEvent) -&gt; Unit = {}, )</ID>
     <ID>LongParameterList:FilesystemAccessSection.kt$( fsRootsMeta: List&lt;SettingsViewModel.FsRootMeta&gt;, onAddRoot: () -&gt; Unit, onRemoveRoot: (String) -&gt; Unit, onPresetDownloads: () -&gt; Unit, onPresetDocuments: () -&gt; Unit, onPresetPictures: () -&gt; Unit, onPresetAll: () -&gt; Unit, )</ID>
     <ID>LongParameterList:NeuroCodeApp.kt$( title: String, label: String, initialValue: String, confirmLabel: String, onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, )</ID>
     <ID>LongParameterList:SettingsScreen.kt$( model: String, onModelChange: (String) -&gt; Unit, modelsState: ProviderModelsState, expanded: Boolean, onExpandedChange: (Boolean) -&gt; Unit, onLoadModels: () -&gt; Boolean, )</ID>
@@ -33,6 +36,8 @@
     <ID>LoopWithTooManyJumpStatements:ProotManager.kt$while</ID>
     <ID>LoopWithTooManyJumpStatements:SimpleCodeLanguage.kt$CodeHighlighter$for</ID>
     <ID>LoopWithTooManyJumpStatements:SimpleCodeLanguage.kt$CodeHighlighter$while</ID>
+    <ID>MagicNumber:AgentJobs.kt$AgentJobs$1024</ID>
+    <ID>MagicNumber:AgentJobs.kt$AgentJobs$64</ID>
     <ID>MagicNumber:AgentOrchestrator.kt$AgentOrchestrator$20</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$100</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$12</ID>
@@ -44,6 +49,8 @@
     <ID>MagicNumber:AgentTools.kt$AgentTools$50</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$600</ID>
     <ID>MagicNumber:AgentTools.kt$AgentTools$60_000L</ID>
+    <ID>MagicNumber:AgentWorkflows.kt$AgentWorkflows$1024</ID>
+    <ID>MagicNumber:AgentWorkflows.kt$AgentWorkflows$64</ID>
     <ID>MagicNumber:ChatRepository.kt$ChatRepository$52</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$120_000</ID>
     <ID>MagicNumber:ChatViewModel.kt$ChatViewModel$20_000</ID>
@@ -82,12 +89,30 @@
     <ID>MagicNumber:SecureSecretStore.kt$SecureSecretStore$16</ID>
     <ID>MagicNumber:SettingsViewModel.kt$SettingsViewModel$20</ID>
     <ID>MagicNumber:ShellSession.kt$ShellSession$2_000</ID>
+    <ID>MagicNumber:SubagentPolicy.kt$SubagentLimits$1024</ID>
+    <ID>MagicNumber:SubagentPolicy.kt$SubagentLimits$16</ID>
+    <ID>MagicNumber:SubagentPolicy.kt$SubagentLimits$64</ID>
+    <ID>MatchingDeclarationName:AgentPlan.kt$AgentPlanTools</ID>
     <ID>MatchingDeclarationName:SkillImport.kt$SkillMarkdown</ID>
+    <ID>MaxLineLength:AgentTools.kt$AgentTools$"job_stop" -&gt; if (jobs?.stop(arguments.string("id")) == true) "Остановлено" else "Задача уже завершена или не найдена"</ID>
+    <ID>MaxLineLength:AgentTools.kt$AgentTools$"options" to buildJsonObject { put("type", JsonPrimitive("array")); put("items", property("string", "Вариант")) }</ID>
+    <ID>MaxLineLength:AgentTools.kt$AgentTools$add(tool("job_check", "Проверить статус фоновой команды.", mapOf("id" to property("string", "Job id")), listOf("id")))</ID>
+    <ID>MaxLineLength:AgentTools.kt$AgentTools$add(tool("job_read", "Прочитать ограниченный вывод фоновой команды.", mapOf("id" to property("string", "Job id")), listOf("id")))</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "${external.name}: ${external.description}. Команда фиксирована настройками и потребует подтверждения."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Заменить уникальный фрагмент текстового файла. Экономнее полной перезаписи. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Создать или полностью перезаписать текстовый файл проекта. Требует подтверждения пользователя."</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$description = "Удалить файл проекта (папки удалять нельзя). Копия сохраняется в .neurocode/history. Требует подтверждения пользователя."</ID>
+    <ID>MaxLineLength:AgentTools.kt$AgentTools$require(!planMode &amp;&amp; permissionMode != AgentPermissionMode.READ_ONLY) { "Импорт запрещён в режиме чтения" }</ID>
+    <ID>MaxLineLength:AgentTools.kt$AgentTools$require(!planMode &amp;&amp; permissionMode != AgentPermissionMode.READ_ONLY) { "Субагенты недоступны в режиме плана" }</ID>
+    <ID>MaxLineLength:AgentTools.kt$AgentTools$require(!planMode &amp;&amp; permissionMode != AgentPermissionMode.READ_ONLY) { "Фоновые команды запрещены в режиме чтения" }</ID>
+    <ID>MaxLineLength:AgentTools.kt$AgentTools$runSubagent?.invoke(projectId, sanitized.task, sanitized.description, subagentDepth + 1) ?: "Субагенты недоступны"</ID>
+    <ID>MaxLineLength:ChatScreen.kt$TextButton(onClick = { chat.reviewPlan(false, "Требует доработки") }) { Text("На доработку") }</ID>
+    <ID>MaxLineLength:ChatScreen.kt$TextButton(onClick = { chat.runWorkflow(workflow.id) }, enabled = !busy) { Text("Workflow: ${workflow.name}") }</ID>
+    <ID>MaxLineLength:ChatScreen.kt$active.tasks.forEach { task -&gt; Text("${if (task.status.name == "DONE") "☑" else "☐"} ${task.text}") }</ID>
+    <ID>MaxLineLength:ChatScreen.kt$if (active?.goal?.isNotBlank() == true) item { Surface { Text("Цель: ${active.goal}", Modifier.padding(12.dp)) } }</ID>
+    <ID>MaxLineLength:ChatViewModel.kt$ChatViewModel$container.chats.setPlan(session.id, com.secrethero.neurocode.ai.AgentPlanTools.reviewPlan(plan, approved, comment))</ID>
     <ID>MaxLineLength:ChatViewModel.kt$ChatViewModel$private suspend</ID>
+    <ID>MaxLineLength:ChatViewModel.kt$ChatViewModel$return runCloud(Turn(sessionId, workspaceFor(session), session.messages, UserRequest(step, emptyList(), null), model))</ID>
     <ID>MaxLineLength:ModelCatalog.kt$ModelCatalog$url = "https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/resolve/main/smollm2-1.7b-instruct-q4_k_m.gguf"</ID>
     <ID>MaxLineLength:ModelCatalog.kt$ModelCatalog$url = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"</ID>
     <ID>MaxLineLength:ModelCatalog.kt$ModelCatalog$url = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"</ID>
@@ -96,6 +121,7 @@
     <ID>MaxLineLength:ModelCatalog.kt$ModelCatalog$url = "https://huggingface.co/hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF/resolve/main/llama-3.2-3b-instruct-q4_k_m.gguf"</ID>
     <ID>MaxLineLength:ModelCatalog.kt$ModelCatalog$url = "https://huggingface.co/microsoft/Phi-3.5-mini-instruct-gguf/resolve/main/Phi-3.5-mini-instruct-Q4_K_M.gguf"</ID>
     <ID>MaxLineLength:ModelCatalog.kt$ModelCatalog$url = "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"</ID>
+    <ID>MaxLineLength:NeuroCodeApp.kt$FilledTonalButton(onClick = { viewModel.chat.answerQuestion(option.label) }) { Text(option.label) }</ID>
     <ID>MaxLineLength:SettingsScreen.kt$onPresetDocuments = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.DOCUMENTS).data) }</ID>
     <ID>MaxLineLength:SettingsScreen.kt$onPresetDownloads = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.DOWNLOADS).data) }</ID>
     <ID>MaxLineLength:SettingsScreen.kt$onPresetPictures = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.PICTURES).data) }</ID>
@@ -116,10 +142,13 @@
     <ID>ThrowsCount:HuggingFaceClient.kt$HuggingFaceClient$private suspend fun downloadResuming( url: String, partial: File, target: File, expectedSha256: String?, onProgress: (Long, Long) -&gt; Unit, ): File</ID>
     <ID>ThrowsCount:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun tryChatEndpoints( provider: ProviderConfig, shouldRethrow: () -&gt; Boolean = { false }, block: suspend (String) -&gt; AssistantTurn, ): AssistantTurn</ID>
     <ID>ThrowsCount:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
+    <ID>TooGenericExceptionCaught:AgentJobs.kt$AgentJobs$failure: Throwable</ID>
+    <ID>TooGenericExceptionCaught:AgentWorkflows.kt$AgentWorkflows$failure: Throwable</ID>
     <ID>TooGenericExceptionCaught:ChatViewModel.kt$ChatViewModel$error: Throwable</ID>
     <ID>TooGenericExceptionCaught:ChatViewModel.kt$ChatViewModel$primaryError: Throwable</ID>
     <ID>TooGenericExceptionCaught:GitViewModel.kt$GitViewModel$error: Throwable</ID>
     <ID>TooGenericExceptionCaught:ProjectsViewModel.kt$ProjectsViewModel$error: Throwable</ID>
+    <ID>TooManyFunctions:ChatRepository.kt$ChatRepository</ID>
     <ID>TooManyFunctions:ChatViewModel.kt$ChatViewModel : AndroidViewModel</ID>
     <ID>TooManyFunctions:LspClient.kt$LspClient</ID>
     <ID>TooManyFunctions:OpenAiCompatibleClient.kt$OpenAiCompatibleClient</ID>
