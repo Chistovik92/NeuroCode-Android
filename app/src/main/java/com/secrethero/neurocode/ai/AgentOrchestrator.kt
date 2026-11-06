@@ -1,8 +1,11 @@
 package com.secrethero.neurocode.ai
 
 import com.secrethero.neurocode.model.ChatMessage
+import com.secrethero.neurocode.model.AgentPlan
+import com.secrethero.neurocode.model.AgentTask
 import com.secrethero.neurocode.model.ExternalAgentTool
 import com.secrethero.neurocode.model.MessageRole
+import com.secrethero.neurocode.model.AgentPermissionMode
 import com.secrethero.neurocode.model.ProviderConfig
 
 sealed interface AgentEvent {
@@ -13,6 +16,10 @@ sealed interface AgentEvent {
     data class Reasoning(val text: String) : AgentEvent
     data class ToolStarted(val name: String, val arguments: String, val fsRootName: String? = null) : AgentEvent
     data class ToolFinished(val name: String, val result: String, val fsRootName: String? = null) : AgentEvent
+    data class PlanReady(val plan: AgentPlan) : AgentEvent
+    data class TasksChanged(val tasks: List<AgentTask>) : AgentEvent
+    data class GoalChanged(val goal: String) : AgentEvent
+    data class Deliverable(val path: String) : AgentEvent
 }
 
 /**
@@ -46,12 +53,17 @@ class AgentOrchestrator(
         externalTools: List<ExternalAgentTool> = emptyList(),
         attachments: Map<String, PreparedAttachment> = emptyMap(),
         fsRoots: List<String> = emptyList(),
-        onEvent: (AgentEvent) -> Unit = {},
+        planMode: Boolean = false,
+        permissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS,
+        goal: String? = null,
+        tasks: List<AgentTask> = emptyList(),
+        onEvent: suspend (AgentEvent) -> Unit = {},
     ): String {
+        suspend fun event(value: AgentEvent) = onEvent(value)
         val messages = mutableListOf(
             ApiMessage(
                 role = "system",
-                content = systemPrompt(projectName, projectSummary, activeSkills, fsRoots),
+                content = systemPrompt(projectName, projectSummary, activeSkills, fsRoots, planMode, goal, tasks),
             ),
         )
         messages += contextMessages(
@@ -86,7 +98,15 @@ class AgentOrchestrator(
             turn.toolCalls.forEach { call ->
                 val fsRootName = tools.fsRootName(call)
                 onEvent(AgentEvent.ToolStarted(call.name, call.arguments, fsRootName))
-                val result = tools.execute(projectId, call, allowAgentShell, externalTools)
+                val result = tools.execute(
+                    projectId = projectId,
+                    call = call,
+                    allowAgentShell = allowAgentShell,
+                    externalTools = externalTools,
+                    permissionMode = permissionMode,
+                    planMode = planMode,
+                    onEvent = onEvent,
+                )
                 onEvent(AgentEvent.ToolFinished(call.name, result, fsRootName))
                 // Огромный вывод (например, find по всему проекту) не должен съедать окно
                 // контекста и бюджет токенов следующих шагов.
@@ -105,7 +125,7 @@ class AgentOrchestrator(
         apiKey: String,
         history: List<ChatMessage>,
         attachments: Map<String, PreparedAttachment> = emptyMap(),
-        onEvent: (AgentEvent) -> Unit = {},
+        onEvent: suspend (AgentEvent) -> Unit = {},
     ): String {
         val messages = contextMessages(
             history = history,
@@ -181,6 +201,9 @@ class AgentOrchestrator(
         projectSummary: String = "",
         activeSkills: List<String> = emptyList(),
         fsRoots: List<String> = emptyList(),
+        planMode: Boolean = false,
+        goal: String? = null,
+        tasks: List<AgentTask> = emptyList(),
     ): String {
         val projectBlock = projectSummary.take(PROJECT_SUMMARY_CHARS)
             .takeIf { it.isNotBlank() }
@@ -203,6 +226,14 @@ class AgentOrchestrator(
                 fsRoots.joinToString(", ") { "«$it»" } +
                 ". Запись и удаление вне проекта запрещены."
         }
+        val planBlock = if (!planMode) "" else "\n\n## Режим планирования\n" +
+            "Сначала изучи проект только чтением. Не меняй файлы и не запускай команды. " +
+            "Вызови exit_plan_mode с конкретным проверяемым планом; жди решения пользователя."
+        val goalBlock = goal?.takeIf { it.isNotBlank() }?.let {
+            "\n\n## Цель сессии\n$it\nПеред завершением проверь, что цель достигнута."
+        }.orEmpty()
+        val todoBlock = "\n\n## Текущие задачи\n${AgentPlanTools.todoStatus(tasks)}\n" +
+            "Веди чек-лист через todo, цель — через goal. Необходимое уточнение задавай через ask_user_question."
         return """
         Ты — агент разработки внутри Android-приложения NeuroCode.
         Активный проект: $projectName.
@@ -211,7 +242,9 @@ class AgentOrchestrator(
         Не выдумывай результаты команд. После изменений проверь Git diff, если Git доступен.
         Android shell ограничен: в нём могут отсутствовать git, python, node и компиляторы.
         Никогда не запрашивай и не выводи API-ключи, токены или другие секреты.
-        Отвечай пользователю по-русски, а имена API, классов и команд сохраняй как в коде.$projectBlock$skillsBlock$fsBlock
+        Отвечай пользователю по-русски, а имена API, классов и команд сохраняй как в коде.
+Для независимой подзадачи используй subagent (не больше двух одновременно), для долгой команды — run_in_background и job_check/job_read/job_stop.
+Итоговый созданный файл покажи пользователю через present.$projectBlock$skillsBlock$fsBlock$planBlock$goalBlock$todoBlock
     """.trimIndent()
     }
 

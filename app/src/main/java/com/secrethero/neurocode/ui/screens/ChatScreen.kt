@@ -95,6 +95,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.R
 import com.secrethero.neurocode.ai.ModelResolver
 import com.secrethero.neurocode.ui.NameLabels
+import com.secrethero.neurocode.model.AgentPlanStatus
 import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.ChatAttachment
 import com.secrethero.neurocode.model.ChatMessage
@@ -265,6 +266,28 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                 contentPadding = PaddingValues(horizontal = if (modern) 20.dp else 12.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (active?.goal?.isNotBlank() == true) item { Surface { Text("Цель: ${active.goal}", Modifier.padding(12.dp)) } }
+                if (active?.tasks?.isNotEmpty() == true) item {
+                    Surface(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)) {
+                            active.tasks.forEach { task -> Text("${if (task.status.name == "DONE") "☑" else "☐"} ${task.text}") }
+                        }
+                    }
+                }
+                if (active?.plan?.status == AgentPlanStatus.DRAFT) item {
+                    Surface(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(active.plan.text)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(onClick = { chat.reviewPlan(true) }) { Text("Одобрить") }
+                                TextButton(onClick = { chat.reviewPlan(false, "Требует доработки") }) { Text("На доработку") }
+                            }
+                        }
+                    }
+                }
+                settings.workflows.forEach { workflow -> item {
+                    TextButton(onClick = { chat.runWorkflow(workflow.id) }, enabled = !busy) { Text("Workflow: ${workflow.name}") }
+                } }
                 if (messages.isEmpty() && streaming.isEmpty()) {
                     item {
                         if (modern) {
@@ -292,6 +315,9 @@ fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel) {
                             null
                         },
                     )
+                    message.deliverablePath?.let { path ->
+                        TextButton(onClick = { editor.openFile(path) }) { Text("Открыть результат: $path") }
+                    }
                 }
                 if (modern && showDisclaimer) {
                     item { AiDisclaimer() }

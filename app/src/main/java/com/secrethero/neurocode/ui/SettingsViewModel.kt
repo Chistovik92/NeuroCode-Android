@@ -125,6 +125,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setUseLocalModel(enabled: Boolean) = updateSettings { it.copy(useLocalModel = enabled) }
     fun setAgentMode(enabled: Boolean) = updateSettings { it.copy(agentMode = enabled) }
+    fun setPlanMode(enabled: Boolean) = updateSettings { it.copy(planMode = enabled) }
+    fun setAgentPermissionMode(mode: com.secrethero.neurocode.model.AgentPermissionMode) =
+        updateSettings { it.copy(agentPermissionMode = mode) }
     fun setAllowAgentShell(enabled: Boolean) = updateSettings { it.copy(allowAgentShell = enabled) }
     fun setMaxAgentSteps(value: Int) = updateSettings { it.copy(maxAgentSteps = value.coerceIn(1, 20)) }
     fun setThemeMode(mode: ThemeMode) = updateSettings { it.copy(themeMode = mode) }

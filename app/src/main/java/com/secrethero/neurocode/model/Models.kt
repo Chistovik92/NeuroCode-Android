@@ -170,6 +170,11 @@ data class AppSettings(
 
     /** Загружать модели каталога только по Wi‑Fi (0.9.1). */
     val wifiOnlyDownloads: Boolean = false,
+
+    /** Единая политика вызовов инструментов (0.9.3). */
+    val agentPermissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS,
+    val planMode: Boolean = false,
+    val workflows: List<com.secrethero.neurocode.ai.AgentWorkflow> = emptyList(),
 ) {
     companion object {
         const val RECENT_MODELS_LIMIT = 5
@@ -222,6 +227,30 @@ data class ChatMessage(
     /** Какая модель сгенерировала ответ (для сообщений ассистента). */
     val generatedBy: ModelRef? = null,
     val fsRootName: String? = null,
+    /** Итоговый файл, который можно открыть из чата. */
+    val deliverablePath: String? = null,
+)
+
+@Serializable
+enum class AgentPermissionMode { ASK_ALWAYS, AUTO_EDIT, READ_ONLY }
+
+@Serializable
+data class AgentTask(
+    val text: String,
+    val status: AgentTaskStatus = AgentTaskStatus.PENDING,
+)
+
+@Serializable
+enum class AgentTaskStatus { PENDING, IN_PROGRESS, DONE }
+
+@Serializable
+enum class AgentPlanStatus { DRAFT, APPROVED, REJECTED }
+
+@Serializable
+data class AgentPlan(
+    val text: String,
+    val status: AgentPlanStatus = AgentPlanStatus.DRAFT,
+    val comment: String = "",
 )
 
 @Serializable
@@ -237,6 +266,10 @@ data class ChatSession(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val messages: List<ChatMessage> = emptyList(),
+    /** План, цель и чек-лист принадлежат диалогу и сохраняются вместе с ним. */
+    val plan: AgentPlan? = null,
+    val goal: String? = null,
+    val tasks: List<AgentTask> = emptyList(),
 )
 
 data class ToolCall(

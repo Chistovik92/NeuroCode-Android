@@ -114,8 +114,8 @@ class OpenAiCompatibleClient {
         apiKey: String,
         messages: List<ApiMessage>,
         tools: JsonArray = JsonArray(emptyList()),
-        onDelta: ((String) -> Unit)? = null,
-        onReasoning: ((String) -> Unit)? = null,
+        onDelta: (suspend (String) -> Unit)? = null,
+        onReasoning: (suspend (String) -> Unit)? = null,
     ): AssistantTurn {
         validate(provider, apiKey)
         if (onDelta == null) {
@@ -268,8 +268,8 @@ class OpenAiCompatibleClient {
         apiKey: String,
         messages: List<ApiMessage>,
         tools: JsonArray,
-        onChunk: (String) -> Unit,
-        onReasoningChunk: (String) -> Unit,
+        onChunk: suspend (String) -> Unit,
+        onReasoningChunk: suspend (String) -> Unit,
         providerForHeaders: ProviderConfig,
     ): AssistantTurn = withContext(Dispatchers.IO) {
         validate(providerForHeaders, apiKey)
@@ -298,7 +298,7 @@ class OpenAiCompatibleClient {
                 // Счётчик вызовов без индекса: Fallback-ключи -1, -2… не сливаются с реальными
                 // индексами (0, 1, …) и не сбрасываются при добавлении в builders.
                 var missingIndex = 0
-                fun emit(chunk: ReasoningSplitter.Chunk) {
+                suspend fun emit(chunk: ReasoningSplitter.Chunk) {
                     if (chunk.content.isNotEmpty()) {
                         content.append(chunk.content)
                         onChunk(chunk.content)

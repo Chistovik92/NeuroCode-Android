@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +42,7 @@ class ShellSession(
     private var readerJob: Job? = null
     private var activeProjectId: String? = null
     private var interactiveCommandsSent = 0
+    private var generation = 0L
 
     @Synchronized
     fun start(projectId: String) {
@@ -53,15 +55,17 @@ class ShellSession(
         }
         val root = projects.resolve(projectId, "")
         launchBackgroundInit()
+        val currentGeneration = generation
         process = launchShell(root)?.also { shell ->
             writer = BufferedWriter(OutputStreamWriter(shell.outputStream))
             readerJob = scope.launch {
                 runCatching {
                     shell.inputStream.bufferedReader().useLines { sequence ->
-                        sequence.forEach { append(TerminalLine(it)) }
+                        sequence.forEach { appendIfCurrent(currentGeneration, TerminalLine(it)) }
                     }
                 }
-                append(
+                appendIfCurrent(
+                    currentGeneration,
                     TerminalLine(
                         "[процесс завершён: ${runCatching { shell.exitValue() }.getOrDefault(-1)}]",
                         error = true,
@@ -119,15 +123,23 @@ class ShellSession(
 
     @Synchronized
     fun stop() {
+        generation++
+        val oldProcess = process
         // close() писателя умершего процесса кидает IOException — не роняем из-за него запуск.
         runCatching { writer?.close() }
+        runCatching { oldProcess?.inputStream?.close() }
         writer = null
-        process?.destroy()
+        oldProcess?.destroy()
         process = null
         readerJob?.cancel()
         readerJob = null
         activeProjectId = null
         interactiveCommandsSent = 0
+    }
+
+    @Synchronized
+    private fun appendIfCurrent(expectedGeneration: Long, line: TerminalLine) {
+        if (generation == expectedGeneration) append(line)
     }
 
     fun close() {
@@ -149,6 +161,15 @@ class ShellSession(
         }
         coroutineScope {
             val child = createProcess(root, commandList)
+            // Блокирующий Process.waitFor не реагирует на отмену корутины. Убиваем процесс
+            // немедленно по «Стоп», иначе команда продолжала работать до исхода тайм-аута.
+            currentCoroutineContext()[Job]?.invokeOnCompletion {
+                if (it is kotlinx.coroutines.CancellationException) {
+                    runCatching { child.inputStream.close() }
+                    runCatching { child.outputStream.close() }
+                    child.destroyForcibly()
+                }
+            }
             val reader = async(Dispatchers.IO) {
                 runCatching { child.inputStream.bufferedReader().readText() }.getOrDefault("")
             }
@@ -157,9 +178,9 @@ class ShellSession(
                 if (!completed) {
                     child.destroyForcibly()
                 }
-                // Процесс-«внук», унаследовавший stdout, держит пайп: reader.await() без
-                // тайм-аута висел бы вечно и блокировал ход агента. Закрытие потока будит читателя.
-                val output = withTimeoutOrNull(timeoutMs) { reader.await() }
+                // Процесс-«внук», унаследовавший stdout, держит пайп. Даём читателю
+                // только короткий grace-period, а не второй полный тайм-аут.
+                val output = withTimeoutOrNull(READER_GRACE_MS) { reader.await() }
                     ?: run {
                         runCatching { child.inputStream.close() }
                         withTimeoutOrNull(2_000) { reader.await() } ?: ""
@@ -233,5 +254,9 @@ class ShellSession(
     @Synchronized
     private fun append(line: TerminalLine) {
         _lines.value = (_lines.value + line).takeLast(2_000)
+    }
+
+    private companion object {
+        const val READER_GRACE_MS = 2_000L
     }
 }

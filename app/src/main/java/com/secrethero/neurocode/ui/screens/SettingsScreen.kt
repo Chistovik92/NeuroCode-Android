@@ -308,6 +308,24 @@ fun SettingsScreen(vm: SettingsViewModel) {
             onChecked = vm::setAgentMode,
         )
         SettingSwitch(
+            title = "Режим плана",
+            description = "Перед изменениями агент покажет план для одобрения",
+            checked = settings.planMode,
+            enabled = settings.agentMode && !settings.useLocalModel,
+            onChecked = vm::setPlanMode,
+        )
+        com.secrethero.neurocode.model.AgentPermissionMode.entries.forEach { mode ->
+            FilterChip(
+                selected = settings.agentPermissionMode == mode,
+                onClick = { vm.setAgentPermissionMode(mode) },
+                label = { Text(when (mode) {
+                    com.secrethero.neurocode.model.AgentPermissionMode.ASK_ALWAYS -> "Спрашивать всегда"
+                    com.secrethero.neurocode.model.AgentPermissionMode.AUTO_EDIT -> "Автопринятие правок"
+                    com.secrethero.neurocode.model.AgentPermissionMode.READ_ONLY -> "Только чтение"
+                }) },
+            )
+        }
+        SettingSwitch(
             title = stringResource(R.string.shell_without_ask),
             description = stringResource(R.string.shell_without_ask_desc),
             checked = settings.allowAgentShell,

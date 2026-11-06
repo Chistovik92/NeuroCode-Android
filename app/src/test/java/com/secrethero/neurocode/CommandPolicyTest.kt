@@ -75,7 +75,8 @@ class CommandPolicyTest {
         assertFalse(CommandPolicy.isSafeReadOnly("find . -exec rm x"))
         assertFalse(CommandPolicy.isSafeReadOnly("sed -i s/a/b/ file.txt"))
         assertFalse(CommandPolicy.isSafeReadOnly("sed -ni p file.txt"))
-        assertTrue(CommandPolicy.isSafeReadOnly("sed -n 1,5p file.txt"))
+        assertFalse(CommandPolicy.isSafeReadOnly("sed -n '1w result.txt' input.txt"))
+        assertFalse(CommandPolicy.isSafeReadOnly("sed -n 1,5p file.txt"))
         assertTrue(CommandPolicy.isSafeReadOnly("find . -name '*.kt'"))
     }
 

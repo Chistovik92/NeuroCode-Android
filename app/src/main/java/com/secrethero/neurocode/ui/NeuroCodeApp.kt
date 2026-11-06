@@ -166,6 +166,7 @@ fun NeuroCodeApp(
     val settings by viewModel.settingsScreen.settings.collectAsStateWithLifecycle()
     val projects by viewModel.projects.projects.collectAsStateWithLifecycle()
     val approval by viewModel.chat.approval.collectAsStateWithLifecycle()
+    val question by viewModel.chat.question.collectAsStateWithLifecycle()
     val exportProgress by viewModel.projects.exportProgress.collectAsStateWithLifecycle()
     val zipProgress by viewModel.projects.zipProgress.collectAsStateWithLifecycle()
     val currentProject = projects.firstOrNull { it.id == settings.selectedProjectId }
@@ -413,6 +414,24 @@ fun NeuroCodeApp(
                     Text(stringResource(R.string.action_deny))
                 }
             },
+        )
+    }
+
+    question?.let { current ->
+        var answer by remember(current.id) { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = viewModel.chat::skipQuestion,
+            title = { Text(current.text) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    current.options.forEach { option ->
+                        FilledTonalButton(onClick = { viewModel.chat.answerQuestion(option.label) }) { Text(option.label) }
+                    }
+                    TextField(value = answer, onValueChange = { answer = it }, label = { Text("Свой ответ") })
+                }
+            },
+            confirmButton = { Button(onClick = { viewModel.chat.answerQuestion(answer) }) { Text("Ответить") } },
+            dismissButton = { TextButton(onClick = viewModel.chat::skipQuestion) { Text("Пропустить") } },
         )
     }
 

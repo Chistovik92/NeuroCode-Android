@@ -246,15 +246,30 @@ class ChatStorageTest {
     }
 
     @Test
-    fun unsafeChatIdsCannotEscapeTheChatsDirectory() = runBlocking {
+    fun unsafeChatIdsAreRejectedBeforeWriting() = runBlocking {
         val storage = ChatStorage(stateDir)
         storage.loadAll()
         val evil = session("../../evil")
 
-        storage.apply(listOf(evil), listOf(evil), emptySet())
+        val error = runCatching {
+            storage.apply(listOf(evil), listOf(evil), emptySet())
+        }.exceptionOrNull()
 
+        assertTrue(error is IllegalArgumentException)
         assertFalse(File(stateDir.parentFile, "evil.json").exists())
-        assertTrue(chatsDir.listFiles()!!.any { it.name == "evil.json" })
-        assertNull(chatsDir.listFiles()!!.firstOrNull { it.name.contains("/") })
+        assertFalse(File(chatsDir, "evil.json").exists())
+    }
+
+    @Test
+    fun idsThatUsedToCollideCannotOverwriteEachOther() = runBlocking {
+        val storage = ChatStorage(stateDir)
+        storage.loadAll()
+        val first = session("a/b")
+        val second = session("ab")
+
+        assertTrue(runCatching {
+            storage.apply(listOf(first, second), listOf(first, second), emptySet())
+        }.isFailure)
+        assertFalse(File(chatsDir, "ab.json").exists())
     }
 }

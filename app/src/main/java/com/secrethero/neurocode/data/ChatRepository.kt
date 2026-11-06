@@ -44,7 +44,7 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
     suspend fun initialize() = mutex.withLock {
         _sessions.value = storage.loadAll().sortedByDescending { it.updatedAt }
         // Spill-файлы удалённых диалогов и устаревшие — на IO при старте, иначе каталог рос бы вечно.
-        withContext(Dispatchers.IO) { spill.cleanup() }
+        withContext(Dispatchers.IO) { spill.cleanup(liveSessionIds = _sessions.value.map { it.id }.toSet()) }
     }
 
     /** Добавляет готовый диалог (например, копию) в начало списка. */
@@ -77,7 +77,7 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
             }
             val persisted = if (spillName != null) {
                 val inline = message.content.take(SPILL_INLINE_CHARS)
-                message.copy(content = "$inline\n[полный результат: .neurocode/spill/$spillName]")
+                message.copy(content = "$inline\n[полный результат сохранён внутри приложения: $spillName]")
             } else {
                 message
             }
@@ -122,6 +122,18 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
     /** Переопределение модели диалога; null возвращает диалог к модели проекта. */
     suspend fun setModel(sessionId: String, model: ModelRef?) {
         update(sessionId) { it.copy(model = model) }
+    }
+
+    suspend fun setPlan(sessionId: String, plan: com.secrethero.neurocode.model.AgentPlan?) {
+        update(sessionId) { it.copy(plan = plan, updatedAt = System.currentTimeMillis()) }
+    }
+
+    suspend fun setGoal(sessionId: String, goal: String?) {
+        update(sessionId) { it.copy(goal = goal, updatedAt = System.currentTimeMillis()) }
+    }
+
+    suspend fun setTasks(sessionId: String, tasks: List<com.secrethero.neurocode.model.AgentTask>) {
+        update(sessionId) { it.copy(tasks = tasks, updatedAt = System.currentTimeMillis()) }
     }
 
     suspend fun replaceMessages(sessionId: String, messages: List<ChatMessage>) {

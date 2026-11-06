@@ -16,3 +16,7 @@ secrets.properties
 third_party/llama.cpp/build/
 third_party/proot/.fetch-cache/
 __pycache__/
+
+# Локальные логи сборки и заметки наблюдателя навыков — не в репозитории.
+*.log
+skill-observations/

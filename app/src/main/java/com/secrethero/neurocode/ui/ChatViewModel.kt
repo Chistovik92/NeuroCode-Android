@@ -60,6 +60,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val approval = container.approvals.request
+    val question = container.interaction.question
     val localModelState = container.localLlama.state
     val projectsMutated = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -68,6 +69,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _chatRunState = MutableStateFlow<ChatRunState>(ChatRunState.Idle)
     val chatRunState: StateFlow<ChatRunState> = _chatRunState.asStateFlow()
     private val _streamingResponse = MutableStateFlow("")
+    private var deliverablePath: String? = null
     val streamingResponse: StateFlow<String> = _streamingResponse.asStateFlow()
     private val _agentLog = MutableStateFlow<List<String>>(emptyList())
     val agentLog: StateFlow<List<String>> = _agentLog.asStateFlow()
@@ -323,6 +325,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun answerTurn(turn: Turn) {
         check(turn.model.ready) { unavailableMessage(turn.model) }
         clearStreaming()
+        deliverablePath = null
         _agentLog.value = emptyList()
         _chatRunState.value = ChatRunState.Working(str(R.string.status_thinking))
         val answer = if (turn.model.isLocal) runLocal(turn) else runCloud(turn)
@@ -333,6 +336,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 content = answer,
                 reasoning = _streamingReasoning.value.takeIf { it.isNotBlank() },
                 generatedBy = turn.model.ref,
+                deliverablePath = deliverablePath,
             ),
         )
         clearStreaming()
@@ -460,6 +464,34 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         container.approvals.resolve(approved)
     }
 
+    fun answerQuestion(answer: String) = container.interaction.respond(answer)
+    fun skipQuestion() = container.interaction.skip()
+
+    fun reviewPlan(approved: Boolean, comment: String = "") = viewModelScope.launch {
+        val session = container.chats.get(_activeSessionId.value) ?: return@launch
+        val plan = session.plan ?: return@launch
+        runCatching {
+            container.chats.setPlan(session.id, com.secrethero.neurocode.ai.AgentPlanTools.reviewPlan(plan, approved, comment))
+            if (approved) container.settings.update { it.copy(planMode = false) }
+        }.onFailure(container.bus::showError)
+    }
+
+    fun runWorkflow(id: String) = launchTurn {
+        val workflow = settings.value.workflows.firstOrNull { it.id == id } ?: return@launchTurn
+        val sessionId = ensureSession()
+        _chatRunState.value = ChatRunState.Working(workflow.name)
+        val result = container.workflows.start(workflow) { step -> sendWorkflowStep(sessionId, step) }.await()
+        _chatRunState.value = result.error?.let(ChatRunState::Failed) ?: ChatRunState.Idle
+    }
+
+    private suspend fun sendWorkflowStep(sessionId: String, step: String): String {
+        container.chats.append(sessionId, ChatMessage(role = MessageRole.USER, content = step))
+        val session = container.chats.get(sessionId) ?: return "Диалог удалён"
+        val model = resolveModel(session)
+        check(model.ready) { unavailableMessage(model) }
+        return runCloud(Turn(sessionId, workspaceFor(session), session.messages, UserRequest(step, emptyList(), null), model))
+    }
+
     @Suppress("ThrowsCount")
     private suspend fun runCloud(turn: Turn): String {
         val current = settings.value
@@ -565,6 +597,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 fsRoots = runCatching {
                     container.filesystem.roots(request.current.fsRoots).map { it.displayName }
                 }.getOrDefault(emptyList()),
+                planMode = request.current.planMode,
+                permissionMode = request.current.agentPermissionMode,
+                goal = container.chats.get(request.sessionId)?.goal,
+                tasks = container.chats.get(request.sessionId)?.tasks.orEmpty(),
                 onEvent = { onAgentEvent(request.sessionId, it) },
             )
         } else {
@@ -770,7 +806,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         return HistoryAdapter.transcript(adaptHistory(history, target), LOCAL_HISTORY_CHARS)
     }
 
-    private fun onAgentEvent(sessionId: String, event: AgentEvent) {
+    private suspend fun onAgentEvent(sessionId: String, event: AgentEvent) {
         when (event) {
             is AgentEvent.Status -> _chatRunState.value = ChatRunState.Working(event.text)
             is AgentEvent.Delta -> _streamingResponse.update { it + event.text }
@@ -794,6 +830,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
+            is AgentEvent.PlanReady -> container.chats.setPlan(sessionId, event.plan)
+            is AgentEvent.TasksChanged -> container.chats.setTasks(sessionId, event.tasks)
+            is AgentEvent.GoalChanged -> container.chats.setGoal(sessionId, event.goal)
+            is AgentEvent.Deliverable -> deliverablePath = event.path
         }
     }
 

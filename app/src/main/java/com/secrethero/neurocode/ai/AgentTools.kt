@@ -6,6 +6,7 @@ import com.secrethero.neurocode.R
 import com.secrethero.neurocode.data.FilesystemAccess
 import com.secrethero.neurocode.data.ProjectRepository
 import com.secrethero.neurocode.git.GitRepository
+import com.secrethero.neurocode.model.AgentPermissionMode
 import com.secrethero.neurocode.model.ApprovalRisk
 import com.secrethero.neurocode.model.ExternalAgentTool
 import com.secrethero.neurocode.model.ToolApprovalRequest
@@ -36,6 +37,11 @@ class AgentTools(
     private val shell: ShellSession,
     private val approvals: ApprovalGate,
     private val fsTools: FsTools? = null,
+    private val interaction: AgentInteraction = AgentInteraction(),
+    private val jobs: AgentJobs? = null,
+    private val runSubagent: (suspend (String, String, String, Int) -> String)? = null,
+    private val subagentPolicy: SubagentPolicy = SubagentPolicy(),
+    private val subagentDepth: Int = 0,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -122,6 +128,42 @@ class AgentTools(
                 "staged" to property("boolean", "true для проиндексированных изменений"),
             ),
         ))
+        add(tool(
+            name = "todo",
+            description = "Заменить видимый чек-лист задач; не больше одной in_progress.",
+            properties = mapOf("items" to buildJsonObject {
+                put("type", JsonPrimitive("array"))
+                put("items", buildJsonObject {
+                    put("type", JsonPrimitive("object"))
+                    put("properties", buildJsonObject {
+                        put("text", property("string", "Задача"))
+                        put("status", property("string", "pending, in_progress или done"))
+                    })
+                })
+            }),
+            required = listOf("items"),
+        ))
+        add(tool("goal", "Закрепить цель сессии.", mapOf("text" to property("string", "Цель")), listOf("text")))
+        add(tool("ask_user_question", "Задать уточнение с необязательными вариантами; можно пропустить.", mapOf(
+            "question" to property("string", "Вопрос"),
+            "options" to buildJsonObject { put("type", JsonPrimitive("array")); put("items", property("string", "Вариант")) },
+        ), listOf("question")))
+        add(tool("exit_plan_mode", "Показать план пользователю для одобрения или замечаний.", mapOf(
+            "plan" to property("string", "Полный план"),
+        ), listOf("plan")))
+        add(tool("run_in_background", "Запустить одобренную долгую shell-команду в фоне; вернуть job id.", mapOf(
+            "command" to property("string", "Команда shell"),
+        ), listOf("command")))
+        add(tool("job_check", "Проверить статус фоновой команды.", mapOf("id" to property("string", "Job id")), listOf("id")))
+        add(tool("job_read", "Прочитать ограниченный вывод фоновой команды.", mapOf("id" to property("string", "Job id")), listOf("id")))
+        add(tool("job_stop", "Остановить фоновую команду.", mapOf("id" to property("string", "Job id")), listOf("id")))
+        add(tool("subagent", "Выполнить независимую подзадачу отдельным контекстом с ограниченной глубиной.", mapOf(
+            "task" to property("string", "Конкретная самодостаточная подзадача"),
+            "description" to property("string", "Короткое название"),
+        ), listOf("task")))
+        add(tool("present", "Показать существующий итоговый файл проекта карточкой.", mapOf(
+            "path" to property("string", "Относительный путь существующего файла"),
+        ), listOf("path")))
         addFsDefinitions().forEach { add(it) }
         externalTools.filter { it.enabled }.forEach { external ->
             add(tool(
@@ -141,7 +183,17 @@ class AgentTools(
         call: ToolCall,
         allowAgentShell: Boolean,
         externalTools: List<ExternalAgentTool> = emptyList(),
+        permissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS,
+        planMode: Boolean = false,
+        onEvent: suspend (AgentEvent) -> Unit = {},
     ): String = runCatching {
+        // Единый барьер: в режиме плана/только чтения запрещены все изменения и shell,
+        // включая внешние и ещё не зарегистрированные инструменты (fail closed).
+        if (planMode || permissionMode == AgentPermissionMode.READ_ONLY) {
+            require(call.name !in MUTATING_TOOLS && !call.name.startsWith("custom_")) {
+                "В текущем режиме доступны только чтение, планирование и вопросы"
+            }
+        }
         // Некоторые модели присылают пустую строку вместо «{}» для инструментов без параметров.
         val arguments = json.parseToJsonElement(call.arguments.ifBlank { "{}" }).jsonObject
         when (call.name) {
@@ -153,7 +205,7 @@ class AgentTools(
             "write_file" -> {
                 val path = arguments.string("path")
                 val content = arguments.string("content")
-                val approved = approvals.ask(
+                val approved = permissionMode == AgentPermissionMode.AUTO_EDIT || approvals.ask(
                     ToolApprovalRequest(
                         title = str(R.string.approve_write_file),
                         details = "$path\n\n${content.take(1_200)}",
@@ -174,7 +226,7 @@ class AgentTools(
                 require(occurrences == 1) {
                     "Фрагмент должен иметь ровно одно вхождение, найдено: $occurrences"
                 }
-                val approved = approvals.ask(
+                val approved = permissionMode == AgentPermissionMode.AUTO_EDIT || approvals.ask(
                     ToolApprovalRequest(
                         title = str(R.string.approve_replace_file),
                         details = "$path\n\n− ${search.take(600)}\n+ ${replacement.take(600)}",
@@ -187,7 +239,7 @@ class AgentTools(
             }
             "delete_file" -> {
                 val path = arguments.string("path")
-                val approved = approvals.ask(
+                val approved = permissionMode == AgentPermissionMode.AUTO_EDIT || approvals.ask(
                     ToolApprovalRequest(
                         title = str(R.string.approve_delete_file),
                         details = path + str(R.string.approve_keep_history),
@@ -210,7 +262,7 @@ class AgentTools(
                 val risky = CommandPolicy.risk(command)
                 val unattended = allowAgentShell && risky == null && CommandPolicy.isSafeReadOnly(command)
                 if (!unattended) {
-                    val approved = approvals.ask(
+                    val approved = permissionMode == AgentPermissionMode.AUTO_EDIT || approvals.ask(
                         ToolApprovalRequest(
                             title = if (risky != null) {
                                 str(R.string.dangerous_command)
@@ -234,8 +286,59 @@ class AgentTools(
                 val staged = arguments["staged"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
                 git.diff(projectId, staged).ifBlank { "Изменений нет" }.take(MAX_TOOL_OUTPUT)
             }
-            "fs_list", "fs_search", "fs_read", "fs_import" ->
+            "todo" -> AgentPlanTools.todos(arguments).also {
+                onEvent(AgentEvent.TasksChanged(it))
+            }.let(AgentPlanTools::taskSummary)
+            "goal" -> AgentPlanTools.goal(arguments).also {
+                onEvent(AgentEvent.GoalChanged(it))
+            }
+            "ask_user_question" -> {
+                val answer = interaction.ask(AgentQuestion(
+                    text = arguments.string("question").take(AgentInteraction.MAX_ANSWER_CHARS),
+                    options = (arguments["options"] as? JsonArray).orEmpty().mapNotNull {
+                        it.jsonPrimitive.contentOrNull?.trim()?.takeIf(String::isNotEmpty)
+                    }.distinct().take(AgentInteraction.MAX_OPTIONS).map { AgentQuestionOption(it) },
+                )) ?: "Пользователь пропустил вопрос или время ответа истекло"
+                answer
+            }
+            "exit_plan_mode" -> AgentPlanTools.plan(arguments).also {
+                onEvent(AgentEvent.PlanReady(it))
+            }.text
+            "run_in_background" -> {
+                require(!planMode && permissionMode != AgentPermissionMode.READ_ONLY) { "Фоновые команды запрещены в режиме чтения" }
+                val command = arguments.string("command").take(2_000)
+                val risk = CommandPolicy.risk(command)
+                val approved = permissionMode == AgentPermissionMode.AUTO_EDIT || approvals.ask(ToolApprovalRequest(
+                    title = str(R.string.approve_command),
+                    details = "$ $command",
+                    risk = if (risk == null) ApprovalRisk.SHELL else ApprovalRisk.DESTRUCTIVE,
+                ))
+                if (!approved) return str(R.string.deny_command)
+                jobs?.start(projectId, command)?.id ?: "Фоновые задачи недоступны"
+            }
+            "job_check" -> jobs?.check(arguments.string("id"))?.toString() ?: "Фоновая задача не найдена"
+            "job_read" -> jobs?.read(arguments.string("id")) ?: "Фоновая задача не найдена"
+            "job_stop" -> if (jobs?.stop(arguments.string("id")) == true) "Остановлено" else "Задача уже завершена или не найдена"
+            "subagent" -> {
+                require(!planMode && permissionMode != AgentPermissionMode.READ_ONLY) { "Субагенты недоступны в режиме плана" }
+                val sanitized = subagentPolicy.sanitize(
+                    arguments.string("task"),
+                    arguments["description"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                )
+                runSubagent?.invoke(projectId, sanitized.task, sanitized.description, subagentDepth + 1) ?: "Субагенты недоступны"
+            }
+            "present" -> {
+                val path = AgentPlanTools.presentPath(arguments)
+                require(projects.resolve(projectId, path).isFile) { "Файл не найден: $path" }
+                onEvent(AgentEvent.Deliverable(path))
+                "Результат показан: $path"
+            }
+            "fs_list", "fs_search", "fs_read" ->
                 fsDelegate { tools -> tools.execute(projectId, call.name, arguments) }
+            "fs_import" -> {
+                require(!planMode && permissionMode != AgentPermissionMode.READ_ONLY) { "Импорт запрещён в режиме чтения" }
+                fsDelegate { tools -> tools.execute(projectId, call.name, arguments) }
+            }
             else -> executeExternal(projectId, call, externalTools)
         }
     }.getOrElse { error ->
@@ -326,6 +429,10 @@ class AgentTools(
             ?: error("Отсутствует параметр $name")
 
     companion object {
+        private val MUTATING_TOOLS = setOf(
+            "write_file", "replace_in_file", "delete_file", "rename_file", "run_command",
+            "run_in_background", "job_stop", "fs_import",
+        )
         private const val MAX_TOOL_OUTPUT = 24_000
     }
 }

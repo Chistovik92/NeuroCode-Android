@@ -27,20 +27,15 @@ object CommandPolicy {
         val tokens = command.trim().split(Regex("\\s+"))
         val executable = tokens.first()
         if (executable !in SAFE_READ_ONLY_EXECUTABLES) return false
-        // find и sed умеют менять файлы: -delete/-exec/-fprint и sed -i/--in-place.
-        return tokens.drop(1).none { it in FORBIDDEN_ARGUMENTS || isInPlaceSedFlag(executable, it) }
+        // find умеет менять файлы через -delete/-exec/-fprint. sed исключён целиком:
+        // даже без -i его команды w/e создают файлы и запускают программы.
+        return tokens.drop(1).none { it in FORBIDDEN_ARGUMENTS }
     }
-
-    private fun isInPlaceSedFlag(executable: String, argument: String): Boolean =
-        executable == "sed" && (
-            argument.startsWith("--in-place") ||
-                (argument.startsWith("-") && !argument.startsWith("--") && argument.contains('i'))
-            )
 
     private val FORBIDDEN_ARGUMENTS = setOf(
         "-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls",
     )
 
     private val SAFE_READ_ONLY_EXECUTABLES =
-        setOf("pwd", "ls", "find", "grep", "sed", "head", "tail", "wc", "cat")
+        setOf("pwd", "ls", "find", "grep", "head", "tail", "wc", "cat")
 }

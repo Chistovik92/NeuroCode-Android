@@ -49,7 +49,9 @@ class SpillStore(private val directory: File) {
     }
 
     fun read(name: String, maxChars: Int = DEFAULT_READ_CHARS): String? =
-        File(directory, name).takeIf { it.isFile }?.readText()?.take(maxChars)
+        File(directory, name).takeIf {
+            it.isFile && it.name == name && it.name.endsWith(".txt")
+        }?.readText()?.take(maxChars)
 
     /** Файлы диалога растут без предела, если их не чистить при удалении диалога. */
     fun removeSession(sessionId: String) {
@@ -63,11 +65,16 @@ class SpillStore(private val directory: File) {
      * `.neurocode/spill` рос бы неограниченно (spill пишется при каждом крупном tool-результате,
      * а удаление диалога чистит только его собственные файлы — осиротевшие копились бы вечно).
      */
-    fun cleanup(olderThanMillis: Long = DEFAULT_MAX_AGE_MILLIS) {
+    fun cleanup(
+        olderThanMillis: Long = DEFAULT_MAX_AGE_MILLIS,
+        liveSessionIds: Set<String> = emptySet(),
+    ) {
         val cutoff = System.currentTimeMillis() - olderThanMillis
         directory.listFiles { file -> file.isFile }
             .orEmpty()
-            .filter { file -> file.lastModified() < cutoff }
+            .filter { file ->
+                file.lastModified() < cutoff && liveSessionIds.none { file.name.startsWith("$it-") }
+            }
             .forEach { runCatching { it.delete() } }
     }
 

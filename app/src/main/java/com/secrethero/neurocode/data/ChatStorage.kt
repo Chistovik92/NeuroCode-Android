@@ -62,7 +62,8 @@ class SplitChatStore(
 
     private fun sessionFile(id: String): File {
         val safe = id.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
-        require(safe.isNotEmpty()) { "Пустой идентификатор диалога" }
+        // Однозначное отображение: фильтрация `a/b` и `ab` в одно имя затирала бы чужой диалог.
+        require(safe == id) { "Недопустимый идентификатор диалога" }
         return File(dir, "$safe.json")
     }
 
