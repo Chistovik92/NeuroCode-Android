@@ -58,9 +58,14 @@ class ModelRecommenderTest {
 
     @Test
     fun tooLargeIsFlaggedNotHidden() {
-        val ranked = ModelRecommender.rank(ModelCatalog.starter, profile(1_000))
+        val p = profile(1_000)
+        val ranked = ModelRecommender.rank(ModelCatalog.starter, p)
+        // Модели, не помещающиеся в память, не скрываются, а помечаются флагом tooLarge.
         assertTrue(ranked.any { it.tooLarge })
-        assertTrue(ranked.filter { it.tooLarge }.all { it.spec.sizeMb > 1_000 })
+        assertEquals(
+            ranked.filter { it.spec.sizeMb > p.maxModelSizeMb }.map { it.spec.id }.toSet(),
+            ranked.filter { it.tooLarge }.map { it.spec.id }.toSet(),
+        )
     }
 
     @Test
