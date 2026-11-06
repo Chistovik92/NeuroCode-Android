@@ -99,8 +99,7 @@ class HuggingFaceClient(
                 HuggingFaceFile(
                     path = path,
                     sizeBytes = (obj["size"] as? JsonPrimitive)?.contentOrNull?.toLongOrNull() ?: -1L,
-                    sha256 = (obj["lfs"] as? JsonObject)
-                        ?.get("sha256") as? JsonPrimitive
+                    sha256 = ((obj["lfs"] as? JsonObject)?.get("sha256") as? JsonPrimitive)
                         ?.contentOrNull,
                 )
             }.filter { it.path.endsWith(".gguf", ignoreCase = true) }
