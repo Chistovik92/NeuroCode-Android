@@ -99,7 +99,25 @@ data class AgentSkill(
     val name: String,
     val prompt: String,
     val enabled: Boolean = true,
+    /** Короткое описание — для карточки в списке и предпросмотра. */
+    val description: String = "",
+    /** Теги для поиска/группировки (например, «код», «тесты»). */
+    val tags: List<String> = emptyList(),
+    /** Область действия: глобально или только для конкретного проекта. */
+    val scope: SkillScope = SkillScope.GLOBAL,
+    /** ID проекта, если [scope] == [SkillScope.PROJECT]. */
+    val projectId: String? = null,
 )
+
+/** Область действия скилла (0.9.2). */
+@Serializable
+enum class SkillScope {
+    /** Действует во всех проектах. */
+    GLOBAL,
+
+    /** Действует только в одном проекте. */
+    PROJECT,
+}
 
 @Serializable
 data class ExternalAgentTool(
@@ -149,6 +167,9 @@ data class AppSettings(
     
     /** Корни файловой системы с датой выдачи (0.8.3). */
     val fsRootsWithTimestamps: Map<String, Long> = emptyMap(),
+
+    /** Загружать модели каталога только по Wi‑Fi (0.9.1). */
+    val wifiOnlyDownloads: Boolean = false,
 ) {
     companion object {
         const val RECENT_MODELS_LIMIT = 5

@@ -49,6 +49,9 @@ class LocalLlamaClient(
 
     val state get() = engine.state
 
+    /** Каталог, куда складываются GGUF-модели (`files/models`) — общий для импорта и каталога 0.9.1. */
+    fun modelsDir(): File = modelsDirectory
+
     suspend fun importModel(
         uri: Uri,
         onProgress: (copied: Long, total: Long) -> Unit = { _, _ -> },

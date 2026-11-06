@@ -43,6 +43,8 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
 
     suspend fun initialize() = mutex.withLock {
         _sessions.value = storage.loadAll().sortedByDescending { it.updatedAt }
+        // Spill-файлы удалённых диалогов и устаревшие — на IO при старте, иначе каталог рос бы вечно.
+        withContext(Dispatchers.IO) { spill.cleanup() }
     }
 
     /** Добавляет готовый диалог (например, копию) в начало списка. */

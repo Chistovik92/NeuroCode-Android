@@ -80,6 +80,11 @@ fun SettingsScreen(vm: SettingsViewModel) {
     val prootProgress by vm.prootProgress.collectAsStateWithLifecycle()
     val cacheSizeBytes by vm.cacheSizeBytes.collectAsStateWithLifecycle()
     val localDocState by vm.localDocState.collectAsStateWithLifecycle()
+    val catalogRecommendations by vm.catalogRecommendations.collectAsStateWithLifecycle()
+    val hfSearchState by vm.hfSearchState.collectAsStateWithLifecycle()
+    val catalogDownloadProgress by vm.catalogDownloadProgress.collectAsStateWithLifecycle()
+    val catalogDownloadingId by vm.catalogDownloadingId.collectAsStateWithLifecycle()
+    val hfTokenSet by vm.hfTokenSet.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.refreshCacheSize() }
     LaunchedEffect(Unit) { vm.refreshLocalDocModels() }
     val deviceSnapshot by vm.deviceSnapshot.collectAsStateWithLifecycle()
@@ -90,8 +95,11 @@ fun SettingsScreen(vm: SettingsViewModel) {
     var providerDialog by remember { mutableStateOf(false) }
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var deleteModelTarget by remember { mutableStateOf<ImportedModel?>(null) }
+    var hfSearchQuery by remember { mutableStateOf("") }
+    var hfTokenText by remember { mutableStateOf("") }
     var editingSkill by remember { mutableStateOf<AgentSkill?>(null) }
     var skillDialog by remember { mutableStateOf(false) }
+    var previewDialog by remember { mutableStateOf(false) }
     var fallbackMenu by remember { mutableStateOf(false) }
     var commandsText by remember(settings.postCheckCommands) {
         mutableStateOf(settings.postCheckCommands.joinToString("\n"))
@@ -113,6 +121,11 @@ fun SettingsScreen(vm: SettingsViewModel) {
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
         uri?.let(vm::importSkills)
+    }
+    val importSkillMd = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let { vm.importSkillMarkdownFile(it) }
     }
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
@@ -244,6 +257,47 @@ fun SettingsScreen(vm: SettingsViewModel) {
             onSelect = vm::selectLocalModel,
             onDelete = { deleteModelTarget = it },
             onImportLocalDoc = vm::importLocalDocModel,
+        )
+
+        CatalogRecommendationsSection(
+            models = catalogRecommendations,
+            downloadingId = catalogDownloadingId,
+            progress = catalogDownloadProgress,
+            onDownload = vm::downloadCatalogModel,
+        )
+
+        HuggingFaceSearchSection(
+            query = hfSearchQuery,
+            onQueryChange = { hfSearchQuery = it },
+            state = hfSearchState,
+            onSearch = { vm.searchHuggingFace(hfSearchQuery) },
+            onPickRepo = { repo -> vm.downloadHfRepo(repo.id) },
+        )
+
+        SectionTitle(stringResource(R.string.hf_token_title))
+        Text(
+            stringResource(
+                if (hfTokenSet) R.string.hf_token_set else R.string.hf_token_not_set,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = hfTokenText,
+            onValueChange = { hfTokenText = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.hf_token_title)) },
+            placeholder = { Text(stringResource(R.string.hf_token_placeholder)) },
+            singleLine = true,
+        )
+        TextButton(onClick = { vm.saveHuggingFaceToken(hfTokenText) }) {
+            Text(stringResource(R.string.hf_token_save))
+        }
+        SettingSwitch(
+            title = stringResource(R.string.wifi_only_title),
+            description = stringResource(R.string.wifi_only_desc),
+            checked = settings.wifiOnlyDownloads,
+            onChecked = vm::setWifiOnlyDownloads,
         )
 
         SettingSwitch(
@@ -428,6 +482,9 @@ fun SettingsScreen(vm: SettingsViewModel) {
             FilledTonalButton(onClick = { importSkills.launch(arrayOf("application/json")) }) {
                 Text(stringResource(R.string.import_action))
             }
+            FilledTonalButton(onClick = { importSkillMd.launch(arrayOf("text/markdown", "text/plain")) }) {
+                Text(stringResource(R.string.skill_import_md))
+            }
             IconButton(
                 onClick = {
                     editingSkill = null
@@ -450,6 +507,17 @@ fun SettingsScreen(vm: SettingsViewModel) {
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 2,
                         )
+                        if (skill.description.isNotBlank() || skill.tags.isNotEmpty()) {
+                            val meta = listOfNotNull(
+                                skill.description.takeIf { it.isNotBlank() },
+                                skill.tags.takeIf { it.isNotEmpty() }?.joinToString(", ") { "#$it" },
+                            ).joinToString(" · ")
+                            Text(
+                                meta,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     Switch(
                         checked = skill.enabled,
@@ -466,6 +534,42 @@ fun SettingsScreen(vm: SettingsViewModel) {
                     }
                 }
             }
+        }
+
+        // Библиотека готовых скиллов (0.9.2): установка в один тап.
+        val installedIds = settings.skills.map { it.id }.toSet()
+        val library = com.secrethero.neurocode.ai.SkillLibrary.entries.filter { it.id !in installedIds }
+        if (library.isNotEmpty()) {
+            SectionTitle(stringResource(R.string.skill_library_title))
+            library.forEach { skill ->
+                Card(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(skill.name, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                skill.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        FilledTonalButton(onClick = { vm.installLibrarySkill(skill.id) }) {
+                            Text(stringResource(R.string.skill_install))
+                        }
+                    }
+                }
+            }
+        }
+
+        OutlinedButton(
+            onClick = { previewDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.skill_preview))
         }
 
         FilesystemAccessSection(
@@ -513,6 +617,33 @@ fun SettingsScreen(vm: SettingsViewModel) {
             onSave = { skill ->
                 vm.saveSkill(skill)
                 skillDialog = false
+            },
+        )
+    }
+
+    if (previewDialog) {
+        AlertDialog(
+            onDismissRequest = { previewDialog = false },
+            title = { Text(stringResource(R.string.skill_preview)) },
+            text = {
+                val preview = vm.skillsPreview()
+                if (preview.isBlank()) {
+                    Text(
+                        stringResource(R.string.skill_preview_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else {
+                    Text(
+                        preview,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { previewDialog = false }) {
+                    Text(stringResource(R.string.action_close))
+                }
             },
         )
     }
@@ -803,6 +934,9 @@ private fun SkillDialog(
 ) {
     var name by remember { mutableStateOf(current?.name.orEmpty()) }
     var prompt by remember { mutableStateOf(current?.prompt.orEmpty()) }
+    var description by remember { mutableStateOf(current?.description.orEmpty()) }
+    var tags by remember { mutableStateOf(current?.tags.orEmpty().joinToString(", ")) }
+    var projectScope by remember { mutableStateOf(current?.scope == com.secrethero.neurocode.model.SkillScope.PROJECT) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -825,12 +959,33 @@ private fun SkillDialog(
                 )
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text(stringResource(R.string.skill_description_label)) },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    value = tags,
+                    onValueChange = { tags = it },
+                    label = { Text(stringResource(R.string.skill_tags_label)) },
+                    placeholder = { Text(stringResource(R.string.skill_tags_placeholder)) },
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
                     value = prompt,
                     onValueChange = { prompt = it },
                     label = { Text(stringResource(R.string.skill_prompt_label)) },
                     placeholder = { Text(stringResource(R.string.skill_prompt_placeholder)) },
                     minLines = 4,
                     maxLines = 8,
+                )
+                SettingSwitch(
+                    title = stringResource(R.string.skill_project_scope),
+                    description = stringResource(R.string.skill_project_scope_desc),
+                    checked = projectScope,
+                    onChecked = { projectScope = it },
                 )
                 Text(
                     stringResource(R.string.skill_note),
@@ -849,6 +1004,17 @@ private fun SkillDialog(
                             name = name.trim(),
                             prompt = prompt.trim(),
                             enabled = current?.enabled ?: true,
+                            description = description.trim(),
+                            tags = tags.split(',')
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .distinct(),
+                            scope = if (projectScope) {
+                                com.secrethero.neurocode.model.SkillScope.PROJECT
+                            } else {
+                                com.secrethero.neurocode.model.SkillScope.GLOBAL
+                            },
+                            projectId = current?.projectId,
                         ),
                     )
                 },

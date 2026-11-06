@@ -426,4 +426,38 @@
     <string name="voice_unavailable">Голосовой ввод недоступен на этом устройстве</string>
     <string name="more_cd">Ещё</string>
     <string name="ai_disclaimer">NeuroCode — это ИИ, он может ошибаться, в том числе в коде и командах. Проверяйте результат, прежде чем запускать.</string>
+
+    <!-- 0.9.1: каталог моделей (Hugging Face) -->
+    <string name="catalog_recommended_title">Рекомендовано для этого телефона</string>
+    <string name="catalog_recommended_empty">Ни одна модель каталога не помещается на устройство. Попробуйте ручной импорт или меньшую квантизацию.</string>
+    <string name="catalog_download">Скачать</string>
+    <string name="catalog_downloading">Скачивание…</string>
+    <string name="catalog_params_format">%1$s · %2$s · %3$d МБ</string>
+    <string name="catalog_too_large">Слишком большая для этого устройства</string>
+    <string name="catalog_search_hint">Искать на Hugging Face по названию…</string>
+    <string name="catalog_search_title">Поиск моделей</string>
+    <string name="catalog_search_empty">Модели не найдены</string>
+    <string name="catalog_search_error_format">Поиск не удался: %1$s</string>
+    <string name="hf_token_title">Токен Hugging Face</string>
+    <string name="hf_token_desc">Необязательно — для закрытых (gated) моделей. Хранится в шифрованном виде, как ключи API.</string>
+    <string name="hf_token_set">Токен задан</string>
+    <string name="hf_token_not_set">Токена нет</string>
+    <string name="hf_token_save">Сохранить токен</string>
+    <string name="hf_token_placeholder">hf_…</string>
+    <string name="catalog_download_failed_format">Загрузка не удалась: %1$s</string>
+    <string name="wifi_only_title">Скачивать только по Wi‑Fi</string>
+    <string name="wifi_only_desc">Большие загрузки моделей ждут подключения по Wi‑Fi.</string>
+
+    <!-- 0.9.2: скиллы и внешние инструменты -->
+    <string name="skill_description_label">Описание</string>
+    <string name="skill_tags_label">Теги</string>
+    <string name="skill_tags_placeholder">код, тесты, ревью</string>
+    <string name="skill_project_scope">Только проект</string>
+    <string name="skill_project_scope_desc">Скилл действует только в выбранном проекте, а не глобально.</string>
+    <string name="skill_library_title">Библиотека скиллов</string>
+    <string name="skill_install">Установить</string>
+    <string name="skill_import_md">SKILL.md</string>
+    <string name="skill_preview">Предпросмотр промпта</string>
+    <string name="skill_preview_empty">Активных скиллов нет — блок промпта пуст.</string>
+    <string name="notice_skill_imported_format">Скилл импортирован: %1$s</string>
 </resources>

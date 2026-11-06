@@ -14,6 +14,7 @@ import com.secrethero.neurocode.ai.ModelResolver
 import com.secrethero.neurocode.ai.ModelSource
 import com.secrethero.neurocode.ai.PreparedAttachment
 import com.secrethero.neurocode.ai.ResolvedModel
+import com.secrethero.neurocode.ai.SkillPrompt
 import com.secrethero.neurocode.ai.TargetCapabilities
 import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.device.DeviceSpecs
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -533,11 +535,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val sessionId: String,
     ) {
         val skills: List<String>
-            get() = if (current.skillsEnabled) {
-                current.skills.filter { it.enabled }.map { "${it.name}: ${it.prompt}" }
-            } else {
-                emptyList()
-            }
+            get() = SkillPrompt.lines(current.skills, current.skillsEnabled, project?.id)
 
         val externalTools = current.externalTools.filter { it.enabled }
     }
@@ -715,13 +713,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val warm = lastAnswer?.generatedBy?.key == ref.key &&
             container.localLlama.isLoadedFor(path, turn.sessionId)
         if (!warm) container.localLlama.unload()
+        val skillsBlock = SkillPrompt.block(
+            settings.value.skills,
+            settings.value.skillsEnabled,
+            turn.projectId,
+        )
         container.localLlama.load(
             path = path,
             systemPrompt = """
                 Ты — локальный помощник программиста NeuroCode на Android.
                 Отвечай по-русски. Пиши точный код и явно отмечай ограничения.
                 У тебя нет прямого доступа к инструментам и файлам, кроме контекста в сообщении.
-            """.trimIndent(),
+            """.trimIndent() + skillsBlock,
             conversationKey = turn.sessionId,
         )
         // После перехода с другой модели (например, облачной) локальная видит прежний диалог текстом.
@@ -770,8 +773,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun onAgentEvent(sessionId: String, event: AgentEvent) {
         when (event) {
             is AgentEvent.Status -> _chatRunState.value = ChatRunState.Working(event.text)
-            is AgentEvent.Delta -> _streamingResponse.value = _streamingResponse.value + event.text
-            is AgentEvent.Reasoning -> _streamingReasoning.value = _streamingReasoning.value + event.text
+            is AgentEvent.Delta -> _streamingResponse.update { it + event.text }
+            is AgentEvent.Reasoning -> _streamingReasoning.update { it + event.text }
             is AgentEvent.ToolStarted -> {
                 appendAgentLog("→ ${event.name}: ${event.arguments.take(500)}")
             }
