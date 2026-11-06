@@ -14,6 +14,7 @@ import com.secrethero.neurocode.ai.ModelResolver
 import com.secrethero.neurocode.ai.ModelSource
 import com.secrethero.neurocode.ai.PreparedAttachment
 import com.secrethero.neurocode.ai.ResolvedModel
+import com.secrethero.neurocode.ai.SkillPrompt
 import com.secrethero.neurocode.ai.TargetCapabilities
 import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.device.DeviceSpecs
@@ -534,11 +535,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val sessionId: String,
     ) {
         val skills: List<String>
-            get() = if (current.skillsEnabled) {
-                current.skills.filter { it.enabled }.map { "${it.name}: ${it.prompt}" }
-            } else {
-                emptyList()
-            }
+            get() = SkillPrompt.lines(current.skills, current.skillsEnabled, project?.id)
 
         val externalTools = current.externalTools.filter { it.enabled }
     }
@@ -716,13 +713,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val warm = lastAnswer?.generatedBy?.key == ref.key &&
             container.localLlama.isLoadedFor(path, turn.sessionId)
         if (!warm) container.localLlama.unload()
+        val skillsBlock = SkillPrompt.block(
+            settings.value.skills,
+            settings.value.skillsEnabled,
+            turn.projectId,
+        )
         container.localLlama.load(
             path = path,
             systemPrompt = """
                 Ты — локальный помощник программиста NeuroCode на Android.
                 Отвечай по-русски. Пиши точный код и явно отмечай ограничения.
                 У тебя нет прямого доступа к инструментам и файлам, кроме контекста в сообщении.
-            """.trimIndent(),
+            """.trimIndent() + skillsBlock,
             conversationKey = turn.sessionId,
         )
         // После перехода с другой модели (например, облачной) локальная видит прежний диалог текстом.

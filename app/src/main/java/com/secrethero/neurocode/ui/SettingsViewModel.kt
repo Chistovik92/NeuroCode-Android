@@ -142,6 +142,49 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
+    /** Установка готового скилла из библиотеки (0.9.2) в один тап. */
+    fun installLibrarySkill(skillId: String) = updateSettings { current ->
+        val skill = com.secrethero.neurocode.ai.SkillLibrary.byId(skillId) ?: return@updateSettings current
+        if (current.skills.any { it.id == skill.id }) return@updateSettings current
+        current.copy(skills = current.skills + skill)
+    }
+
+    /** Импорт скилла из текста `SKILL.md` (0.9.2): заголовок — имя, остальное — инструкция. */
+    fun importSkillMarkdown(text: String): AgentSkill? {
+        val parsed = com.secrethero.neurocode.ai.SkillMarkdown.parse(text) ?: return null
+        updateSettings { current ->
+            current.copy(skills = current.skills.filterNot { it.name == parsed.name } + parsed)
+        }
+        return parsed
+    }
+
+    /** Читает `SKILL.md` из выбранного через SAF файла и импортирует (0.9.2). */
+    fun importSkillMarkdownFile(uri: Uri) = viewModelScope.launch {
+        runCatching {
+            val text = getApplication<Application>().contentResolver.openInputStream(uri)?.use { stream ->
+                stream.readBytes().toString(Charsets.UTF_8)
+            } ?: error("Не удалось открыть файл")
+            val parsed = importSkillMarkdown(text)
+                ?: error("Не удалось разобрать SKILL.md: нужен заголовок «# Имя» и текст")
+            container.bus.showNotice(
+                getApplication<Application>().getString(R.string.notice_skill_imported_format, parsed.name),
+            )
+        }.onFailure(container.bus::showError)
+    }
+
+    /**
+     * Предпросмотр итогового промпта (0.9.2): блок активных навыков для выбранного проекта,
+     * как его увидит модель. Пустая строка, если навыков нет или они выключены.
+     */
+    fun skillsPreview(): String {
+        val current = settings.value
+        return com.secrethero.neurocode.ai.SkillPrompt.block(
+            current.skills,
+            current.skillsEnabled,
+            current.selectedProjectId,
+        ).trim()
+    }
+
     fun saveExternalTool(tool: ExternalAgentTool) = updateSettings { current ->
         current.copy(externalTools = current.externalTools.filterNot { it.id == tool.id } + tool)
     }

@@ -447,4 +447,18 @@
     <string name="catalog_download_failed_format">Download failed: %1$s</string>
     <string name="wifi_only_title">Download only over Wi‑Fi</string>
     <string name="wifi_only_desc">Large model downloads wait for a Wi‑Fi connection.</string>
+
+    <!-- 0.9.2: skills and external tools -->
+    <string name="skill_description_label">Description</string>
+    <string name="skill_tags_label">Tags</string>
+    <string name="skill_tags_placeholder">code, tests, review</string>
+    <string name="skill_project_scope">Project only</string>
+    <string name="skill_project_scope_desc">This skill applies only to the selected project, not globally.</string>
+    <string name="skill_library_title">Skill library</string>
+    <string name="skill_install">Install</string>
+    <string name="skill_import_md">SKILL.md</string>
+    <string name="skill_preview">Preview prompt</string>
+    <string name="skill_preview_empty">No active skills — the prompt block is empty.</string>
+    <string name="notice_skill_imported_format">Skill imported: %1$s</string>
+    <string name="action_close">Close</string>
 </resources>
