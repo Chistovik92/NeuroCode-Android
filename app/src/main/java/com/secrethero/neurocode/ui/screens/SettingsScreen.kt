@@ -80,6 +80,11 @@ fun SettingsScreen(vm: SettingsViewModel) {
     val prootProgress by vm.prootProgress.collectAsStateWithLifecycle()
     val cacheSizeBytes by vm.cacheSizeBytes.collectAsStateWithLifecycle()
     val localDocState by vm.localDocState.collectAsStateWithLifecycle()
+    val catalogRecommendations by vm.catalogRecommendations.collectAsStateWithLifecycle()
+    val hfSearchState by vm.hfSearchState.collectAsStateWithLifecycle()
+    val catalogDownloadProgress by vm.catalogDownloadProgress.collectAsStateWithLifecycle()
+    val catalogDownloadingId by vm.catalogDownloadingId.collectAsStateWithLifecycle()
+    val hfTokenSet by vm.hfTokenSet.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.refreshCacheSize() }
     LaunchedEffect(Unit) { vm.refreshLocalDocModels() }
     val deviceSnapshot by vm.deviceSnapshot.collectAsStateWithLifecycle()
@@ -90,6 +95,8 @@ fun SettingsScreen(vm: SettingsViewModel) {
     var providerDialog by remember { mutableStateOf(false) }
     var deleteProvider by remember { mutableStateOf<ProviderConfig?>(null) }
     var deleteModelTarget by remember { mutableStateOf<ImportedModel?>(null) }
+    var hfSearchQuery by remember { mutableStateOf("") }
+    var hfTokenText by remember { mutableStateOf("") }
     var editingSkill by remember { mutableStateOf<AgentSkill?>(null) }
     var skillDialog by remember { mutableStateOf(false) }
     var fallbackMenu by remember { mutableStateOf(false) }
@@ -244,6 +251,47 @@ fun SettingsScreen(vm: SettingsViewModel) {
             onSelect = vm::selectLocalModel,
             onDelete = { deleteModelTarget = it },
             onImportLocalDoc = vm::importLocalDocModel,
+        )
+
+        CatalogRecommendationsSection(
+            models = catalogRecommendations,
+            downloadingId = catalogDownloadingId,
+            progress = catalogDownloadProgress,
+            onDownload = vm::downloadCatalogModel,
+        )
+
+        HuggingFaceSearchSection(
+            query = hfSearchQuery,
+            onQueryChange = { hfSearchQuery = it },
+            state = hfSearchState,
+            onSearch = { vm.searchHuggingFace(hfSearchQuery) },
+            onPickRepo = { repo -> vm.downloadHfRepo(repo.id) },
+        )
+
+        SectionTitle(stringResource(R.string.hf_token_title))
+        Text(
+            stringResource(
+                if (hfTokenSet) R.string.hf_token_set else R.string.hf_token_not_set,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = hfTokenText,
+            onValueChange = { hfTokenText = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.hf_token_title)) },
+            placeholder = { Text(stringResource(R.string.hf_token_placeholder)) },
+            singleLine = true,
+        )
+        TextButton(onClick = { vm.saveHuggingFaceToken(hfTokenText) }) {
+            Text(stringResource(R.string.hf_token_save))
+        }
+        SettingSwitch(
+            title = stringResource(R.string.wifi_only_title),
+            description = stringResource(R.string.wifi_only_desc),
+            checked = settings.wifiOnlyDownloads,
+            onChecked = vm::setWifiOnlyDownloads,
         )
 
         SettingSwitch(

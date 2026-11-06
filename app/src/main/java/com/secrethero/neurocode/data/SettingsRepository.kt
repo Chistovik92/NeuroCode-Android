@@ -142,4 +142,17 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
     suspend fun gitToken(projectId: String): String? = withContext(Dispatchers.IO) {
         secrets.get("git-token-$projectId")
     }
+
+    /** Токен Hugging Face (для gated-моделей); хранится в Keystore как остальные секреты. */
+    suspend fun saveHuggingFaceToken(token: String) = withContext(Dispatchers.IO) {
+        if (token.isBlank()) secrets.delete(HF_TOKEN_NAME) else secrets.put(HF_TOKEN_NAME, token.trim())
+    }
+
+    suspend fun huggingFaceToken(): String? = withContext(Dispatchers.IO) {
+        secrets.get(HF_TOKEN_NAME)
+    }
+
+    private companion object {
+        const val HF_TOKEN_NAME = "huggingface-token"
+    }
 }

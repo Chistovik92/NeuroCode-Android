@@ -83,6 +83,9 @@ class AppContainer(application: Application) {
     val agent = AgentOrchestrator(apiClient, agentTools)
     val localLlama: LocalLlamaClient
     val localDoc = com.secrethero.neurocode.ai.LocalDocModelsClient(application)
+    val huggingFace = com.secrethero.neurocode.ai.HuggingFaceClient(
+        application,
+    ) { settings.huggingFaceToken() }
     val lsp = LspController(prootManager, settings.settings)
 
     private val _ready = MutableStateFlow(false)

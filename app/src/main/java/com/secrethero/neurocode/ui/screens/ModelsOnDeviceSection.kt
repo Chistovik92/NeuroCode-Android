@@ -11,8 +11,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,7 +22,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.ai.HuggingFaceModel
 import com.secrethero.neurocode.ai.ImportedModel
+import com.secrethero.neurocode.ai.ModelSpec
 import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.model.ModelKind
 import com.secrethero.neurocode.model.Project
@@ -210,6 +214,148 @@ private fun LocalModelRow(
                     Icons.Default.Delete,
                     contentDescription = stringResource(R.string.models_delete_cd),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * «Рекомендовано для этого телефона» (0.9.1): модели встроенного каталога, помещающиеся
+ * в память устройства, с кнопкой «Скачать» в один тап.
+ */
+@Composable
+internal fun CatalogRecommendationsSection(
+    models: List<ModelSpec>,
+    downloadingId: String?,
+    progress: Pair<Long, Long>?,
+    onDownload: (ModelSpec) -> Unit,
+) {
+    SectionTitle(stringResource(R.string.catalog_recommended_title))
+    if (models.isEmpty()) {
+        Text(
+            stringResource(R.string.catalog_recommended_empty),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    models.forEach { spec ->
+        Card(Modifier.fillMaxWidth()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(spec.name, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        stringResource(
+                            R.string.catalog_params_format,
+                            spec.family.label,
+                            spec.parameters,
+                            spec.sizeMb,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        spec.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                    )
+                }
+                if (downloadingId == spec.id) {
+                    if (progress != null && progress.second > 0) {
+                        LinearProgressIndicator(
+                            progress = { (progress.first.toFloat() / progress.second).coerceIn(0f, 1f) },
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                        )
+                    } else {
+                        Text(
+                            stringResource(R.string.catalog_downloading),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
+                    FilledTonalButton(onClick = { onDownload(spec) }) {
+                        Text(stringResource(R.string.catalog_download))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Живой поиск моделей на Hugging Face (0.9.1). [query] — уже введённый текст; [state] —
+ * результат. Результат — список репозиториев, по каждому можно запросить файлы.
+ */
+@Composable
+internal fun HuggingFaceSearchSection(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    state: com.secrethero.neurocode.ui.HfSearchState,
+    onSearch: () -> Unit,
+    onPickRepo: (HuggingFaceModel) -> Unit,
+) {
+    SectionTitle(stringResource(R.string.catalog_search_title))
+    androidx.compose.material3.OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text(stringResource(R.string.catalog_search_hint)) },
+        singleLine = true,
+    )
+    androidx.compose.material3.OutlinedButton(
+        onClick = onSearch,
+        modifier = Modifier.fillMaxWidth(),
+        enabled = query.isNotBlank(),
+    ) {
+        Text(stringResource(R.string.catalog_search_title))
+    }
+    when (state) {
+        com.secrethero.neurocode.ui.HfSearchState.Idle -> Unit
+        com.secrethero.neurocode.ui.HfSearchState.Loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+        is com.secrethero.neurocode.ui.HfSearchState.Failed -> Text(
+            stringResource(R.string.catalog_search_error_format, state.message),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        is com.secrethero.neurocode.ui.HfSearchState.Ready -> {
+            if (state.models.isEmpty()) {
+                Text(
+                    stringResource(R.string.catalog_search_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                state.models.forEach { model ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(model.id, fontWeight = FontWeight.SemiBold)
+                                if (model.gated) {
+                                    Text(
+                                        "gated",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                            TextButton(onClick = { onPickRepo(model) }) {
+                                Text(stringResource(R.string.catalog_download))
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -12,9 +12,14 @@ import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.R
 import com.secrethero.neurocode.ai.ImportedModel
 import com.secrethero.neurocode.ai.LocalDocModelsClient
+import com.secrethero.neurocode.ai.HuggingFaceModel
+import com.secrethero.neurocode.ai.ModelCatalog
+import com.secrethero.neurocode.ai.ModelSpec
+import com.secrethero.neurocode.device.DeviceAbi
 import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.device.DeviceSnapshot
 import com.secrethero.neurocode.device.DeviceSpecs
+import com.secrethero.neurocode.device.ModelRecommender
 import com.secrethero.neurocode.model.AgentSkill
 import com.secrethero.neurocode.model.AppDesign
 import com.secrethero.neurocode.model.AppSettings
@@ -71,6 +76,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
         }
         refreshLocalModels()
+        refreshCatalogRecommendations()
+        refreshHfToken()
     }
 
     private val _modelImportProgress = MutableStateFlow<Pair<Long, Long>?>(null)
@@ -114,6 +121,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setThemeMode(mode: ThemeMode) = updateSettings { it.copy(themeMode = mode) }
     fun setAppDesign(design: AppDesign) = updateSettings { it.copy(appDesign = design) }
     fun setDynamicColor(enabled: Boolean) = updateSettings { it.copy(dynamicColor = enabled) }
+
+    fun setWifiOnlyDownloads(enabled: Boolean) = updateSettings { it.copy(wifiOnlyDownloads = enabled) }
 
     fun setSkillsEnabled(enabled: Boolean) = updateSettings { it.copy(skillsEnabled = enabled) }
 
@@ -445,6 +454,141 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _localDocState = MutableStateFlow<LocalDocState>(LocalDocState.Loading)
     val localDocState: StateFlow<LocalDocState> = _localDocState.asStateFlow()
 
+    // --- 0.9.1: каталог моделей Hugging Face и подбор под устройство ---
+
+    /** Рекомендованные модели из встроенного каталога, помещающиеся в память телефона. */
+    private val _catalogRecommendations = MutableStateFlow<List<ModelSpec>>(emptyList())
+    val catalogRecommendations: StateFlow<List<ModelSpec>> =
+        _catalogRecommendations.asStateFlow()
+
+    /** Состояние живого поиска по Hugging Face. */
+    private val _hfSearchState = MutableStateFlow<HfSearchState>(HfSearchState.Idle)
+    val hfSearchState: StateFlow<HfSearchState> = _hfSearchState.asStateFlow()
+
+    /** Прогресс загрузки модели из каталога (скачано, всего). */
+    private val _catalogDownloadProgress = MutableStateFlow<Pair<Long, Long>?>(null)
+    val catalogDownloadProgress: StateFlow<Pair<Long, Long>?> = _catalogDownloadProgress.asStateFlow()
+
+    /** Скачивается ли модель из каталога прямо сейчас (по id). */
+    private val _catalogDownloadingId = MutableStateFlow<String?>(null)
+    val catalogDownloadingId: StateFlow<String?> = _catalogDownloadingId.asStateFlow()
+
+    /** Токен Hugging Face задан ли (для gated-моделей). */
+    private val _hfTokenSet = MutableStateFlow(false)
+    val hfTokenSet: StateFlow<Boolean> = _hfTokenSet.asStateFlow()
+
+    fun refreshCatalogRecommendations() = viewModelScope.launch {
+        _catalogRecommendations.value = withContext(Dispatchers.IO) {
+            val snapshot = runCatching { deviceSpecs.snapshot() }.getOrNull()
+            val profile = snapshot?.recommendation()
+                ?: DeviceProfile.recommendModel(
+                    totalMemoryMb = DeviceProfile.LOW_RAM_TOTAL_MB,
+                    cores = 4,
+                    abi = DeviceAbi.ARM64,
+                    reportedLowRam = false,
+                )
+            ModelRecommender.recommendedFor(ModelCatalog.starter, profile)
+        }
+    }
+
+    fun refreshHfToken() = viewModelScope.launch {
+        _hfTokenSet.value = !container.settings.huggingFaceToken().isNullOrBlank()
+    }
+
+    fun saveHuggingFaceToken(token: String) = viewModelScope.launch {
+        runCatching { container.settings.saveHuggingFaceToken(token) }
+            .onFailure(container.bus::showError)
+        refreshHfToken()
+    }
+
+    fun searchHuggingFace(query: String) = viewModelScope.launch {
+        if (query.isBlank()) {
+            _hfSearchState.value = HfSearchState.Idle
+            return@launch
+        }
+        _hfSearchState.value = HfSearchState.Loading
+        runCatching { container.huggingFace.search(query) }
+            .onSuccess { models -> _hfSearchState.value = HfSearchState.Ready(models) }
+            .onFailure { error ->
+                _hfSearchState.value =
+                    HfSearchState.Failed(error.message ?: error::class.java.simpleName)
+            }
+    }
+
+    /**
+     * По репозиторию из результатов поиска: список файлов → выбор квантизации под устройство →
+     * загрузка и активация. Для gated-репозитория без токена загрузка вернёт понятную ошибку.
+     */
+    fun downloadHfRepo(repoId: String) = viewModelScope.launch {
+        runCatching {
+            val profile = runCatching { deviceSpecs.snapshot() }.getOrNull()
+                ?.recommendation()
+                ?: DeviceProfile.recommendModel(
+                    totalMemoryMb = DeviceProfile.LOW_RAM_TOTAL_MB,
+                    cores = 4,
+                    abi = DeviceAbi.ARM64,
+                    reportedLowRam = false,
+                )
+            val files = container.huggingFace.listFiles(repoId)
+            val file = container.huggingFace.pickFile(files, profile.maxModelSizeMb)
+                ?: error("Нет подходящего GGUF в репозитории $repoId")
+            _catalogDownloadingId.value = repoId
+            _catalogDownloadProgress.value = 0L to file.sizeBytes
+            val name = file.path.substringAfterLast('/').let {
+                if (it.endsWith(".gguf", true)) it else "$it.gguf"
+            }.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            val target = java.io.File(container.localLlama.modelsDir(), name)
+            val url = "https://huggingface.co/$repoId/resolve/main/${file.path}"
+            val downloaded = container.huggingFace.download(
+                url = url,
+                target = target,
+                expectedSha256 = file.sha256,
+                wifiOnly = settings.value.wifiOnlyDownloads,
+            ) { copied, total -> _catalogDownloadProgress.value = copied to total }
+            container.settings.update {
+                it.copy(
+                    localModelPath = downloaded.absolutePath,
+                    localModelName = downloaded.name,
+                    useLocalModel = true,
+                )
+            }
+        }.onFailure(container.bus::showError)
+        _catalogDownloadingId.value = null
+        _catalogDownloadProgress.value = null
+        refreshLocalModels()
+    }
+
+    /**
+     * Скачивает модель из встроенного каталога: выбирает файл под устройство (Q4_K_M → …),
+     * докачивает по Range, сверяет magic GGUF и переносит в files/models, затем делает активной.
+     */
+    fun downloadCatalogModel(spec: ModelSpec) = viewModelScope.launch {
+        runCatching {
+            _catalogDownloadingId.value = spec.id
+            _catalogDownloadProgress.value = 0L to spec.sizeBytes
+            val target = java.io.File(
+                container.localLlama.modelsDir(),
+                spec.fileName,
+            )
+            val downloaded = container.huggingFace.download(
+                url = spec.url,
+                target = target,
+                expectedSha256 = null,
+                wifiOnly = settings.value.wifiOnlyDownloads,
+            ) { copied, total -> _catalogDownloadProgress.value = copied to total }
+            container.settings.update {
+                it.copy(
+                    localModelPath = downloaded.absolutePath,
+                    localModelName = downloaded.name,
+                    useLocalModel = true,
+                )
+            }
+        }.onFailure(container.bus::showError)
+        _catalogDownloadingId.value = null
+        _catalogDownloadProgress.value = null
+        refreshLocalModels()
+    }
+
     fun refreshLocalDocModels() = viewModelScope.launch {
         _localDocState.value = if (!container.localDoc.isInstalled()) {
             LocalDocState.NotInstalled
@@ -499,6 +643,14 @@ sealed interface LocalDocState {
     data object Loading : LocalDocState
     data object NotInstalled : LocalDocState
     data class Ready(val models: List<LocalDocModelsClient.LocalDocModel>) : LocalDocState
+}
+
+/** Состояние живого поиска моделей на Hugging Face (0.9.1). */
+sealed interface HfSearchState {
+    data object Idle : HfSearchState
+    data object Loading : HfSearchState
+    data class Ready(val models: List<HuggingFaceModel>) : HfSearchState
+    data class Failed(val message: String) : HfSearchState
 }
 
 private const val FS_ROOTS_LIMIT = 10

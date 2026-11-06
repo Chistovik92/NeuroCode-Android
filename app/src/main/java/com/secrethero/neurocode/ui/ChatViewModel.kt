@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -770,8 +771,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun onAgentEvent(sessionId: String, event: AgentEvent) {
         when (event) {
             is AgentEvent.Status -> _chatRunState.value = ChatRunState.Working(event.text)
-            is AgentEvent.Delta -> _streamingResponse.value = _streamingResponse.value + event.text
-            is AgentEvent.Reasoning -> _streamingReasoning.value = _streamingReasoning.value + event.text
+            is AgentEvent.Delta -> _streamingResponse.update { it + event.text }
+            is AgentEvent.Reasoning -> _streamingReasoning.update { it + event.text }
             is AgentEvent.ToolStarted -> {
                 appendAgentLog("→ ${event.name}: ${event.arguments.take(500)}")
             }

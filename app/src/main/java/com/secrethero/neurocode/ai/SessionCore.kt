@@ -58,7 +58,26 @@ class SpillStore(private val directory: File) {
             .forEach { runCatching { it.delete() } }
     }
 
-    private companion object { const val DEFAULT_THRESHOLD = 8_000; const val DEFAULT_READ_CHARS = 12_000 }
+    /**
+     * Чистит spill-файлы, оставшиеся от удалённых диалогов или устаревшие: без этого каталог
+     * `.neurocode/spill` рос бы неограниченно (spill пишется при каждом крупном tool-результате,
+     * а удаление диалога чистит только его собственные файлы — осиротевшие копились бы вечно).
+     */
+    fun cleanup(olderThanMillis: Long = DEFAULT_MAX_AGE_MILLIS) {
+        val cutoff = System.currentTimeMillis() - olderThanMillis
+        directory.listFiles { file -> file.isFile }
+            .orEmpty()
+            .filter { file -> file.lastModified() < cutoff }
+            .forEach { runCatching { it.delete() } }
+    }
+
+    private companion object {
+        const val DEFAULT_THRESHOLD = 8_000
+        const val DEFAULT_READ_CHARS = 12_000
+
+        /** Spill-файлы старше этого возраста (7 дней) считаются мусором и удаляются при старте. */
+        const val DEFAULT_MAX_AGE_MILLIS = 7L * 24 * 60 * 60 * 1000
+    }
 }
 
 data class ContextBuildResult(val messages: List<ChatMessage>, val dropped: Int, val spills: Int)

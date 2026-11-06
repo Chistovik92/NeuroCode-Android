@@ -426,4 +426,25 @@
     <string name="voice_unavailable">Голосовой ввод недоступен на этом устройстве</string>
     <string name="more_cd">Ещё</string>
     <string name="ai_disclaimer">NeuroCode — это ИИ, он может ошибаться, в том числе в коде и командах. Проверяйте результат, прежде чем запускать.</string>
+
+    <!-- 0.9.1: каталог моделей (Hugging Face) -->
+    <string name="catalog_recommended_title">Рекомендовано для этого телефона</string>
+    <string name="catalog_recommended_empty">Ни одна модель каталога не помещается на устройство. Попробуйте ручной импорт или меньшую квантизацию.</string>
+    <string name="catalog_download">Скачать</string>
+    <string name="catalog_downloading">Скачивание…</string>
+    <string name="catalog_params_format">%1$s · %2$s · %3$d МБ</string>
+    <string name="catalog_too_large">Слишком большая для этого устройства</string>
+    <string name="catalog_search_hint">Искать на Hugging Face по названию…</string>
+    <string name="catalog_search_title">Поиск моделей</string>
+    <string name="catalog_search_empty">Модели не найдены</string>
+    <string name="catalog_search_error_format">Поиск не удался: %1$s</string>
+    <string name="hf_token_title">Токен Hugging Face</string>
+    <string name="hf_token_desc">Необязательно — для закрытых (gated) моделей. Хранится в шифрованном виде, как ключи API.</string>
+    <string name="hf_token_set">Токен задан</string>
+    <string name="hf_token_not_set">Токена нет</string>
+    <string name="hf_token_save">Сохранить токен</string>
+    <string name="hf_token_placeholder">hf_…</string>
+    <string name="catalog_download_failed_format">Загрузка не удалась: %1$s</string>
+    <string name="wifi_only_title">Скачивать только по Wi‑Fi</string>
+    <string name="wifi_only_desc">Большие загрузки моделей ждут подключения по Wi‑Fi.</string>
 </resources>

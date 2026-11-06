@@ -149,6 +149,9 @@ data class AppSettings(
     
     /** Корни файловой системы с датой выдачи (0.8.3). */
     val fsRootsWithTimestamps: Map<String, Long> = emptyMap(),
+
+    /** Загружать модели каталога только по Wi‑Fi (0.9.1). */
+    val wifiOnlyDownloads: Boolean = false,
 ) {
     companion object {
         const val RECENT_MODELS_LIMIT = 5

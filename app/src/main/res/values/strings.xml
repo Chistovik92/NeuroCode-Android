@@ -426,4 +426,25 @@
     <string name="voice_unavailable">Voice input is not available on this device</string>
     <string name="more_cd">More</string>
     <string name="ai_disclaimer">NeuroCode is AI and can make mistakes, including in code and commands. Check the result before running it.</string>
+
+    <!-- 0.9.1: model catalog (Hugging Face) -->
+    <string name="catalog_recommended_title">Recommended for this phone</string>
+    <string name="catalog_recommended_empty">No catalog models fit this device. Try manual import or a smaller quantization.</string>
+    <string name="catalog_download">Download</string>
+    <string name="catalog_downloading">Downloading…</string>
+    <string name="catalog_params_format">%1$s · %2$s · %3$d MB</string>
+    <string name="catalog_too_large">Too large for this device</string>
+    <string name="catalog_search_hint">Search Hugging Face by name…</string>
+    <string name="catalog_search_title">Search models</string>
+    <string name="catalog_search_empty">No models found</string>
+    <string name="catalog_search_error_format">Search failed: %1$s</string>
+    <string name="hf_token_title">Hugging Face token</string>
+    <string name="hf_token_desc">Optional — for gated models. Stored encrypted, like API keys.</string>
+    <string name="hf_token_set">Token set</string>
+    <string name="hf_token_not_set">No token</string>
+    <string name="hf_token_save">Save token</string>
+    <string name="hf_token_placeholder">hf_…</string>
+    <string name="catalog_download_failed_format">Download failed: %1$s</string>
+    <string name="wifi_only_title">Download only over Wi‑Fi</string>
+    <string name="wifi_only_desc">Large model downloads wait for a Wi‑Fi connection.</string>
 </resources>
