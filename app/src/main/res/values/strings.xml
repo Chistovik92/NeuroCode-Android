@@ -460,4 +460,22 @@
     <string name="skill_preview">Preview prompt</string>
     <string name="skill_preview_empty">No active skills — the prompt block is empty.</string>
     <string name="notice_skill_imported_format">Skill imported: %1$s</string>
+
+    <!-- 0.9.4: providers, presets and settings catalog -->
+    <string name="settings_catalog_title">All settings</string>
+    <string name="settings_catalog_search">Search settings</string>
+    <string name="settings_catalog_empty">No settings found.</string>
+    <string name="presets_title">Agent presets</string>
+    <string name="preset_new_cd">New preset</string>
+    <string name="preset_new_title">New preset</string>
+    <string name="preset_edit_title">Edit preset</string>
+    <string name="preset_name_label">Preset name</string>
+    <string name="preset_model_label">Model (provider:model or GGUF path; empty = default)</string>
+    <string name="preset_skills_label">Skill IDs, comma separated</string>
+    <string name="preset_tools_label">External tool IDs, comma separated</string>
+    <string name="preset_apply_project">Apply to project</string>
+    <string name="preset_apply_dialog">Apply to chat</string>
+    <string name="preset_apply_global">Use by default</string>
+    <string name="preset_missing_project">Select a project to assign a preset.</string>
+    <string name="preset_missing_chat">Open a chat to assign a preset.</string>
 </resources>

@@ -384,6 +384,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     /** Куда применить выбор в окне выбора модели. */
     enum class ModelScope { DIALOG, PROJECT }
 
+    fun applyDialogPreset(presetId: String?) = viewModelScope.launch {
+        runCatching { container.chats.setPreset(ensureSession(), presetId) }
+            .onFailure(container.bus::showError)
+    }
+
+    fun applyProjectPreset(presetId: String?) = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        runCatching { container.projects.setPreset(projectId, presetId) }
+            .onFailure(container.bus::showError)
+    }
+
     fun selectModel(ref: ModelRef, scope: ModelScope) = viewModelScope.launch {
         runCatching {
             when (scope) {
@@ -494,11 +505,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     @Suppress("ThrowsCount")
     private suspend fun runCloud(turn: Turn): String {
-        val current = settings.value
+        val session = container.chats.get(turn.sessionId)
+        val project = container.projects.get(turn.projectId)
+        val preset = com.secrethero.neurocode.ai.AgentPresetResolver.resolve(
+            session,
+            project,
+            settings.value,
+        )
+        val current = settings.value.copy(
+            skills = preset.skills,
+            externalTools = preset.externalTools,
+            agentMode = preset.agentMode,
+            allowAgentShell = preset.allowAgentShell,
+            maxAgentSteps = preset.maxAgentSteps,
+            agentPermissionMode = preset.permissionMode,
+            planMode = preset.planMode,
+        )
         val provider = checkNotNull(turn.model.provider)
         val key = container.settings.apiKey(provider)
             ?: error(str(R.string.error_add_key_format, provider.name))
-        val project = container.projects.get(turn.projectId)
         val history = adaptHistory(
             turn.history,
             TargetCapabilities(

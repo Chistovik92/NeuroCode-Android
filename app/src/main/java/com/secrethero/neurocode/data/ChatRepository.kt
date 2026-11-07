@@ -124,6 +124,18 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
         update(sessionId) { it.copy(model = model) }
     }
 
+    /** Задаёт пресет диалога; null снимает привязку. */
+    suspend fun setPreset(sessionId: String, presetId: String?) {
+        update(sessionId) { it.copy(presetId = presetId, updatedAt = System.currentTimeMillis()) }
+    }
+
+    /** Удаляет ссылки на удалённый пресет из всех диалогов. */
+    suspend fun resetPreset(presetId: String) = mutex.withLock {
+        val sessions = _sessions.value
+        if (sessions.none { it.presetId == presetId }) return@withLock
+        persistLocked(sessions.map { if (it.presetId == presetId) it.copy(presetId = null) else it })
+    }
+
     suspend fun setPlan(sessionId: String, plan: com.secrethero.neurocode.model.AgentPlan?) {
         update(sessionId) { it.copy(plan = plan, updatedAt = System.currentTimeMillis()) }
     }

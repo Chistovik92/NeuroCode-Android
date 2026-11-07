@@ -116,6 +116,17 @@ class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit 
         persist(_projects.value.map { if (it.id == projectId) it.copy(model = model) else it })
     }
 
+    /** Задаёт пресет проекта; null снимает привязку. */
+    suspend fun setPreset(projectId: String, presetId: String?) {
+        persist(_projects.value.map { if (it.id == projectId) it.copy(presetId = presetId) else it })
+    }
+
+    /** Удаляет ссылки на удалённый пресет из всех проектов, включая песочницы. */
+    suspend fun resetPreset(presetId: String) {
+        if (_projects.value.none { it.presetId == presetId }) return
+        persist(_projects.value.map { if (it.presetId == presetId) it.copy(presetId = null) else it })
+    }
+
     /** Проекты, у которых переопределение модели — локальная GGUF с указанным путём или именем. Скрытые песочницы не считаем. */
     fun projectsUsingLocalModel(localPath: String, localName: String?): List<Project> =
         _projects.value.filterNot { it.hidden }.filter { it.usesLocalModel(localPath, localName) }

@@ -28,7 +28,7 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
         },
         onCorrupt = onCorrupt,
     )
-    private val secrets = SecureSecretStore(context)
+    private val secrets = CredentialStore(SecureSecretStore(context))
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
@@ -38,6 +38,17 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
 
     suspend fun initialize() {
         var loaded = store.read()
+        if (loaded.settingsSchemaVersion < SettingsCatalog.CURRENT_SCHEMA_VERSION) {
+            @Suppress("DEPRECATION")
+            loaded = loaded.copy(
+                settingsSchemaVersion = SettingsCatalog.CURRENT_SCHEMA_VERSION,
+                fsRootsWithTimestamps = loaded.fsRootsWithTimestamps.ifEmpty {
+                    loaded.fsRoots.associateWith { System.currentTimeMillis() }
+                },
+                fsRoots = emptyList(),
+            )
+            store.write(loaded)
+        }
         val existingIds = loaded.providers.map { it.id }.toSet()
         val missing = ProviderCatalog.defaults().filter {
             it.id !in existingIds && it.id !in loaded.removedDefaultProviderIds
@@ -70,7 +81,7 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
 
     suspend fun upsertProvider(provider: ProviderConfig, apiKey: String?) {
         if (apiKey != null) {
-            withContext(Dispatchers.IO) { secrets.put(provider.apiKeyName, apiKey.trim()) }
+            withContext(Dispatchers.IO) { secrets.put(CredentialKey.Provider(provider.apiKeyName), apiKey) }
         }
         update {
             val providers = it.providers.filterNot { p -> p.id == provider.id } + provider
@@ -84,7 +95,7 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
     suspend fun removeProvider(providerId: String) {
         val target = _settings.value.providers.firstOrNull { it.id == providerId }
         if (target != null) {
-            withContext(Dispatchers.IO) { secrets.delete(target.apiKeyName) }
+            withContext(Dispatchers.IO) { secrets.delete(CredentialKey.Provider(target.apiKeyName)) }
         }
         update {
             val providers = it.providers.filterNot { provider -> provider.id == providerId }
@@ -106,14 +117,14 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
 
     /** Читает ключ вне главного потока — Keystore и AES-GCM выполняются на IO. */
     suspend fun apiKey(provider: ProviderConfig): String? = withContext(Dispatchers.IO) {
-        secrets.get(provider.apiKeyName)
+        secrets.get(CredentialKey.Provider(provider.apiKeyName))
     }
 
     /** Удаляет только API-ключ провайдера, не трогая его настройки. */
     suspend fun removeApiKey(providerId: String) {
         withContext(Dispatchers.IO) {
             _settings.value.providers.firstOrNull { it.id == providerId }
-                ?.let { secrets.delete(it.apiKeyName) }
+                ?.let { secrets.delete(CredentialKey.Provider(it.apiKeyName)) }
         }
         mutex.withLock { refreshConnectedProvidersLocked() }
     }
@@ -127,7 +138,7 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
     private suspend fun refreshConnectedProvidersLocked() {
         _connectedProviderIds.value = withContext(Dispatchers.IO) {
             _settings.value.providers.mapNotNull { provider ->
-                runCatching { secrets.get(provider.apiKeyName) }.getOrNull()
+                runCatching { secrets.get(CredentialKey.Provider(provider.apiKeyName)) }.getOrNull()
                     ?.takeIf { it.isNotBlank() }
                     ?.let { provider.id }
             }.toSet()
@@ -135,24 +146,34 @@ class SettingsRepository(context: Context, onCorrupt: (File) -> Unit = {}) {
     }
 
     suspend fun saveGitToken(projectId: String, token: String) = withContext(Dispatchers.IO) {
-        val name = "git-token-$projectId"
-        if (token.isBlank()) secrets.delete(name) else secrets.put(name, token.trim())
+        val key = CredentialKey.Git(projectId)
+        if (token.isBlank()) secrets.delete(key) else secrets.put(key, token)
     }
 
     suspend fun gitToken(projectId: String): String? = withContext(Dispatchers.IO) {
-        secrets.get("git-token-$projectId")
+        secrets.get(CredentialKey.Git(projectId))
     }
 
     /** Токен Hugging Face (для gated-моделей); хранится в Keystore как остальные секреты. */
     suspend fun saveHuggingFaceToken(token: String) = withContext(Dispatchers.IO) {
-        if (token.isBlank()) secrets.delete(HF_TOKEN_NAME) else secrets.put(HF_TOKEN_NAME, token.trim())
+        if (token.isBlank()) {
+            secrets.delete(CredentialKey.HuggingFace)
+        } else {
+            secrets.put(CredentialKey.HuggingFace, token)
+        }
     }
 
     suspend fun huggingFaceToken(): String? = withContext(Dispatchers.IO) {
-        secrets.get(HF_TOKEN_NAME)
+        secrets.get(CredentialKey.HuggingFace)
     }
 
-    private companion object {
-        const val HF_TOKEN_NAME = "huggingface-token"
+    /** Общий интерфейс для токенов будущих MCP-серверов (0.10); в JSON они не сохраняются. */
+    suspend fun saveMcpToken(serverId: String, token: String) = withContext(Dispatchers.IO) {
+        val key = CredentialKey.Mcp(serverId)
+        if (token.isBlank()) secrets.delete(key) else secrets.put(key, token)
+    }
+
+    suspend fun mcpToken(serverId: String): String? = withContext(Dispatchers.IO) {
+        secrets.get(CredentialKey.Mcp(serverId))
     }
 }

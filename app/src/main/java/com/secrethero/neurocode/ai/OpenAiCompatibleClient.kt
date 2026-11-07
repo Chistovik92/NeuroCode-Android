@@ -50,6 +50,8 @@ data class ApiMessage(
     val toolCallId: String? = null,
     /** Картинки как data-URL: уходят частями `image_url` в multimodal-формате OpenAI. */
     val images: List<String> = emptyList(),
+    /** Продолжение ответа DeepSeek с заданного начала; сериализуется только для DeepSeek. */
+    val prefix: Boolean? = null,
 )
 
 class OpenAiCompatibleClient {
@@ -380,7 +382,7 @@ class OpenAiCompatibleClient {
     ): JsonObject = buildJsonObject {
         put("model", JsonPrimitive(provider.model))
         put("messages", buildJsonArray {
-            messages.forEach { add(it.toJson()) }
+            messages.forEach { add(it.toJson(provider)) }
         })
         put("temperature", JsonPrimitive(0.2))
         if (stream) {
@@ -424,6 +426,7 @@ class OpenAiCompatibleClient {
     }
 
     /** Заголовки `x-ratelimit-*` и блок `usage` — источник данных для карточки лимитов. */
+    @Suppress("CyclomaticComplexMethod")
     private fun captureLimits(provider: ProviderConfig, response: Response, body: String?) {
         fun header(vararg names: String): String? = names.firstNotNullOfOrNull { name ->
             response.header(name)?.takeIf { it.isNotBlank() }
@@ -442,6 +445,10 @@ class OpenAiCompatibleClient {
                 promptTokens = usage.int("prompt_tokens") ?: previous?.promptTokens,
                 completionTokens = usage.int("completion_tokens") ?: previous?.completionTokens,
                 totalTokens = usage.int("total_tokens") ?: previous?.totalTokens,
+                promptCacheHitTokens = DeepSeekSupport.cacheUsage(usage).first
+                    ?: previous?.promptCacheHitTokens,
+                promptCacheMissTokens = DeepSeekSupport.cacheUsage(usage).second
+                    ?: previous?.promptCacheMissTokens,
                 requestsRemaining = header("x-ratelimit-remaining-requests")
                     ?: previous?.requestsRemaining,
                 requestsLimit = header("x-ratelimit-limit-requests") ?: previous?.requestsLimit,
@@ -463,7 +470,7 @@ class OpenAiCompatibleClient {
                 completionTokens = usage.int("completion_tokens") ?: base.completionTokens,
                 totalTokens = usage.int("total_tokens") ?: base.totalTokens,
                 updatedAt = System.currentTimeMillis(),
-            )
+            ).let { with(DeepSeekSupport) { it.withCacheUsage(usage) } }
         }
     }
 
@@ -516,8 +523,9 @@ class OpenAiCompatibleClient {
         return AssistantTurn(content = content, toolCalls = calls, reasoning = reasoning)
     }
 
-    private fun ApiMessage.toJson(): JsonObject = buildJsonObject {
+    private fun ApiMessage.toJson(provider: ProviderConfig): JsonObject = buildJsonObject {
         put("role", JsonPrimitive(role))
+        DeepSeekSupport.messagePrefix(this@toJson, provider)?.let { put("prefix", it) }
         when {
             toolCallId != null -> {
                 put("tool_call_id", JsonPrimitive(toolCallId))

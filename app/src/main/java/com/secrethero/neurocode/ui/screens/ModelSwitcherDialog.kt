@@ -87,11 +87,13 @@ class ModelPickerModel(
     val contextWindows: (model: String) -> Int? = { null },
 )
 
+@Suppress("LongParameterList")
 class ModelPickerActions(
     val onBrowseProvider: (ProviderConfig) -> Unit,
     val onRefresh: (ProviderConfig) -> Unit,
     val onSelect: (ModelRef, ModelScope) -> Unit,
     val onClear: (ModelScope) -> Unit,
+    val onApplyPreset: (String?, ModelScope) -> Unit = { _, _ -> },
     val onToggleFavorite: (ModelRef) -> Unit,
     val onDismiss: () -> Unit,
 )
@@ -144,6 +146,26 @@ fun ModelSwitcherDialog(picker: ModelPickerModel, actions: ModelPickerActions) {
                 SwitcherHeader(picker.retry, actions.onDismiss)
                 CurrentModelCard(picker, browsed, loading, modern, showLocal, actions)
                 QuickChoices(picker, choose)
+                if (!picker.retry && settings.presets.isNotEmpty()) {
+                    Text(
+                        stringResource(R.string.presets_title),
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    FlowRow(Modifier.padding(horizontal = 16.dp)) {
+                        settings.presets.forEach { preset ->
+                            FilterChip(
+                                selected = (if (forProject) picker.project?.presetId else null) == preset.id ||
+                                    (!forProject && settings.selectedPresetId == preset.id),
+                                onClick = {
+                                    actions.onApplyPreset(preset.id, scope)
+                                    actions.onDismiss()
+                                },
+                                label = { Text(preset.name) },
+                            )
+                        }
+                    }
+                }
                 if (picker.project != null && !picker.retry) {
                     ScopeRow(picker.project.name, forProject) { forProject = it }
                 }

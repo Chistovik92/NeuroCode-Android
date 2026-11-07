@@ -41,6 +41,9 @@ data class ResolvedModel(
 }
 
 object ModelResolver {
+    /** Битая ссылка не включает глобальный пресет и не мешает обычному выбору модели. */
+    private fun AppSettings.preset(id: String) = presets.firstOrNull { it.id == id }
+
     /** Глобальная модель по умолчанию из настроек (то, что было единственным выбором до 0.7.7). */
     fun globalRef(settings: AppSettings): ModelRef? {
         if (settings.useLocalModel) {
@@ -59,6 +62,12 @@ object ModelResolver {
         fileExists: (String) -> Boolean = { File(it).isFile },
     ): ResolvedModel {
         val (source, ref) = when {
+            settings.preset(session?.presetId.orEmpty()) != null -> ModelSource.DIALOG to
+                (settings.preset(session?.presetId.orEmpty())?.model ?: session?.model)
+            settings.preset(project?.presetId.orEmpty()) != null -> ModelSource.PROJECT to
+                (settings.preset(project?.presetId.orEmpty())?.model ?: project?.model)
+            settings.preset(settings.selectedPresetId.orEmpty()) != null -> ModelSource.GLOBAL to
+                (settings.preset(settings.selectedPresetId.orEmpty())?.model ?: globalRef(settings))
             session?.model != null -> ModelSource.DIALOG to session.model
             project?.model != null -> ModelSource.PROJECT to project.model
             else -> ModelSource.GLOBAL to globalRef(settings)

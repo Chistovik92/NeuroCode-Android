@@ -411,6 +411,53 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             .onFailure(container.bus::showError)
     }
 
+    /** Проверка ключа и модели до сохранения формы своего OpenAI-совместимого провайдера. */
+    fun validateProvider(provider: ProviderConfig, apiKey: String) = viewModelScope.launch {
+        _providerModels.value = ProviderModelsState(emptyList(), null, true)
+        runCatching {
+            require(apiKey.isNotBlank()) { "Укажите API-ключ для проверки" }
+            val models = container.apiClient.models(provider, apiKey)
+            check(models.isEmpty() || provider.model in models) {
+                "Модель ${provider.model} отсутствует в каталоге провайдера"
+            }
+            models
+        }.onSuccess { models ->
+            _providerModels.value = ProviderModelsState(models, null, false)
+            container.bus.showNotice("Провайдер и модель проверены")
+        }.onFailure { error ->
+            _providerModels.value = ProviderModelsState(
+                emptyList(),
+                error.message ?: error::class.java.simpleName,
+                false,
+            )
+        }
+    }
+
+    fun savePreset(preset: com.secrethero.neurocode.model.AgentPreset) = updateSettings { current ->
+        current.copy(presets = current.presets.filterNot { it.id == preset.id } + preset)
+    }
+
+    fun deletePreset(presetId: String) = viewModelScope.launch {
+        runCatching {
+            container.projects.resetPreset(presetId)
+            container.chats.resetPreset(presetId)
+            updateSettings { current ->
+                current.copy(
+                    presets = current.presets.filterNot { it.id == presetId },
+                    selectedPresetId = current.selectedPresetId.takeUnless { it == presetId },
+                )
+            }
+        }.onFailure(container.bus::showError)
+    }
+
+    fun applyGlobalPreset(presetId: String?) = updateSettings { it.copy(selectedPresetId = presetId) }
+
+    fun applyProjectPreset(presetId: String) = viewModelScope.launch {
+        val projectId = settings.value.selectedProjectId ?: return@launch
+        runCatching { container.projects.setPreset(projectId, presetId) }
+            .onFailure(container.bus::showError)
+    }
+
     fun removeProvider(providerId: String) = viewModelScope.launch {
         runCatching { container.settings.removeProvider(providerId) }
             .onFailure(container.bus::showError)

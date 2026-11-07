@@ -3,6 +3,7 @@ package com.secrethero.neurocode
 import com.secrethero.neurocode.ai.ModelProblem
 import com.secrethero.neurocode.ai.ModelResolver
 import com.secrethero.neurocode.ai.ModelSource
+import com.secrethero.neurocode.model.AgentPreset
 import com.secrethero.neurocode.model.AppSettings
 import com.secrethero.neurocode.model.ChatSession
 import com.secrethero.neurocode.model.ModelKind
@@ -52,6 +53,77 @@ class ModelResolverTest {
 
         assertEquals(ModelSource.DIALOG, result.source)
         assertEquals("gpt-b", result.provider?.model)
+    }
+
+    @Test
+    fun dialogPresetBeatsExplicitDialogProjectAndGlobalModels() {
+        val preset = AgentPreset(id = "dialog", name = "Dialog", model = ModelRef.cloud("p2", "preset-dialog"))
+        val configured = settings.copy(presets = listOf(preset))
+        val session = ChatSession(
+            presetId = preset.id,
+            model = ModelRef.cloud("p1", "dialog-model"),
+        )
+        val configuredProject = project.copy(
+            presetId = "missing-project",
+            model = ModelRef.cloud("p1", "project-model"),
+        )
+
+        val result = ModelResolver.resolve(session, configuredProject, configured, hasKey)
+
+        assertEquals(ModelSource.DIALOG, result.source)
+        assertEquals("preset-dialog", result.provider?.model)
+    }
+
+    @Test
+    fun projectPresetBeatsExplicitProjectModelAndGlobalPreset() {
+        val projectPreset = AgentPreset(
+            id = "project",
+            name = "Project",
+            model = ModelRef.cloud("p2", "preset-project"),
+        )
+        val globalPreset = AgentPreset(id = "global", name = "Global", model = ModelRef.cloud("p1", "preset-global"))
+        val configured = settings.copy(presets = listOf(projectPreset, globalPreset), selectedPresetId = "global")
+        val configuredProject = project.copy(presetId = "project", model = ModelRef.cloud("p1", "project-model"))
+
+        val result = ModelResolver.resolve(null, configuredProject, configured, hasKey)
+
+        assertEquals(ModelSource.PROJECT, result.source)
+        assertEquals("preset-project", result.provider?.model)
+    }
+
+    @Test
+    fun globalPresetBeatsLegacyModelFallback() {
+        val preset = AgentPreset(id = "global", name = "Global", model = ModelRef.cloud("p2", "preset-global"))
+        val configured = settings.copy(presets = listOf(preset), selectedPresetId = preset.id)
+        val configuredProject = project.copy(model = ModelRef.cloud("p1", "ignored"))
+
+        val result = ModelResolver.resolve(null, configuredProject, configured, hasKey)
+
+        assertEquals(ModelSource.GLOBAL, result.source)
+        assertEquals("preset-global", result.provider?.model)
+    }
+
+    @Test
+    fun missingPresetReferenceDoesNotBlockLegacyModelFallback() {
+        val configured = settings.copy(selectedPresetId = "missing")
+
+        val session = ChatSession(model = ModelRef.cloud("p2", "legacy"))
+        val result = ModelResolver.resolve(session, project, configured, hasKey)
+
+        assertEquals(ModelSource.DIALOG, result.source)
+        assertEquals("legacy", result.provider?.model)
+    }
+
+    @Test
+    fun assignedPresetWithoutModelFallsBackToLegacyModelAtSameLevel() {
+        val preset = AgentPreset(id = "global", name = "No model")
+        val configured = settings.copy(presets = listOf(preset), selectedPresetId = preset.id)
+
+        val configuredProject = project.copy(model = ModelRef.cloud("p2", "ignored"))
+        val result = ModelResolver.resolve(null, configuredProject, configured, hasKey)
+
+        assertEquals(ModelSource.GLOBAL, result.source)
+        assertEquals("gpt-a", result.provider?.model)
     }
 
     @Test
@@ -148,6 +220,10 @@ class ModelResolverTest {
 
         assertNull(project.model)
         assertNull(session.model)
+        assertNull(project.presetId)
+        assertNull(session.presetId)
+        assertNull(app.selectedPresetId)
+        assertTrue(app.presets.isEmpty())
         assertTrue(app.recentModels.isEmpty())
     }
 

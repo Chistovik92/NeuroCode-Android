@@ -591,6 +591,13 @@ fun NeuroCodeApp(
                     }
                 },
                 onClear = { viewModel.chat.clearModel(it) },
+                onApplyPreset = { id, scope ->
+                    if (scope == ChatViewModel.ModelScope.PROJECT) {
+                        viewModel.chat.applyProjectPreset(id)
+                    } else {
+                        viewModel.chat.applyDialogPreset(id)
+                    }
+                },
                 onToggleFavorite = viewModel.chat::toggleFavorite,
                 onDismiss = {
                     showSwitcher = false

@@ -600,6 +600,10 @@ fun SettingsScreen(vm: SettingsViewModel) {
             onPresetAll = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.ALL).data) },
         )
 
+        AgentPresetsSection(settings, vm)
+
+        SettingsCatalogSection(settings)
+
         SectionTitle(stringResource(R.string.security))
         Text(
             stringResource(R.string.security_text),
@@ -616,6 +620,7 @@ fun SettingsScreen(vm: SettingsViewModel) {
             current = editingProvider,
             modelsState = providerModels,
             onLoadModels = vm::loadProviderModels,
+            onValidate = vm::validateProvider,
             onDismiss = { providerDialog = false },
             onSave = { provider, key ->
                 vm.saveProvider(provider, key.ifBlank { null })
@@ -1125,12 +1130,13 @@ private fun ModelSelectorField(
     }
 }
 
-@Suppress("LongParameterList", "LongMethod")
+@Suppress("LongParameterList", "LongMethod", "CyclomaticComplexMethod")
 @Composable
 private fun ProviderDialog(
     current: ProviderConfig?,
     modelsState: ProviderModelsState,
     onLoadModels: (ProviderConfig) -> Unit,
+    onValidate: (ProviderConfig, String) -> Unit,
     onDismiss: () -> Unit,
     onSave: (ProviderConfig, String) -> Unit,
     onRemoveKey: () -> Unit,
@@ -1220,6 +1226,26 @@ private fun ProviderDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                 )
+                TextButton(
+                    enabled = name.isNotBlank() && baseUrl.startsWith("https://") &&
+                        model.isNotBlank() && apiKey.isNotBlank() && !modelsState.loading,
+                    onClick = {
+                        val id = current?.id ?: UUID.randomUUID().toString()
+                        onValidate(
+                            ProviderConfig(
+                                id = id,
+                                name = name.trim(),
+                                baseUrl = baseUrl.trim().trimEnd('/'),
+                                model = model.trim(),
+                                apiKeyName = current?.apiKeyName ?: id,
+                                extraHeaders = current?.extraHeaders.orEmpty(),
+                            ),
+                            apiKey,
+                        )
+                    },
+                ) {
+                    Text("Проверить ключ и модель")
+                }
                 if (current != null) {
                     TextButton(onClick = onRemoveKey) {
                         Text(stringResource(R.string.provider_remove_key))

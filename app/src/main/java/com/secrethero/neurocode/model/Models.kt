@@ -12,6 +12,8 @@ data class Project(
     val updatedAt: Long = System.currentTimeMillis(),
     /** Модель проекта; null — «как в глобальных настройках». */
     val model: ModelRef? = null,
+    /** Пресет проекта; при назначении имеет приоритет над отдельными настройками агента. */
+    val presetId: String? = null,
     /** Скрытая рабочая папка диалога без проекта («песочница»): в списке проектов не показывается. */
     val hidden: Boolean = false,
 )
@@ -128,6 +130,21 @@ data class ExternalAgentTool(
     val enabled: Boolean = true,
 )
 
+/** Именованный набор модели, навыков, внешних инструментов и политики агента. */
+@Serializable
+data class AgentPreset(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val model: ModelRef? = null,
+    val skillIds: Set<String> = emptySet(),
+    val externalToolIds: Set<String> = emptySet(),
+    val agentMode: Boolean = true,
+    val allowAgentShell: Boolean = false,
+    val maxAgentSteps: Int = 8,
+    val permissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS,
+    val planMode: Boolean = false,
+)
+
 @Serializable
 data class AppSettings(
     val skills: List<AgentSkill> = emptyList(),
@@ -175,6 +192,12 @@ data class AppSettings(
     val agentPermissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS,
     val planMode: Boolean = false,
     val workflows: List<com.secrethero.neurocode.ai.AgentWorkflow> = emptyList(),
+
+    /** Сохранённые пресеты и пресет, применяемый, если его не задали диалогу или проекту. */
+    val presets: List<AgentPreset> = emptyList(),
+    val selectedPresetId: String? = null,
+    /** Версия схемы настроек: миграции применяются один раз при запуске. */
+    val settingsSchemaVersion: Int = 0,
 ) {
     companion object {
         const val RECENT_MODELS_LIMIT = 5
@@ -261,6 +284,8 @@ data class ChatSession(
     val providerId: String? = null,
     /** Переопределение модели для диалога; null — берётся модель проекта. */
     val model: ModelRef? = null,
+    /** Пресет диалога; при назначении имеет приоритет над отдельными настройками агента. */
+    val presetId: String? = null,
     /** Своя скрытая рабочая папка диалога без проекта; создаётся при первом запросе и удаляется вместе с диалогом. */
     val sandboxProjectId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
@@ -295,6 +320,9 @@ data class ModelLimits(
     val promptTokens: Int? = null,
     val completionTokens: Int? = null,
     val totalTokens: Int? = null,
+    /** Телеметрия контекстного кэша DeepSeek из `usage`, если провайдер её вернул. */
+    val promptCacheHitTokens: Int? = null,
+    val promptCacheMissTokens: Int? = null,
     val requestsRemaining: String? = null,
     val requestsLimit: String? = null,
     val tokensRemaining: String? = null,
