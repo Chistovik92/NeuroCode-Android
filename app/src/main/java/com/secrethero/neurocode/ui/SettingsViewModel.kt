@@ -693,7 +693,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** Импорт модели LocalDoc AI копированием в files/models (тот же путь, что и SAF-импорт). */
     fun importLocalDocModel(model: LocalDocModelsClient.LocalDocModel) = viewModelScope.launch {
         runCatching {
-            val input = container.localDoc.open(model.id)
+            val input = container.localDoc.open(model)
                 ?: error(getApplication<Application>().getString(R.string.error_localdoc_gone))
             input.use { stream ->
                 _modelImportProgress.value = 0L to model.sizeBytes
