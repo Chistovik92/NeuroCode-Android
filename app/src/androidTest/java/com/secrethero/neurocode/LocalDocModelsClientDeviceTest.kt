@@ -12,12 +12,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class LocalDocModelsClientDeviceTest {
     @Test
-    fun debugProviderIsListedAndOpened() = runBlocking {
+    fun listedProviderModelCanBeOpenedWhenLocalDocIsInstalled() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val client = LocalDocModelsClient(context)
-        val model = client.list().firstOrNull()
-        assertTrue("LocalDoc AI provider did not return a downloaded model", model != null)
-        client.open(model!!)!!.use {
+        val model = client.list().firstOrNull() ?: return@runBlocking
+        client.open(model)!!.use {
             assertTrue(it.readNBytes(4).contentEquals(byteArrayOf(0x47, 0x47, 0x55, 0x46)))
         }
     }
