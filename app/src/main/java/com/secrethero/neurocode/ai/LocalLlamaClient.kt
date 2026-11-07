@@ -2,6 +2,7 @@ package com.secrethero.neurocode.ai
 
 import android.content.Context
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.os.StatFs
 import android.provider.OpenableColumns
 import com.arm.aichat.AiChat
@@ -44,6 +45,9 @@ class LocalLlamaClient(
     private val engineMutex = Mutex()
     private var loadedPath: String? = null
     private var loadedConversationKey: String? = null
+    /** Открытый fd модели LocalDoc AI (0.9.4.6): держим до выгрузки, грузим через /proc/self/fd/<fd>. */
+    private var loadedPfd: ParcelFileDescriptor? = null
+    private var loadedLocalDocKey: String? = null
     private val defaultPredictTokens =
         DeviceProfile.defaultLocalPredictTokens(limitedDevice)
 
@@ -212,6 +216,15 @@ class LocalLlamaClient(
                 engine.state.value.isModelLoaded
         }
 
+    /** true, если модель LocalDoc AI с этим ключом уже загружена для этого диалога. */
+    suspend fun isLoadedForLocalDoc(localDocKey: String, conversationKey: String): Boolean =
+        engineMutex.withLock {
+            loadedPfd != null &&
+                loadedLocalDocKey == localDocKey &&
+                loadedConversationKey == conversationKey &&
+                engine.state.value.isModelLoaded
+        }
+
     suspend fun load(path: String, systemPrompt: String, conversationKey: String) =
         engineMutex.withLock {
             val canonical = canonicalOrNull(path) ?: error("Недоступен путь модели: $path")
@@ -223,12 +236,45 @@ class LocalLlamaClient(
             if (engine.state.value.isModelLoaded) {
                 engine.cleanUp()
             }
+            closeLoadedPfd()
             awaitInitialized()
             engine.loadModel(canonical)
             engine.setSystemPrompt(systemPrompt)
             loadedPath = canonical
             loadedConversationKey = conversationKey
         }
+
+    /**
+     * Загружает модель LocalDoc AI напрямую по файловому дескриптору, не копируя GGUF.
+     * [pfd] передаётся во владение: закрывается в [unload] или при смене модели.
+     * Если эта же модель уже в памяти для этого диалога, свежий дескриптор закрывается.
+     */
+    suspend fun loadLocalDoc(
+        pfd: ParcelFileDescriptor,
+        localDocKey: String,
+        systemPrompt: String,
+        conversationKey: String,
+    ) = engineMutex.withLock {
+        val warm = loadedPfd != null &&
+            loadedLocalDocKey == localDocKey &&
+            loadedConversationKey == conversationKey &&
+            engine.state.value.isModelLoaded
+        if (warm) {
+            runCatching { pfd.close() }
+            return@withLock
+        }
+        if (engine.state.value.isModelLoaded) {
+            engine.cleanUp()
+        }
+        closeLoadedPfd()
+        awaitInitialized()
+        engine.loadModel("/proc/self/fd/${pfd.fd}")
+        engine.setSystemPrompt(systemPrompt)
+        loadedPfd = pfd
+        loadedLocalDocKey = localDocKey
+        loadedPath = null
+        loadedConversationKey = conversationKey
+    }
 
     fun generate(message: String, maxTokens: Int = defaultPredictTokens): Flow<String> =
         engine.sendUserPrompt(message, maxTokens.coerceIn(32, 2_048))
@@ -237,6 +283,13 @@ class LocalLlamaClient(
         if (engine.state.value.isModelLoaded) engine.cleanUp()
         loadedPath = null
         loadedConversationKey = null
+        closeLoadedPfd()
+    }
+
+    private fun closeLoadedPfd() {
+        loadedPfd?.let { runCatching { it.close() } }
+        loadedPfd = null
+        loadedLocalDocKey = null
     }
 
     /** Путь, применяемый для всех моделей в `files/models`; null, если путь недоступен. */

@@ -120,10 +120,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun selectProvider(providerId: String) = updateSettings {
-        it.copy(selectedProviderId = providerId, useLocalModel = false)
+        it.copy(
+            selectedProviderId = providerId,
+            useLocalModel = false,
+            localDocModelId = null,
+            localDocModelAuthority = null,
+            localDocModelName = null,
+        )
     }
 
-    fun setUseLocalModel(enabled: Boolean) = updateSettings { it.copy(useLocalModel = enabled) }
+    fun setUseLocalModel(enabled: Boolean) = updateSettings {
+        it.copy(
+            useLocalModel = enabled,
+            localDocModelId = null,
+            localDocModelAuthority = null,
+            localDocModelName = null,
+        )
+    }
     fun setAgentMode(enabled: Boolean) = updateSettings { it.copy(agentMode = enabled) }
     fun setPlanMode(enabled: Boolean) = updateSettings { it.copy(planMode = enabled) }
     fun setAgentPermissionMode(mode: com.secrethero.neurocode.model.AgentPermissionMode) =
@@ -477,7 +490,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     /** Делает модель активной локальной GGUF (переключает глобальную локальную модель). */
     fun selectLocalModel(model: ImportedModel) = updateSettings {
-        it.copy(localModelPath = model.path, localModelName = model.name, useLocalModel = true)
+        it.copy(
+            localModelPath = model.path,
+            localModelName = model.name,
+            useLocalModel = true,
+            localDocModelId = null,
+            localDocModelAuthority = null,
+            localDocModelName = null,
+        )
     }
 
     /** Проекты, которые используют эту модель как переопределение модели проекта. */
@@ -531,6 +551,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     localModelPath = imported.path,
                     localModelName = imported.name,
                     useLocalModel = true,
+                    localDocModelId = null,
+                    localDocModelAuthority = null,
+                    localDocModelName = null,
                 )
             }
             _deviceSnapshot.value?.let { snapshot ->
@@ -643,6 +666,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     localModelPath = downloaded.absolutePath,
                     localModelName = downloaded.name,
                     useLocalModel = true,
+                    localDocModelId = null,
+                    localDocModelAuthority = null,
+                    localDocModelName = null,
                 )
             }
         }.onFailure(container.bus::showError)
@@ -674,6 +700,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     localModelPath = downloaded.absolutePath,
                     localModelName = downloaded.name,
                     useLocalModel = true,
+                    localDocModelId = null,
+                    localDocModelAuthority = null,
+                    localDocModelName = null,
                 )
             }
         }.onFailure(container.bus::showError)
@@ -690,32 +719,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    /** Импорт модели LocalDoc AI копированием в files/models (тот же путь, что и SAF-импорт). */
-    fun importLocalDocModel(model: LocalDocModelsClient.LocalDocModel) = viewModelScope.launch {
-        runCatching {
-            val input = container.localDoc.open(model)
-                ?: error(getApplication<Application>().getString(R.string.error_localdoc_gone))
-            input.use { stream ->
-                _modelImportProgress.value = 0L to model.sizeBytes
-                val imported = container.localLlama.importStream(
-                    stream,
-                    model.name,
-                    model.sizeBytes,
-                ) { copied, total ->
-                    _modelImportProgress.value = copied to total
-                }
-                container.settings.update {
-                    it.copy(
-                        localModelPath = imported.path,
-                        localModelName = imported.name,
-                        useLocalModel = true,
-                    )
-                }
-            }
-        }.onFailure(container.bus::showError)
-        _modelImportProgress.value = null
-        refreshLocalModels()
-        refreshLocalDocModels()
+    /**
+     * Активирует модель LocalDoc AI напрямую (0.9.4.6): сохраняем ссылку в глобальных настройках,
+     * без копирования GGUF в files/models. Файл остаётся в LocalDoc AI и грузится по fd.
+     */
+    fun useLocalDocModel(model: LocalDocModelsClient.LocalDocModel) = updateSettings {
+        it.copy(
+            localDocModelId = model.id,
+            localDocModelAuthority = model.authority,
+            localDocModelName = model.name,
+            useLocalModel = false,
+        )
     }
 
     private fun updateSettings(transform: (AppSettings) -> AppSettings) =

@@ -158,7 +158,12 @@ internal class InferenceEngineImpl private constructor(
                 File(pathToModel).let {
                     require(it.exists()) { "File not found" }
                     require(it.isFile) { "Not a valid file" }
-                    require(it.canRead()) { "Cannot read file" }
+                    // Модель LocalDoc AI грузится по уже открытому fd (`/proc/self/fd/<n>`): открытый
+                    // для чтения дескриптор сам доказывает читаемость, а `canRead()` (access R_OK)
+                    // упирался бы в права владельца файла в чужом внешнем каталоге.
+                    if (!pathToModel.startsWith("/proc/self/fd/")) {
+                        require(it.canRead()) { "Cannot read file" }
+                    }
                 }
 
                 Log.i(TAG, "Loading model... \n$pathToModel")

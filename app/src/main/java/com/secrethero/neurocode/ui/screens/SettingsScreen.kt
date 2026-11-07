@@ -203,13 +203,17 @@ fun SettingsScreen(vm: SettingsViewModel) {
         SectionTitle(stringResource(R.string.work_mode))
         SettingSwitch(
             title = stringResource(R.string.local_gguf_model),
-            description = if (settings.localModelPath == null) {
-                stringResource(R.string.model_not_imported)
-            } else {
-                settings.localModelName ?: stringResource(R.string.local_model)
+            description = when {
+                settings.localDocModelId != null ->
+                    stringResource(
+                        R.string.localdoc_active_format,
+                        settings.localDocModelName ?: settings.localDocModelId.orEmpty(),
+                    )
+                settings.localModelPath == null -> stringResource(R.string.model_not_imported)
+                else -> settings.localModelName ?: stringResource(R.string.local_model)
             },
-            checked = settings.useLocalModel,
-            enabled = settings.localModelPath != null,
+            checked = settings.useLocalModel || settings.localDocModelId != null,
+            enabled = settings.localModelPath != null || settings.localDocModelId != null,
             onChecked = vm::setUseLocalModel,
         )
         FilledTonalButton(
@@ -254,9 +258,11 @@ fun SettingsScreen(vm: SettingsViewModel) {
             recommendedMb = deviceSnapshot?.recommendation()?.maxModelSizeMb ?: 0L,
             freeBytes = vm.modelsFreeBytes(),
             localDocState = localDocState,
+            activeLocalDocId = settings.localDocModelId,
+            activeLocalDocAuthority = settings.localDocModelAuthority,
             onSelect = vm::selectLocalModel,
             onDelete = { deleteModelTarget = it },
-            onImportLocalDoc = vm::importLocalDocModel,
+            onUseLocalDoc = vm::useLocalDocModel,
         )
 
         CatalogRecommendationsSection(

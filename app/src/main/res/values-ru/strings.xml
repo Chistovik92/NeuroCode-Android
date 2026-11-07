@@ -224,9 +224,10 @@
     <string name="models_on_device">Модели на устройстве</string>
     <string name="models_on_device_empty">На устройстве пока нет моделей. Импортируйте GGUF выше.</string>
     <string name="localdoc_group_title">Модели LocalDoc AI</string>
-    <string name="localdoc_not_installed">Установите LocalDoc AI, чтобы брать уже скачанные им модели без повторной загрузки.</string>
+    <string name="localdoc_not_installed">Установите LocalDoc AI, чтобы использовать уже скачанные им модели напрямую, без копирования.</string>
     <string name="localdoc_empty">В LocalDoc AI пока нет скачанных моделей.</string>
-    <string name="localdoc_import">Импортировать</string>
+    <string name="localdoc_use">Использовать</string>
+    <string name="localdoc_active_format">LocalDoc AI · %1$s</string>
     <string name="error_localdoc_gone">Модель больше недоступна в LocalDoc AI</string>
     <string name="notice_model_imported_format">Модель импортирована: %1$s</string>
     <string name="models_memory_title">Хранилище</string>

@@ -98,6 +98,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             project = projects.firstOrNull { it.id == current.selectedProjectId },
             settings = current,
             hasKey = { it.id in connectedIds },
+            localDocAvailable = { ref ->
+                container.localDoc.isAuthorityInstalled(ref.localDocAuthority.orEmpty())
+            },
         )
     }.stateIn(
         viewModelScope,
@@ -351,6 +354,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             project = container.projects.get(projectId ?: current.selectedProjectId),
             settings = current,
             hasKey = { it.id in container.settings.connectedProviderIds.value },
+            localDocAvailable = { ref ->
+                container.localDoc.isAuthorityInstalled(ref.localDocAuthority.orEmpty())
+            },
         )
     }
 
@@ -764,6 +770,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun runLocal(turn: Turn): String {
         val ref = checkNotNull(turn.model.ref)
+        if (ref.kind == ModelKind.LOCAL_DOC) return runLocalDoc(turn, ref)
         val path = checkNotNull(ref.localPath)
         val userMessage = turn.request.text
         val editorContext = turn.request.editorContext
@@ -781,13 +788,57 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         )
         container.localLlama.load(
             path = path,
-            systemPrompt = """
-                Ты — локальный помощник программиста NeuroCode на Android.
-                Отвечай по-русски. Пиши точный код и явно отмечай ограничения.
-                У тебя нет прямого доступа к инструментам и файлам, кроме контекста в сообщении.
-            """.trimIndent() + skillsBlock,
+            systemPrompt = localSystemPrompt() + skillsBlock,
             conversationKey = turn.sessionId,
         )
+        return generateLocalResponse(turn, warm, userMessage, editorContext, attachments)
+    }
+
+    /** Модель LocalDoc AI (0.9.4.6): грузится напрямую по fd, без копирования GGUF в files/models. */
+    private suspend fun runLocalDoc(turn: Turn, ref: ModelRef): String {
+        val id = checkNotNull(ref.localDocId)
+        val authority = checkNotNull(ref.localDocAuthority)
+        val localDocKey = "$authority/$id"
+        val userMessage = turn.request.text
+        val editorContext = turn.request.editorContext
+        val attachments = turn.request.attachments
+        _chatRunState.value = ChatRunState.Working(str(R.string.status_loading_model))
+        val lastAnswer = turn.history.lastOrNull { it.role == MessageRole.ASSISTANT }
+        val warm = lastAnswer?.generatedBy?.key == ref.key &&
+            container.localLlama.isLoadedForLocalDoc(localDocKey, turn.sessionId)
+        if (!warm) {
+            container.localLlama.unload()
+            val pfd = container.localDoc.openDescriptor(id, authority)
+                ?: error(str(R.string.error_localdoc_gone))
+            val skillsBlock = SkillPrompt.block(
+                settings.value.skills,
+                settings.value.skillsEnabled,
+                turn.projectId,
+            )
+            container.localLlama.loadLocalDoc(
+                pfd = pfd,
+                localDocKey = localDocKey,
+                systemPrompt = localSystemPrompt() + skillsBlock,
+                conversationKey = turn.sessionId,
+            )
+        }
+        return generateLocalResponse(turn, warm, userMessage, editorContext, attachments)
+    }
+
+    private fun localSystemPrompt(): String = """
+        Ты — локальный помощник программиста NeuroCode на Android.
+        Отвечай по-русски. Пиши точный код и явно отмечай ограничения.
+        У тебя нет прямого доступа к инструментам и файлам, кроме контекста в сообщении.
+    """.trimIndent()
+
+    /** Хвост локальной генерации, общий для GGUF из files/models и модели LocalDoc AI. */
+    private suspend fun generateLocalResponse(
+        turn: Turn,
+        warm: Boolean,
+        userMessage: String,
+        editorContext: EditorContext?,
+        attachments: List<ChatAttachment>,
+    ): String {
         // После перехода с другой модели (например, облачной) локальная видит прежний диалог текстом.
         val earlier = if (warm) "" else earlierDialog(turn.history.dropLast(1))
         val projectId = turn.projectId

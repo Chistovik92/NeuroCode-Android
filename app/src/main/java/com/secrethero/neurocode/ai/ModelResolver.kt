@@ -37,7 +37,7 @@ data class ResolvedModel(
     val problem: ModelProblem? = null,
 ) {
     val ready: Boolean get() = ref != null && problem == null
-    val isLocal: Boolean get() = ref?.kind == ModelKind.LOCAL
+    val isLocal: Boolean get() = ref?.kind == ModelKind.LOCAL || ref?.kind == ModelKind.LOCAL_DOC
 }
 
 object ModelResolver {
@@ -45,7 +45,15 @@ object ModelResolver {
     private fun AppSettings.preset(id: String) = presets.firstOrNull { it.id == id }
 
     /** Глобальная модель по умолчанию из настроек (то, что было единственным выбором до 0.7.7). */
+    @Suppress("ReturnCount")
     fun globalRef(settings: AppSettings): ModelRef? {
+        settings.localDocModelId?.let { id ->
+            return ModelRef.localDoc(
+                id = id,
+                name = settings.localDocModelName ?: id,
+                authority = settings.localDocModelAuthority ?: "com.localdoc.ai.models",
+            )
+        }
         if (settings.useLocalModel) {
             return settings.localModelPath?.let { ModelRef.local(it, settings.localModelName ?: File(it).name) }
         }
@@ -53,13 +61,14 @@ object ModelResolver {
             ?.let { ModelRef.cloud(it.id, it.model) }
     }
 
-    @Suppress("ReturnCount")
+    @Suppress("ReturnCount", "LongParameterList", "CyclomaticComplexMethod")
     fun resolve(
         session: ChatSession?,
         project: Project?,
         settings: AppSettings,
         hasKey: (ProviderConfig) -> Boolean,
         fileExists: (String) -> Boolean = { File(it).isFile },
+        localDocAvailable: (ModelRef) -> Boolean = { true },
     ): ResolvedModel {
         val (source, ref) = when {
             settings.preset(session?.presetId.orEmpty()) != null -> ModelSource.DIALOG to
@@ -73,11 +82,16 @@ object ModelResolver {
             else -> ModelSource.GLOBAL to globalRef(settings)
         }
         if (ref == null) {
-            val problem = if (settings.useLocalModel) ModelProblem.LOCAL_NOT_IMPORTED else ModelProblem.NOTHING_SELECTED
+            val problem = when {
+                settings.localDocModelId != null -> ModelProblem.LOCAL_NOT_IMPORTED
+                settings.useLocalModel -> ModelProblem.LOCAL_NOT_IMPORTED
+                else -> ModelProblem.NOTHING_SELECTED
+            }
             return ResolvedModel(null, source, problem = problem)
         }
         return when (ref.kind) {
             ModelKind.LOCAL -> resolveLocal(ref, source, fileExists)
+            ModelKind.LOCAL_DOC -> resolveLocalDoc(ref, source, localDocAvailable)
             ModelKind.CLOUD -> resolveCloud(ref, source, settings, hasKey)
         }
     }
@@ -87,6 +101,20 @@ object ModelResolver {
         val problem = when {
             path.isNullOrBlank() -> ModelProblem.LOCAL_NOT_IMPORTED
             !fileExists(path) -> ModelProblem.LOCAL_FILE_MISSING
+            else -> null
+        }
+        return ResolvedModel(ref, source, problem = problem)
+    }
+
+    private fun resolveLocalDoc(
+        ref: ModelRef,
+        source: ModelSource,
+        localDocAvailable: (ModelRef) -> Boolean,
+    ): ResolvedModel {
+        val problem = when {
+            ref.localDocId.isNullOrBlank() || ref.localDocAuthority.isNullOrBlank() ->
+                ModelProblem.LOCAL_NOT_IMPORTED
+            !localDocAvailable(ref) -> ModelProblem.LOCAL_FILE_MISSING
             else -> null
         }
         return ResolvedModel(ref, source, problem = problem)
@@ -114,6 +142,7 @@ object ModelResolver {
     fun shortLabel(ref: ModelRef?): String? = when (ref?.kind) {
         ModelKind.CLOUD -> ref.model
         ModelKind.LOCAL -> ref.localName
+        ModelKind.LOCAL_DOC -> ref.localName
         null -> null
     }
 
@@ -124,6 +153,7 @@ object ModelResolver {
             listOfNotNull(name, ref.model).joinToString(" · ")
         }
         ModelKind.LOCAL -> "GGUF · ${ref.localName ?: ref.localPath.orEmpty()}"
+        ModelKind.LOCAL_DOC -> "LocalDoc AI · ${ref.localName ?: ref.localDocId.orEmpty()}"
     }
 
     /** Новый список «недавних»: выбранная модель первой, без повторов, не длиннее [limit]. */

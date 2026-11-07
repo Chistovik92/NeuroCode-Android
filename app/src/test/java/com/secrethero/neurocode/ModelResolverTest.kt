@@ -237,4 +237,41 @@ class ModelResolverTest {
         assertEquals("GGUF · x.gguf", ModelResolver.fullLabel(local, settings.providers))
         assertEquals(ModelKind.LOCAL, local.kind)
     }
+
+    @Test
+    fun globalLocalDocModelIsUsedWhenSelected() {
+        val localDoc = settings.copy(
+            localDocModelId = "m1",
+            localDocModelAuthority = "com.localdoc.ai.models",
+            localDocModelName = "Model One",
+        )
+
+        val result = ModelResolver.resolve(null, null, localDoc, hasKey)
+
+        assertTrue(result.isLocal)
+        assertEquals(ModelRef.localDoc("m1", "Model One", "com.localdoc.ai.models"), result.ref)
+        assertTrue(result.ready)
+    }
+
+    @Test
+    fun localDocModelUnavailableReportsFileMissing() {
+        val localDoc = settings.copy(
+            localDocModelId = "m1",
+            localDocModelAuthority = "com.localdoc.ai.models",
+            localDocModelName = "Model One",
+        )
+
+        val result = ModelResolver.resolve(null, null, localDoc, hasKey, localDocAvailable = { false })
+
+        assertFalse(result.ready)
+        assertEquals(ModelProblem.LOCAL_FILE_MISSING, result.problem)
+    }
+
+    @Test
+    fun localDocLabelsDescribeModel() {
+        val localDoc = ModelRef.localDoc("m1", "Model One", "com.localdoc.ai.models")
+
+        assertEquals("Model One", ModelResolver.shortLabel(localDoc))
+        assertEquals("LocalDoc AI · Model One", ModelResolver.fullLabel(localDoc, settings.providers))
+    }
 }

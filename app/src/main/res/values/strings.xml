@@ -224,9 +224,10 @@
     <string name="models_on_device">Models on device</string>
     <string name="models_on_device_empty">No models on device yet. Import a GGUF above.</string>
     <string name="localdoc_group_title">LocalDoc AI models</string>
-    <string name="localdoc_not_installed">Install LocalDoc AI to reuse its downloaded models without downloading them again.</string>
+    <string name="localdoc_not_installed">Install LocalDoc AI to use its already-downloaded models directly, without copying them.</string>
     <string name="localdoc_empty">LocalDoc AI has no downloaded models yet.</string>
-    <string name="localdoc_import">Import</string>
+    <string name="localdoc_use">Use</string>
+    <string name="localdoc_active_format">LocalDoc AI · %1$s</string>
     <string name="error_localdoc_gone">Model is no longer available in LocalDoc AI</string>
     <string name="notice_model_imported_format">Model imported: %1$s</string>
     <string name="models_memory_title">Storage</string>

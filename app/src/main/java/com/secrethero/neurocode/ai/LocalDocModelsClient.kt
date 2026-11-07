@@ -2,7 +2,9 @@ package com.secrethero.neurocode.ai
 
 import android.content.Context
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.provider.BaseColumns
+import com.secrethero.neurocode.model.ModelRef
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -11,10 +13,10 @@ import kotlinx.coroutines.withContext
  *
  * LocalDoc AI (KMP) публикует скачанные GGUF-модели через ContentProvider
  * `content://<applicationId>.models` (release и debug): список — `query()` с полями `_id`/`name`/`size`,
- * байты — `openInputStream(content://com.localdoc.ai.models/<id>)`. NeuroCode копирует
- * модель в свой `files/models` обычным `LocalLlamaClient.importModel` — без повторной
- * загрузки из сети. Отсутствие или удаление LocalDoc AI не влияет на импортированные
- * модели: они уже лежат у NeuroCode.
+ * байты — `openInputStream(content://com.localdoc.ai.models/<id>)`. Начиная с 0.9.4.6 NeuroCode
+ * использует модель напрямую через `openFileDescriptor` (реальный fd → `/proc/self/fd/<fd>`),
+ * без копирования в `files/models`. Отсутствие или удаление LocalDoc AI делает
+ * прямую ссылку недоступной, но не ломает экран.
  *
  * Все операции — на `Dispatchers.IO`: это binder-вызовы в другой процесс.
  * Любой сбой (провайдер недоступен, старая версия без провайдера) означает
@@ -81,10 +83,46 @@ class LocalDocModelsClient(private val context: Context) {
      */
     suspend fun open(model: LocalDocModel) = withContext(Dispatchers.IO) {
         runCatching {
-            val uri = Uri.withAppendedPath(Uri.parse("content://${model.authority}"), model.id)
-            context.contentResolver.openInputStream(uri)
+            context.contentResolver.openInputStream(uri(model))
         }.getOrNull()
     }
+
+    /** content-URI модели: `content://<authority>/<id>`. */
+    fun uri(model: LocalDocModel): Uri = uri(model.id, model.authority)
+
+    /** content-URI модели по id и authority (release/debug). */
+    fun uri(id: String, authority: String): Uri =
+        Uri.withAppendedPath(Uri.parse("content://$authority"), id)
+
+    /**
+     * Файловый дескриптор модели от провайдера LocalDoc AI. В отличие от потока байтов,
+     * реальный fd позволяет NeuroCode загрузить GGUF напрямую через `/proc/self/fd/<fd>`,
+     * не копируя модель в `files/models`. null, если модель или провайдер недоступны.
+     */
+    suspend fun openDescriptor(model: LocalDocModel): ParcelFileDescriptor? =
+        openDescriptor(model.id, model.authority)
+
+    /** То же по [id] и [authority] — для прямой ссылки [ModelRef]. */
+    suspend fun openDescriptor(id: String, authority: String): ParcelFileDescriptor? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                context.contentResolver.openFileDescriptor(uri(id, authority), "r")
+            }.getOrNull()
+        }
+
+    /** [ModelRef] прямой ссылки на модель LocalDoc AI. */
+    fun ref(model: LocalDocModel): ModelRef =
+        ModelRef.localDoc(id = model.id, name = model.name, authority = model.authority)
+
+    /**
+     * Установлен ли пакет с данным authority провайдера (release или debug).
+     * Синхронная проверка package manager — для проверки доступности перед загрузкой.
+     */
+    fun isAuthorityInstalled(authority: String): Boolean =
+        PACKAGES.any { packageName ->
+            "$packageName.models" == authority &&
+                runCatching { context.packageManager.getPackageInfo(packageName, 0) }.isSuccess
+        }
 
     private companion object {
         const val RELEASE_AUTHORITY = "com.localdoc.ai.models"

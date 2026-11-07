@@ -22,10 +22,14 @@ data class Project(
 enum class ModelKind {
     CLOUD,
     LOCAL,
+
+    /** GGUF из LocalDoc AI: используется напрямую через его ContentProvider, без копирования. */
+    LOCAL_DOC,
 }
 
 /**
- * Выбор модели: облачная (провайдер + идентификатор модели) или локальная GGUF.
+ * Выбор модели: облачная (провайдер + идентификатор модели) или локальная GGUF
+ * (файл в `files/models`, либо ссылка на модель LocalDoc AI для прямого использования).
  * Не содержит секретов, поэтому безопасна для хранения в проекте, диалоге и экспорте.
  */
 @Serializable
@@ -35,12 +39,17 @@ data class ModelRef(
     val model: String? = null,
     val localPath: String? = null,
     val localName: String? = null,
+    /** id модели в LocalDoc AI (для [ModelKind.LOCAL_DOC]). */
+    val localDocId: String? = null,
+    /** authority провайдера LocalDoc AI (release/debug), для [ModelKind.LOCAL_DOC]. */
+    val localDocAuthority: String? = null,
 ) {
     /** Ключ для сравнения и списков «недавние / избранные». */
     val key: String
         get() = when (kind) {
             ModelKind.CLOUD -> "cloud:$providerId:$model"
             ModelKind.LOCAL -> "local:${localName ?: localPath}"
+            ModelKind.LOCAL_DOC -> "localdoc:$localDocAuthority:$localDocId"
         }
 
     companion object {
@@ -49,6 +58,9 @@ data class ModelRef(
 
         fun local(path: String, name: String) =
             ModelRef(ModelKind.LOCAL, localPath = path, localName = name)
+
+        fun localDoc(id: String, name: String, authority: String) =
+            ModelRef(ModelKind.LOCAL_DOC, localName = name, localDocId = id, localDocAuthority = authority)
     }
 }
 
@@ -156,6 +168,10 @@ data class AppSettings(
     val localModelPath: String? = null,
     val localModelName: String? = null,
     val useLocalModel: Boolean = false,
+    /** Активная модель LocalDoc AI (0.9.4.6): используется напрямую, без копирования в files/models. */
+    val localDocModelId: String? = null,
+    val localDocModelAuthority: String? = null,
+    val localDocModelName: String? = null,
     val agentMode: Boolean = true,
     val allowAgentShell: Boolean = false,
     val maxAgentSteps: Int = 8,

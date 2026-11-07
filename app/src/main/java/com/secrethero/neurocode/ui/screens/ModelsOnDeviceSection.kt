@@ -52,9 +52,11 @@ internal fun LocalModelsSection(
     recommendedMb: Long,
     freeBytes: Long,
     localDocState: com.secrethero.neurocode.ui.LocalDocState,
+    activeLocalDocId: String?,
+    activeLocalDocAuthority: String?,
     onSelect: (ImportedModel) -> Unit,
     onDelete: (ImportedModel) -> Unit,
-    onImportLocalDoc: (com.secrethero.neurocode.ai.LocalDocModelsClient.LocalDocModel) -> Unit,
+    onUseLocalDoc: (com.secrethero.neurocode.ai.LocalDocModelsClient.LocalDocModel) -> Unit,
 ) {
     SectionTitle(stringResource(R.string.models_on_device))
 
@@ -102,14 +104,21 @@ internal fun LocalModelsSection(
         }
     }
 
-    LocalDocModelsSection(localDocState, onImportLocalDoc)
+    LocalDocModelsSection(
+        state = localDocState,
+        activeLocalDocId = activeLocalDocId,
+        activeLocalDocAuthority = activeLocalDocAuthority,
+        onUse = onUseLocalDoc,
+    )
 }
 
-/** Группа «LocalDoc AI»: модели, уже скачанные соседним приложением, — импорт без сети. */
+/** Группа «LocalDoc AI»: модели, уже скачанные соседним приложением, — прямое использование без копии. */
 @Composable
 private fun LocalDocModelsSection(
     state: com.secrethero.neurocode.ui.LocalDocState,
-    onImport: (com.secrethero.neurocode.ai.LocalDocModelsClient.LocalDocModel) -> Unit,
+    activeLocalDocId: String?,
+    activeLocalDocAuthority: String?,
+    onUse: (com.secrethero.neurocode.ai.LocalDocModelsClient.LocalDocModel) -> Unit,
 ) {
     SectionTitle(stringResource(R.string.localdoc_group_title))
     when (state) {
@@ -128,29 +137,54 @@ private fun LocalDocModelsSection(
                 )
             } else {
                 state.models.forEach { model ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(model.name, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    stringResource(
-                                        R.string.models_memory_used,
-                                        model.sizeBytes / DeviceProfile.MB,
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            FilledTonalButton(onClick = { onImport(model) }) {
-                                Text(stringResource(R.string.localdoc_import))
-                            }
-                        }
+                    LocalDocModelRow(
+                        model = model,
+                        active = model.id == activeLocalDocId && model.authority == activeLocalDocAuthority,
+                        onUse = { onUse(model) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocalDocModelRow(
+    model: com.secrethero.neurocode.ai.LocalDocModelsClient.LocalDocModel,
+    active: Boolean,
+    onUse: () -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(model.name, fontWeight = FontWeight.SemiBold)
+                    if (active) {
+                        Text(
+                            stringResource(R.string.models_active_badge),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 6.dp),
+                        )
                     }
+                }
+                Text(
+                    stringResource(
+                        R.string.models_memory_used,
+                        model.sizeBytes / DeviceProfile.MB,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!active) {
+                FilledTonalButton(onClick = onUse) {
+                    Text(stringResource(R.string.localdoc_use))
                 }
             }
         }
