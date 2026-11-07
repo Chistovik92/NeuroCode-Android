@@ -1,13 +1,13 @@
 # Архитектура NeuroCode Android
 
-Актуально для версии **0.8.1**. Планируемые изменения — в [ROADMAP.md](ROADMAP.md).
+Актуально для версии **0.9.4.5**. Планируемые изменения — в [ROADMAP.md](ROADMAP.md).
 
 ## Модули
 
 | Каталог | Назначение |
 |---------|------------|
-| `app/.../ai` | `AgentOrchestrator` (цикл агента), `AgentTools` (инструменты), `FsAgentTools` (доступ к файлам устройства), `OpenAiCompatibleClient` (облако, SSE), `LocalLlamaClient` (GGUF), `ProviderCatalog`, `CommandPolicy`, `ReasoningSplitter` |
-| `app/.../data` | `ProjectRepository`, `ChatRepository`, `SettingsRepository`, `SecureSecretStore`, `JsonFileStore`, `PathGuard`, `FilesystemAccess` (корни доступа 0.8.2) |
+| `app/.../ai` | `AgentOrchestrator` (цикл агента), `AgentTools` (инструменты), `FsAgentTools` (доступ к файлам устройства), `OpenAiCompatibleClient` (облако, SSE), `LocalLlamaClient` (GGUF), `LocalDocModelsClient` (импорт LocalDoc AI), `ModelRepository`/`ModelCatalog` (Hugging Face), `SessionCore`, `JobManager`, `ProviderCatalog`, `CommandPolicy`, `ReasoningSplitter` |
+| `app/.../data` | `ProjectRepository`, `ChatRepository`, `SettingsRepository`, `SecureSecretStore`/`CredentialStore`, `JsonFileStore`, `PathGuard`, `FilesystemAccess` (корни доступа 0.8.2), пресеты и каталог настроек |
 | `app/.../terminal` | `ShellSession`, `ProotManager` (Linux-окружение), `ApprovalGate` |
 | `app/.../git`, `lsp`, `device` | JGit, LSP-клиент, профиль устройства |
 | `app/.../ui` | ViewModel'и, `NeuroCodeApp`, `ModernShell`, экраны (`screens`), Markdown и редактор (`components`) |
@@ -41,16 +41,19 @@
   сохраняется при смене модели. Код не выполняет.
 - **Внешний инструмент** — `ExternalAgentTool(name, description, command, enabled)`. Регистрируется
   для модели как вызов фиксированной команды; запуск проходит через `ApprovalGate`.
-- Оба механизма сейчас формируются только в облачном запросе; локальная модель их не получает.
+- Скиллы добавляются и в облачный, и в локальный системный промпт; внешние инструменты доступны
+  только облачным моделям через function calling.
 
 ## Локальная модель
 
 GGUF выбирается через системный picker, проверяется по magic header, копируется в `files/models` и
 загружается Android binding llama.cpp (JNI и CPU backends собираются NDK вместе с APK). Модель в APK
 не упаковывается. Локальная модель работает в режиме чата и получает содержимое открытого файла
-(до 20 000 символов) и текстовые вложения. Надёжный function calling для произвольных локальных
-моделей намеренно не имитируется. Профиль устройства (`DeviceProfile`) рекомендует размер модели и
-сокращает бюджет генерации на слабых устройствах.
+(до 20 000 символов), текстовые вложения и активные скиллы. Надёжный function calling для произвольных
+локальных моделей намеренно не имитируется. Профиль устройства (`DeviceProfile`) рекомендует размер
+модели и сокращает бюджет генерации на слабых устройствах. Каталог Hugging Face скачивает GGUF с
+докачкой и проверкой; `LocalDocModelsClient` импортирует скачанные модели LocalDoc AI 2.9.1+ из
+release/debug ContentProvider `<applicationId>.models` с сохранением authority для чтения по `id`.
 
 ## Хранилище
 
@@ -64,7 +67,9 @@ GGUF выбирается через системный picker, проверяе
   (`ChatMigration`: резервная копия, проверка числа диалогов и сообщений, откат при сбое);
 - `files/secure` — AES-GCM ciphertext API-ключей и токенов Git;
 - `files/models` — импортированные GGUF;
-- `files/linux` — proot и Alpine rootfs (если установлено), загрузки временно в `cacheDir`;
+- `files/linux` — Alpine rootfs (если установлено), загрузки временно в `cacheDir`;
+- `files/.neurocode/spill/<sessionId>-<messageId>.txt` — полный текст крупных результатов
+  инструментов; журнал хранит начало и имя файла;
 - `project/.neurocode/history` — снимки файлов до перезаписи;
 - `project/.neurocode/attachments` — вложения диалога (не попадают в экспорт и синхронизацию).
 
@@ -77,9 +82,9 @@ GGUF выбирается через системный picker, проверяе
 `ShellSession` запускает `/system/bin/sh` под UID приложения. Если установлено Linux-окружение,
 команда оборачивается в `proot` (`ProotManager.command`): rootfs Alpine, workspace как `/workspace`,
 `/dev`, `/proc`, `/sys` пробрасываются. `proot` берётся из `nativeLibraryDir/libproot.so` (бинарник входит в APK для arm64-v8a, armeabi-v7a и
-x86_64, `packaging.jniLibs.useLegacyPackaging = true`, см. `third_party/proot`); скачивание из репозитория
-Alpine в `files/linux` осталось запасным путём, но запустить скачанный бинарник на Android 10+ нельзя
-(ограничение SELinux). `ProotManager.command` строит команду через `ProotCommand`: оболочка хоста
+x86_64, `packaging.jniLibs.useLegacyPackaging = true`, см. `third_party/proot`); используется
+Termux-сборка против bionic с внешним загрузчиком, скачивается только Alpine rootfs.
+`ProotManager.command` строит команду через `ProotCommand`: оболочка хоста
 (`/system/bin/sh -c`) задаёт `PROOT_TMP_DIR` и `PROOT_NO_SECCOMP`, переменные гостя — `env -i` внутри rootfs
 (у proot нет параметра `--env`). При подготовке права на исполнение в rootfs восстанавливаются (`ExecutableBits`),
 после чего реально запускается `/bin/sh` в гостевой системе: только после успеха состояние `READY`. Причина сбоя
@@ -110,15 +115,16 @@ JGit работает с обычным `.git` внутри внутренней
 - общая логика чата в `ChatViewModel`, оболочки `ClassicTopBar`/`ModernTopBar`/`ModernShell`;
 - локализация ru/en через `strings.xml`.
 
-## Ограничения 0.8.1
+## Текущие ограничения
 
-- агент видит только файлы проекта: доступ к остальной файловой системе Android не реализован;
+- внешние файлы доступны только через SAF-корни; инструменты внешней FS читают и импортируют,
+  но не записывают и не удаляют;
 - авторизация провайдеров только по API-ключу; вход по аккаунту подписок сторонним приложениям
   запрещён условиями вендоров (см. ROADMAP, 0.10.3);
-- скиллы и внешние инструменты не работают с локальной моделью, автоматических тестов на них нет;
-- proot на части устройств (например, эмулятор Android 15) убивается системой (SIGSYS): Linux-окружение там недоступно;
-- GGUF-модель можно только импортировать из файла: автоматической загрузки с Hugging Face и
-  списка нескольких моделей нет (хранится один `localModelPath`);
+- локальная модель получает скиллы текстом, но не вызывает агентные/внешние инструменты;
+  одновременно в движок llama.cpp загружена одна GGUF;
+- proot на части устройств может блокироваться системой (SIGSYS): тогда используется Android shell;
+- импорт из LocalDoc AI требует установленный LocalDoc AI 2.9.1+ и дублирует GGUF в `files/models`;
 - нет коннекторов (MCP), плагинов и управления телефоном моделью;
 - SSH-remote для Git не поддерживаются;
 - синхронизация SAF не удаляет локальные файлы, отсутствующие во внешней папке; конфликт решается в

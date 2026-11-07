@@ -6,5 +6,9 @@
 - **OkHttp** — Apache License 2.0.
 - **Kotlin, kotlinx.coroutines, kotlinx.serialization** — Apache License 2.0.
 - **AndroidX and Jetpack Compose** — Apache License 2.0.
+- **Termux Proot** — GPL-2.0-or-later. Bundled bionic binaries and loader are documented in
+  `third_party/proot/README.md`; upstream source: https://github.com/termux/proot.
+- **libtalloc** — LGPL-3.0-or-later, bundled as a native dependency of Proot.
+- **libandroid-shmem** — BSD-2-Clause, bundled as a native dependency of Proot.
 
 Each dependency remains subject to its upstream copyright and license terms.
