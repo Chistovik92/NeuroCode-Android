@@ -6,12 +6,15 @@
     <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$end &lt; line.length &amp;&amp; (line[end].isLetterOrDigit() || line[end] == '.' || line[end] == '_')</ID>
     <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$index &lt; line.length &amp;&amp; (line[index].isLetterOrDigit() || line[index] == '/' || line[index] == '!' || line[index] == '?')</ID>
     <ID>ComplexCondition:SimpleCodeLanguage.kt$CodeHighlighter$spec.useEscape &amp;&amp; index &lt; line.length &amp;&amp; line[index] == '\\' &amp;&amp; !multiline</ID>
+    <ID>CyclomaticComplexMethod:AccountSection.kt$@Composable internal fun AccountSection(vm: SettingsViewModel)</ID>
     <ID>CyclomaticComplexMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), permissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS, planMode: Boolean = false, onEvent: suspend (AgentEvent) -&gt; Unit = {}, ): String</ID>
     <ID>CyclomaticComplexMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
     <ID>CyclomaticComplexMethod:HuggingFaceClient.kt$HuggingFaceClient$private suspend fun downloadResuming( url: String, partial: File, target: File, expectedSha256: String?, onProgress: (Long, Long) -&gt; Unit, ): File</ID>
     <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable fun SettingsScreen(vm: SettingsViewModel)</ID>
     <ID>CyclomaticComplexMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightXml(ref: ContentReference)</ID>
     <ID>CyclomaticComplexMethod:SimpleCodeLanguage.kt$CodeHighlighter$private fun scanCodeLine(lineIndex: Int, line: String)</ID>
+    <ID>CyclomaticComplexMethod:SyncRepository.kt$SyncRepository$private suspend fun runSync(): SyncOutcome</ID>
+    <ID>LongMethod:AccountSection.kt$@Composable internal fun AccountSection(vm: SettingsViewModel)</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$fun definitions(externalTools: List&lt;ExternalAgentTool&gt; = emptyList()): JsonArray</ID>
     <ID>LongMethod:AgentTools.kt$AgentTools$suspend fun execute( projectId: String, call: ToolCall, allowAgentShell: Boolean, externalTools: List&lt;ExternalAgentTool&gt; = emptyList(), permissionMode: AgentPermissionMode = AgentPermissionMode.ASK_ALWAYS, planMode: Boolean = false, onEvent: suspend (AgentEvent) -&gt; Unit = {}, ): String</ID>
     <ID>LongMethod:ChatScreen.kt$@Composable fun ChatScreen(chat: ChatViewModel, editor: EditorViewModel)</ID>
@@ -30,12 +33,16 @@
     <ID>LongParameterList:FilesystemAccessSection.kt$( fsRootsMeta: List&lt;SettingsViewModel.FsRootMeta&gt;, onAddRoot: () -&gt; Unit, onRemoveRoot: (String) -&gt; Unit, onPresetDownloads: () -&gt; Unit, onPresetDocuments: () -&gt; Unit, onPresetPictures: () -&gt; Unit, onPresetAll: () -&gt; Unit, )</ID>
     <ID>LongParameterList:NeuroCodeApp.kt$( title: String, label: String, initialValue: String, confirmLabel: String, onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, )</ID>
     <ID>LongParameterList:SettingsScreen.kt$( model: String, onModelChange: (String) -&gt; Unit, modelsState: ProviderModelsState, expanded: Boolean, onExpandedChange: (Boolean) -&gt; Unit, onLoadModels: () -&gt; Boolean, )</ID>
+    <ID>LongParameterList:SyncMergeTest.kt$SyncMergeTest$( deviceId: String, chats: List&lt;ChatSession&gt; = emptyList(), projects: List&lt;Project&gt; = emptyList(), updatedAt: Long = 100, deletedChats: List&lt;String&gt; = emptyList(), deletedProjects: List&lt;String&gt; = emptyList(), )</ID>
+    <ID>LongParameterList:SyncRepository.kt$SyncRepository$( baseUrl: String, anonKey: String, accessToken: String, userId: String, deviceId: String, payload: SyncPayload, key: ByteArray, )</ID>
+    <ID>LongParameterList:SyncRepository.kt$SyncRepository$( private val context: Context, private val settings: SettingsRepository, private val chats: ChatRepository, private val projects: ProjectRepository, private val account: AccountRepository, private val http: OkHttpClient, private val now: () -&gt; Long = { System.currentTimeMillis() }, )</ID>
     <ID>LoopWithTooManyJumpStatements:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$while</ID>
     <ID>LoopWithTooManyJumpStatements:ProotManager.kt$TarReader$while</ID>
     <ID>LoopWithTooManyJumpStatements:ProotManager.kt$TarReader.Companion$for</ID>
     <ID>LoopWithTooManyJumpStatements:ProotManager.kt$while</ID>
     <ID>LoopWithTooManyJumpStatements:SimpleCodeLanguage.kt$CodeHighlighter$for</ID>
     <ID>LoopWithTooManyJumpStatements:SimpleCodeLanguage.kt$CodeHighlighter$while</ID>
+    <ID>MagicNumber:AccountRepository.kt$AccountRepository$60_000</ID>
     <ID>MagicNumber:AgentJobs.kt$AgentJobs$1024</ID>
     <ID>MagicNumber:AgentJobs.kt$AgentJobs$64</ID>
     <ID>MagicNumber:AgentOrchestrator.kt$AgentOrchestrator$20</ID>
@@ -92,6 +99,11 @@
     <ID>MagicNumber:SubagentPolicy.kt$SubagentLimits$1024</ID>
     <ID>MagicNumber:SubagentPolicy.kt$SubagentLimits$16</ID>
     <ID>MagicNumber:SubagentPolicy.kt$SubagentLimits$64</ID>
+    <ID>MagicNumber:SupabaseAuthClient.kt$Pkce$64</ID>
+    <ID>MagicNumber:SupabaseAuthClient.kt$SupabaseAuthClient$200</ID>
+    <ID>MagicNumber:SupabaseAuthClient.kt$SupabaseAuthClient$3600</ID>
+    <ID>MagicNumber:SyncCrypto.kt$SyncCrypto$4</ID>
+    <ID>MagicNumber:SyncCrypto.kt$SyncCrypto$43</ID>
     <ID>MatchingDeclarationName:AgentPlan.kt$AgentPlanTools</ID>
     <ID>MatchingDeclarationName:SkillImport.kt$SkillMarkdown</ID>
     <ID>MaxLineLength:AgentTools.kt$AgentTools$"job_stop" -&gt; if (jobs?.stop(arguments.string("id")) == true) "Остановлено" else "Задача уже завершена или не найдена"</ID>
@@ -127,9 +139,11 @@
     <ID>MaxLineLength:SettingsScreen.kt$onPresetPictures = { presetPicker.launch(vm.createPresetIntent(SettingsViewModel.PresetType.PICTURES).data) }</ID>
     <ID>MaxLineLength:SettingsViewModel.kt$SettingsViewModel$PresetType.DOCUMENTS -&gt; Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).toUri()</ID>
     <ID>MaxLineLength:SettingsViewModel.kt$SettingsViewModel$PresetType.DOWNLOADS -&gt; Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toUri()</ID>
+    <ID>MaxLineLength:SyncRepository.kt$SyncRepository$message = "Синхронизировано: +${result.chatsToApply.size}/−${result.chatsToDelete.size} диалогов"</ID>
     <ID>NestedBlockDepth:ProjectRepository.kt$ProjectRepository$private fun copyToDocumentTree( source: File, target: DocumentFile, depth: Int, onProgress: (copied: Int, total: Int) -&gt; Unit, total: Int, ): Int</ID>
     <ID>NestedBlockDepth:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightMarkdown(ref: ContentReference)</ID>
     <ID>NestedBlockDepth:SimpleCodeLanguage.kt$CodeHighlighter$private fun highlightXml(ref: ContentReference)</ID>
+    <ID>ReturnCount:AccountRepository.kt$AccountRepository$suspend fun onOauthRedirect(uri: Uri)</ID>
     <ID>ReturnCount:AgentTools.kt$AgentTools$private suspend fun executeExternal( projectId: String, call: ToolCall, externalTools: List&lt;ExternalAgentTool&gt;, ): String</ID>
     <ID>ReturnCount:ChatViewModel.kt$ChatViewModel$private fun fallbackProvider(current: AppSettings, primaryId: String?): ProviderConfig?</ID>
     <ID>ReturnCount:CommandPolicy.kt$CommandPolicy$fun isSafeReadOnly(command: String): Boolean</ID>
@@ -138,6 +152,8 @@
     <ID>ReturnCount:LspClient.kt$LspClient$private fun handleMessage(raw: String)</ID>
     <ID>ReturnCount:LspController.kt$LspController$private fun ensureStarted(root: File): LspClient?</ID>
     <ID>ReturnCount:SkillImport.kt$SkillMarkdown$fun parse(text: String): AgentSkill?</ID>
+    <ID>ReturnCount:SyncRepository.kt$SyncRepository$private fun isWifi(): Boolean</ID>
+    <ID>ReturnCount:SyncRepository.kt$SyncRepository$private suspend fun runSync(): SyncOutcome</ID>
     <ID>SpreadOperator:ProotManager.kt$(destination.absolutePath, *entry.name.split('/').toTypedArray())</ID>
     <ID>ThrowsCount:HuggingFaceClient.kt$HuggingFaceClient$private suspend fun downloadResuming( url: String, partial: File, target: File, expectedSha256: String?, onProgress: (Long, Long) -&gt; Unit, ): File</ID>
     <ID>ThrowsCount:OpenAiCompatibleClient.kt$OpenAiCompatibleClient$private suspend fun tryChatEndpoints( provider: ProviderConfig, shouldRethrow: () -&gt; Boolean = { false }, block: suspend (String) -&gt; AssistantTurn, ): AssistantTurn</ID>
@@ -148,6 +164,8 @@
     <ID>TooGenericExceptionCaught:ChatViewModel.kt$ChatViewModel$primaryError: Throwable</ID>
     <ID>TooGenericExceptionCaught:GitViewModel.kt$GitViewModel$error: Throwable</ID>
     <ID>TooGenericExceptionCaught:ProjectsViewModel.kt$ProjectsViewModel$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SyncRepository.kt$SyncRepository$e: Exception</ID>
+    <ID>TooManyFunctions:AccountRepository.kt$AccountRepository</ID>
     <ID>TooManyFunctions:ChatRepository.kt$ChatRepository</ID>
     <ID>TooManyFunctions:ChatViewModel.kt$ChatViewModel : AndroidViewModel</ID>
     <ID>TooManyFunctions:LspClient.kt$LspClient</ID>
@@ -156,5 +174,7 @@
     <ID>TooManyFunctions:ProotManager.kt$ProotManager</ID>
     <ID>TooManyFunctions:SettingsViewModel.kt$SettingsViewModel : AndroidViewModel</ID>
     <ID>UnusedParameter:ChatViewModel.kt$ChatViewModel$sessionId: String</ID>
+    <ID>UnusedPrivateProperty:AccountRepository.kt$AccountRepository$private val updateSettings: suspend ((AppSettings) -&gt; AppSettings) -&gt; Unit</ID>
+    <ID>UnusedPrivateProperty:SyncCrypto.kt$SyncCrypto$private const val IV_SIZE_BYTES = 12</ID>
   </CurrentIssues>
 </SmellBaseline>

@@ -13,12 +13,16 @@ import com.secrethero.neurocode.ai.OpenAiCompatibleClient
 import com.secrethero.neurocode.ai.FsAgentTools
 import com.secrethero.neurocode.ai.FsTools
 import com.secrethero.neurocode.data.ChatRepository
+import com.secrethero.neurocode.data.CredentialStore
 import com.secrethero.neurocode.data.FilesystemAccess
 import com.secrethero.neurocode.data.ProjectRepository
+import com.secrethero.neurocode.data.SecureSecretStore
 import com.secrethero.neurocode.data.SettingsRepository
 import com.secrethero.neurocode.device.DeviceSpecs
 import com.secrethero.neurocode.git.GitRepository
 import com.secrethero.neurocode.lsp.LspController
+import com.secrethero.neurocode.sync.AccountRepository
+import com.secrethero.neurocode.sync.SyncRepository
 import com.secrethero.neurocode.terminal.ApprovalGate
 import com.secrethero.neurocode.terminal.ProotManager
 import com.secrethero.neurocode.terminal.ShellSession
@@ -96,6 +100,21 @@ class AppContainer(application: Application) {
         application,
     ) { settings.huggingFaceToken() }
     val lsp = LspController(prootManager, settings.settings)
+    val credentials = CredentialStore(SecureSecretStore(application))
+    val account = AccountRepository(
+        context = application,
+        credentials = credentials,
+        settingsProvider = { settings.settings.value },
+        updateSettings = { transform -> settings.update(transform) },
+    )
+    val sync = SyncRepository(
+        context = application,
+        settings = settings,
+        chats = chats,
+        projects = projects,
+        account = account,
+        http = okhttp3.OkHttpClient.Builder().build(),
+    )
 
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
@@ -147,6 +166,7 @@ class AppContainer(application: Application) {
             _ready.value = true
         }
         scope.launch { runCatching { prootManager.initialize() } }
+        scope.launch { runCatching { account.restore() } }
     }
 
     fun close() {

@@ -608,6 +608,8 @@ fun SettingsScreen(vm: SettingsViewModel) {
 
         AgentPresetsSection(settings, vm)
 
+        AccountSection(vm)
+
         SettingsCatalogSection(settings)
 
         SectionTitle(stringResource(R.string.security))

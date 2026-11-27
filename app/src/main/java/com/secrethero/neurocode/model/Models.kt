@@ -214,6 +214,21 @@ data class AppSettings(
     val selectedPresetId: String? = null,
     /** Версия схемы настроек: миграции применяются один раз при запуске. */
     val settingsSchemaVersion: Int = 0,
+
+    // ==== Аккаунт и синхронизация (0.9.5) ====
+
+    /** URL проекта Supabase, например `https://<ref>.supabase.co`; пусто — синк не настроен. */
+    val syncSupabaseUrl: String = "",
+    /** Anon-ключ проекта Supabase (публичный по дизайну). */
+    val syncSupabaseAnonKey: String = "",
+    /** Режим синхронизации: загрузка/выгрузка только по Wi-Fi. */
+    val syncWifiOnly: Boolean = false,
+    /** Синхронизация включена пользователем (без неё вход сам по себе не запускает обмен). */
+    val syncEnabled: Boolean = false,
+    /** Последнее успешное завершение синхронизации (для экрана «Аккаунт»). */
+    val syncLastSuccessAt: Long? = null,
+    /** Идентификатор устройства в синхронизации: генерируется один раз. */
+    val syncDeviceId: String = "",
 ) {
     companion object {
         const val RECENT_MODELS_LIMIT = 5

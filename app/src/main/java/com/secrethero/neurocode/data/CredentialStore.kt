@@ -20,6 +20,16 @@ sealed interface CredentialKey {
     data object HuggingFace : CredentialKey {
         override val storageName: String get() = "huggingface-token"
     }
+
+    /** Refresh-токен аккаунта синхронизации (0.9.5). */
+    data object Account : CredentialKey {
+        override val storageName: String get() = "account:refresh-token"
+    }
+
+    /** Ключ E2E-шифрования синхронизации (0.9.5): генерируется на первом устройстве. */
+    data object SyncKey : CredentialKey {
+        override val storageName: String get() = "account:sync-key"
+    }
 }
 
 /** Единая точка хранения ключей API, MCP/Git-токенов и Hugging Face в Android Keystore. */

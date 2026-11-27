@@ -27,7 +27,7 @@ android {
         applicationId = "com.secrethero.neurocode"
         minSdk = 33
         targetSdk = 36
-        versionCode = 42
+        versionCode = 43
         versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -85,6 +85,12 @@ android {
         buildConfig = true
     }
 
+    // В unit-тестах используются android.util.Base64 и android.os.Build (sync-слой 0.9.5):
+    // возвращаем значения по умолчанию вместо выброса "not mocked".
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     // libproot.so запускается из nativeLibraryDir (запуск файлов из filesDir запрещён при targetSdk 29+),
     // поэтому библиотеки должны быть распакованы на диск
     packaging.jniLibs.useLegacyPackaging = true
@@ -112,6 +118,7 @@ dependencies {
     implementation(libs.bundles.compose)
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.activity.compose)
+    implementation(libs.androidx.browser)
     implementation(libs.androidx.core)
     implementation(libs.lifecycle.runtime)
     implementation(libs.lifecycle.viewmodel)

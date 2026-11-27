@@ -430,6 +430,17 @@ class ProjectRepository(private val context: Context, onCorrupt: (File) -> Unit 
         persist(_projects.value.filterNot { it.id == projectId })
     }
 
+    /**
+     * Проект с другого устройства (синхронизация 0.9.5): рабочая папка на этом устройстве
+     * не создаётся и содержимое не переносится — только запись в списке и метаданные.
+     * Папка появится, когда пользователь откроет проект или что-то в нём напишет.
+     */
+    suspend fun upsertRemote(project: Project) = withContext(Dispatchers.IO) {
+        val rest = _projects.value.filterNot { it.id == project.id }
+        persist(listOf(project) + rest)
+        runCatching { File(project.rootPath).mkdirs() }
+    }
+
     fun get(projectId: String?): Project? =
         _projects.value.firstOrNull { it.id == projectId }
 

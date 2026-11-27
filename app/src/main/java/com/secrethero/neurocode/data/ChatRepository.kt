@@ -177,6 +177,16 @@ class ChatRepository(private val context: Context, onCorrupt: (File) -> Unit = {
         }
     }
 
+    /**
+     * Диалог с другого устройства (синхронизация 0.9.5): добавить или заменить целиком,
+     * не трогая журнал и spill — сообщения приходят в [ChatSession.messages].
+     */
+    suspend fun upsertRemote(session: ChatSession) = mutex.withLock {
+        val rest = _sessions.value.filterNot { it.id == session.id }
+        val updated = (listOf(session) + rest).sortedByDescending { it.updatedAt }
+        persistLocked(updated)
+    }
+
     fun get(sessionId: String?): ChatSession? =
         _sessions.value.firstOrNull { it.id == sessionId }
 

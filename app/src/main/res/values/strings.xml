@@ -35,6 +35,30 @@
     <string name="action_close">Close</string>
     <string name="action_apply">Apply</string>
     <string name="action_refresh">Refresh</string>
+    <string name="action_confirm">Confirm</string>
+
+    <!-- Account & sync (0.9.5) -->
+    <string name="account_section_title">Account</string>
+    <string name="account_section_text">Sign in to sync chats, skills and settings between devices. Works without an account too; sync is optional. API keys never leave this device.</string>
+    <string name="account_sign_in_google">Sign in with Google</string>
+    <string name="account_sign_in_github">Sign in with GitHub</string>
+    <string name="account_signing_in">Signing in…</string>
+    <string name="account_signed_out">Not signed in</string>
+    <string name="account_signed_in_format">Signed in as %1$s (%2$s)</string>
+    <string name="account_supabase_url">Supabase project URL</string>
+    <string name="account_supabase_anon_key">Supabase anon key</string>
+    <string name="account_sync_key_text">Sync key encrypts data on this device; the server never sees it. Save it to import on your other device.</string>
+    <string name="account_sync_key_label">Sync key</string>
+    <string name="account_sync_key_show">Show sync key</string>
+    <string name="account_sync_key_import">Enter from another device</string>
+    <string name="account_sync_key_import_text">Paste the sync key shown on your first device.</string>
+    <string name="account_sync_enabled">Enable sync</string>
+    <string name="account_sync_wifi_only">Sync on Wi-Fi only</string>
+    <string name="account_sync_last_format">Last successful sync: %1$s</string>
+    <string name="account_sync_now">Sync now</string>
+    <string name="account_sign_out">Sign out</string>
+    <string name="account_delete_data">Delete account data</string>
+    <string name="account_delete_data_text">Signs out and erases the sync key on this device. Chats and files stay on this device. Cloud data is overwritten on the next sync.</string>
 
     <!-- Progress dialogs -->
     <string name="export_title">Project export</string>

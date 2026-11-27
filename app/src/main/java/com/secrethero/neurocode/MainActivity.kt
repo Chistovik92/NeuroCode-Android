@@ -25,6 +25,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleSharedModel()
+        setIntent(intent)
+        handleOauthRedirect(intent?.data)
         setContent {
             val windowSize = calculateWindowSizeClass(this)
             val viewModel: AppViewModel = viewModel()
@@ -78,6 +80,25 @@ class MainActivity : ComponentActivity() {
                         getString(R.string.notice_model_imported_format, it.name),
                     )
                 }
+                .onFailure(app.container.bus::showError)
+        }
+    }
+
+    /**
+     * Редирект OAuth-входа (0.9.5): `neurocode://oauth#…&code=…` после Custom Tab.
+     * Обрабатывается и при холодном старте, и в onNewIntent, когда Activity уже жива.
+     */
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handleOauthRedirect(intent.data)
+    }
+
+    private fun handleOauthRedirect(uri: android.net.Uri?) {
+        if (uri?.scheme != "neurocode" || uri.host != "oauth") return
+        // ACTION_SEND-интенты тоже имеют data=null: здесь фильтрует схема.
+        val app = application as NeuroCodeApplication
+        app.container.scope.launch {
+            runCatching { app.container.account.onOauthRedirect(uri) }
                 .onFailure(app.container.bus::showError)
         }
     }

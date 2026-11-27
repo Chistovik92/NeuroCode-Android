@@ -71,6 +71,78 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _hfTokenSet = MutableStateFlow(false)
     val hfTokenSet: StateFlow<Boolean> = _hfTokenSet.asStateFlow()
 
+    // ==== Аккаунт и синхронизация (0.9.5) ====
+
+    val accountState = container.account.state
+    val syncState = container.sync.state
+
+    /** Фраза ключа синхронизации: показывается один раз, хранится в Keystore. */
+    private val _syncKeyPhrase = MutableStateFlow<String?>(null)
+    val syncKeyPhrase: StateFlow<String?> = _syncKeyPhrase.asStateFlow()
+
+    fun showSyncKey() {
+        viewModelScope.launch {
+            runCatching { container.account.syncKeyPhrase() }
+                .onSuccess { _syncKeyPhrase.value = it }
+                .onFailure(container.bus::showError)
+        }
+    }
+
+    fun importSyncKey(phrase: String) {
+        viewModelScope.launch {
+            val ok = container.account.importSyncKeyPhrase(phrase)
+            _syncKeyPhrase.value = if (ok) phrase else null
+            if (!ok) container.bus.showError(IllegalArgumentException("Ключ синхронизации введён неверно"))
+        }
+    }
+
+    fun signIn(provider: com.secrethero.neurocode.sync.AuthProvider) {
+        viewModelScope.launch { container.account.signIn(provider) }
+    }
+
+    fun cancelSignIn() = container.account.cancelSignIn()
+
+    fun signOut() {
+        viewModelScope.launch { runCatching { container.account.signOut() }.onFailure(container.bus::showError) }
+    }
+
+    fun deleteAccountData() {
+        viewModelScope.launch {
+            runCatching { container.account.deleteAccountData() }.onFailure(container.bus::showError)
+        }
+    }
+
+    fun saveSyncConfig(url: String, anonKey: String) {
+        viewModelScope.launch {
+            container.settings.update {
+                it.copy(
+                    syncSupabaseUrl = url.trim(),
+                    syncSupabaseAnonKey = anonKey.trim(),
+                )
+            }
+            container.account.invalidateClient()
+        }
+    }
+
+    fun setSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            container.settings.update { it.copy(syncEnabled = enabled) }
+        }
+    }
+
+    fun setSyncWifiOnly(wifiOnly: Boolean) {
+        viewModelScope.launch {
+            container.settings.update { it.copy(syncWifiOnly = wifiOnly) }
+        }
+    }
+
+    fun syncNow() {
+        viewModelScope.launch {
+            runCatching { container.sync.synchronize() }
+                .onFailure { container.bus.showError(it) }
+        }
+    }
+
     init {
         viewModelScope.launch {
             runCatching { deviceSpecs.snapshot() }

@@ -33,6 +33,13 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
+            <!-- Вход в аккаунт по OAuth (0.9.5): редирект провайдера на neurocode://oauth. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="neurocode" android:host="oauth" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>

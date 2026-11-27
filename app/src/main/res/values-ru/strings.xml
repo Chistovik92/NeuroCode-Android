@@ -35,6 +35,30 @@
     <string name="action_close">Закрыть</string>
     <string name="action_apply">Применить</string>
     <string name="action_refresh">Обновить</string>
+    <string name="action_confirm">Подтвердить</string>
+
+    <!-- Account & sync (0.9.5) -->
+    <string name="account_section_title">Аккаунт</string>
+    <string name="account_section_text">Вход нужен, чтобы переносить диалоги, скиллы и настройки между устройствами. Без аккаунта приложение работает как раньше; синхронизация — необязательна. API-ключи не покидают устройство.</string>
+    <string name="account_sign_in_google">Войти через Google</string>
+    <string name="account_sign_in_github">Войти через GitHub</string>
+    <string name="account_signing_in">Выполняется вход…</string>
+    <string name="account_signed_out">Вход не выполнен</string>
+    <string name="account_signed_in_format">Вошли как %1$s (%2$s)</string>
+    <string name="account_supabase_url">URL проекта Supabase</string>
+    <string name="account_supabase_anon_key">Anon-ключ Supabase</string>
+    <string name="account_sync_key_text">Ключ синхронизации шифрует данные на устройстве; сервер его не получает. Сохраните его, чтобы ввести на втором устройстве.</string>
+    <string name="account_sync_key_label">Ключ синхронизации</string>
+    <string name="account_sync_key_show">Показать ключ</string>
+    <string name="account_sync_key_import">Ввести с другого устройства</string>
+    <string name="account_sync_key_import_text">Вставьте ключ, показанный на первом устройстве.</string>
+    <string name="account_sync_enabled">Включить синхронизацию</string>
+    <string name="account_sync_wifi_only">Только по Wi-Fi</string>
+    <string name="account_sync_last_format">Последний успешный синк: %1$s</string>
+    <string name="account_sync_now">Синхронизировать сейчас</string>
+    <string name="account_sign_out">Выйти</string>
+    <string name="account_delete_data">Удалить данные аккаунта</string>
+    <string name="account_delete_data_text">Выход и стирание ключа синхронизации на этом устройстве. Диалоги и файлы останутся здесь. Данные в облаке будут перезаписаны при следующем синке.</string>
 
     <!-- Progress dialogs -->
     <string name="export_title">Экспорт проекта</string>
