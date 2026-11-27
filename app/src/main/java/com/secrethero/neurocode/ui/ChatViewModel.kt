@@ -735,10 +735,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         runCatching {
             container.apiClient.models(provider, key)
         }.onSuccess { models ->
-            _switcherModels.value = ProviderModelsState(models, null, false)
+            _switcherModels.value = ProviderModelsState(provider.mergeModels(models), null, false)
         }.onFailure { error ->
+            // Без API-каталога остаются ручные модели провайдера + основная.
             _switcherModels.value =
-                ProviderModelsState(emptyList(), error.message ?: "ошибка", false)
+                ProviderModelsState(provider.mergeModels(emptyList()), error.message ?: "ошибка", false)
         }
     }
 

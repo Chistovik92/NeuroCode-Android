@@ -44,6 +44,13 @@ object ProviderCatalog {
             baseUrl = "https://api.mistral.ai/v1",
             model = "codestral-latest",
         ),
+        ProviderConfig(
+            // id зафиксирован: AIStarClient.PROVIDER_ID, ключ активации хранится как у остальных.
+            id = "aistar",
+            name = "AI Star",
+            baseUrl = AIStarClient.API_BASE_URL,
+            model = "glm-5.3-flash",
+        ),
     )
 
     val defaultIds: Set<String> = defaults().map { it.id }.toSet()

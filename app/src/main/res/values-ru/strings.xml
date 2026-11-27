@@ -322,6 +322,19 @@
     <string name="api_key_new_label">Новый API-ключ (необязательно)</string>
     <string name="provider_remove_key">Удалить ключ</string>
 
+    <!-- Дополнительные модели провайдера (0.9.5.5), по образцу winOpenCodeMod -->
+    <string name="provider_extra_models_label">Дополнительные модели (необязательно)</string>
+    <string name="provider_extra_model_hint">Идентификатор модели</string>
+    <string name="provider_extra_models_add">Добавить модель</string>
+    <string name="provider_extra_models_note">Эти модели появятся в списке чата вместе с каталогом из API.</string>
+
+    <!-- Активация AI Star по коду доступа (0.9.5.5) -->
+    <string name="aistar_code_label">Код доступа AI Star</string>
+    <string name="aistar_code_support">Ключ sk-star-… будет получен автоматически после активации</string>
+    <string name="aistar_activate">Активировать код</string>
+    <string name="aistar_load_models">Загрузить список моделей</string>
+    <string name="aistar_activated">AI Star активирован: ключ сохранён</string>
+
     <!-- Доступ к файловой системе (0.8.2) -->
     <string name="fs_access_title">Доступ к файлам</string>
     <string name="fs_access_desc">Папки, которые модель может читать вне проекта. Разрешены только просмотр списка, поиск и чтение; запись вне проекта запрещена. Обращения попадают в журнал диалога.</string>

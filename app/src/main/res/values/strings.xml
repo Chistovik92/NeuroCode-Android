@@ -322,6 +322,19 @@
     <string name="api_key_new_label">New API key (optional)</string>
     <string name="provider_remove_key">Remove key</string>
 
+    <!-- Extra provider models (0.9.5.5), like winOpenCodeMod custom provider rows -->
+    <string name="provider_extra_models_label">Additional models (optional)</string>
+    <string name="provider_extra_model_hint">Model ID</string>
+    <string name="provider_extra_models_add">Add model</string>
+    <string name="provider_extra_models_note">These models appear in the chat model list along with the catalog from the API.</string>
+
+    <!-- AI Star access code activation (0.9.5.5) -->
+    <string name="aistar_code_label">AI Star access code</string>
+    <string name="aistar_code_support">The key sk-star-… is received automatically after activation</string>
+    <string name="aistar_activate">Activate code</string>
+    <string name="aistar_load_models">Load model list</string>
+    <string name="aistar_activated">AI Star activated: key saved</string>
+
     <!-- Filesystem access (0.8.2) -->
     <string name="fs_access_title">File access</string>
     <string name="fs_access_desc">Folders the model may read outside the project. Only listing, search and reading are allowed; writing outside the project is forbidden. Access is logged in the chat.</string>

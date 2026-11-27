@@ -7,6 +7,7 @@ import android.os.StatFs
 import android.provider.OpenableColumns
 import com.arm.aichat.AiChat
 import com.arm.aichat.InferenceEngine
+import com.arm.aichat.UnsupportedArchitectureException
 import com.arm.aichat.gguf.GgufMetadataReader
 import com.arm.aichat.isModelLoaded
 import com.secrethero.neurocode.device.DeviceProfile
@@ -237,8 +238,15 @@ class LocalLlamaClient(
                 engine.cleanUp()
             }
             closeLoadedPfd()
+            // После ошибки предыдущей загрузки движок остаётся в State.Error: сбрасываем,
+            // иначе каждая следующая загрузка падает до перезапуска приложения (0.9.5.5).
+            resetErrorState()
             awaitInitialized()
-            engine.loadModel(canonical)
+            try {
+                engine.loadModel(canonical)
+            } catch (error: UnsupportedArchitectureException) {
+                throw unsupportedArchitecture(error, canonical)
+            }
             engine.setSystemPrompt(systemPrompt)
             loadedPath = canonical
             loadedConversationKey = conversationKey
@@ -267,8 +275,17 @@ class LocalLlamaClient(
             engine.cleanUp()
         }
         closeLoadedPfd()
+        resetErrorState()
         awaitInitialized()
-        engine.loadModel("/proc/self/fd/${pfd.fd}")
+        try {
+            engine.loadModel("/proc/self/fd/${pfd.fd}")
+        } catch (error: UnsupportedArchitectureException) {
+            // Архитектуру читаем из ещё открытого fd, затем закрываем дескриптор:
+            // он передан во владение и не будет сохранён после ошибки.
+            val readable = unsupportedArchitecture(error, "/proc/self/fd/${pfd.fd}")
+            runCatching { pfd.close() }
+            throw readable
+        }
         engine.setSystemPrompt(systemPrompt)
         loadedPfd = pfd
         loadedLocalDocKey = localDocKey
@@ -281,9 +298,47 @@ class LocalLlamaClient(
 
     suspend fun unload() = engineMutex.withLock {
         if (engine.state.value.isModelLoaded) engine.cleanUp()
+        // Ошибка загрузки тоже снимается: после неё состояние движка остаётся Error (0.9.5.5).
+        resetErrorState()
         loadedPath = null
         loadedConversationKey = null
         closeLoadedPfd()
+    }
+
+    /**
+     * Сбрасывает State.Error в Initialized через `cleanUp()` движка. Без этого после
+     * неудачной загрузки (например, неподдерживаемая архитектура GGUF) движок оставался
+     * в ошибке до перезапуска приложения, и любая следующая модель не загружалась.
+     */
+    private fun resetErrorState() {
+        if (engine.state.value is InferenceEngine.State.Error) engine.cleanUp()
+    }
+
+    /**
+     * Человекочитаемая ошибка вместо сырого класса исключения (0.9.5.5): называет
+     * архитектуру GGUF из метаданных, если её удалось прочитать.
+     */
+    private suspend fun unsupportedArchitecture(
+        cause: UnsupportedArchitectureException,
+        path: String?,
+    ): RuntimeException {
+        val arch = path?.let { file ->
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    File(file).inputStream().use { stream ->
+                        GgufMetadataReader.create().readStructuredMetadata(stream)
+                    }
+                }.architecture?.architecture
+            }.getOrNull()
+        }
+        return RuntimeException(
+            if (arch != null) {
+                "Модель использует архитектуру «$arch», которая не поддерживается этой сборкой llama.cpp"
+            } else {
+                "Архитектура модели GGUF не поддерживается этой сборкой llama.cpp"
+            },
+            cause,
+        )
     }
 
     private fun closeLoadedPfd() {

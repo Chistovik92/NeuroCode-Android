@@ -27,6 +27,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -53,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.secrethero.neurocode.BuildConfig
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.ai.AIStarClient
 import com.secrethero.neurocode.ai.ImportedModel
 import com.secrethero.neurocode.device.DeviceProfile
 import com.secrethero.neurocode.device.DeviceSnapshot
@@ -629,6 +631,11 @@ fun SettingsScreen(vm: SettingsViewModel) {
             modelsState = providerModels,
             onLoadModels = vm::loadProviderModels,
             onValidate = vm::validateProvider,
+            onAIStarActivate = { code ->
+                vm.activateAIStar(code)
+                providerDialog = false
+            },
+            onAIStarModels = vm::loadAIStarModels,
             onDismiss = { providerDialog = false },
             onSave = { provider, key ->
                 vm.saveProvider(provider, key.ifBlank { null })
@@ -1145,6 +1152,8 @@ private fun ProviderDialog(
     modelsState: ProviderModelsState,
     onLoadModels: (ProviderConfig) -> Unit,
     onValidate: (ProviderConfig, String) -> Unit,
+    onAIStarActivate: (String) -> Unit,
+    onAIStarModels: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (ProviderConfig, String) -> Unit,
     onRemoveKey: () -> Unit,
@@ -1152,7 +1161,9 @@ private fun ProviderDialog(
     var name by remember { mutableStateOf(current?.name.orEmpty()) }
     var baseUrl by remember { mutableStateOf(current?.baseUrl.orEmpty()) }
     var model by remember { mutableStateOf(current?.model.orEmpty()) }
+    var extraModels by remember { mutableStateOf(current?.extraModels.orEmpty()) }
     var apiKey by remember { mutableStateOf("") }
+    var accessCode by remember { mutableStateOf("") }
     var modelsMenu by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1167,6 +1178,33 @@ private fun ProviderDialog(
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // ==== AI Star (0.9.5.5): активация кода + каталог без ключа ====
+                if (current?.id == AIStarClient.PROVIDER_ID) {
+                    OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = accessCode,
+                        onValueChange = { accessCode = it },
+                        label = { Text(stringResource(R.string.aistar_code_label)) },
+                        supportingText = { Text(stringResource(R.string.aistar_code_support)) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            enabled = accessCode.isNotBlank() && !modelsState.loading,
+                            onClick = { onAIStarActivate(accessCode) },
+                        ) {
+                            Text(stringResource(R.string.aistar_activate))
+                        }
+                        OutlinedButton(
+                            enabled = !modelsState.loading,
+                            onClick = onAIStarModels,
+                        ) {
+                            Text(stringResource(R.string.aistar_load_models))
+                        }
+                    }
+                    HorizontalDivider()
+                }
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = name,
@@ -1198,6 +1236,7 @@ private fun ProviderDialog(
                                         name = name,
                                         baseUrl = baseUrl.trim().trimEnd('/'),
                                         model = model.trim(),
+                                        extraModels = extraModels,
                                         extraHeaders = current?.extraHeaders.orEmpty(),
                                     ),
                                 )
@@ -1217,6 +1256,46 @@ private fun ProviderDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
+                }
+                // ==== Дополнительные модели провайдера (0.9.5.5, по образцу winOpenCodeMod) ====
+                Text(
+                    stringResource(R.string.provider_extra_models_label),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    stringResource(R.string.provider_extra_models_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                extraModels.forEachIndexed { index, extra ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            value = extra,
+                            onValueChange = { value ->
+                                extraModels = extraModels.toMutableList().also { it[index] = value.trim() }
+                            },
+                            label = { Text(stringResource(R.string.provider_extra_model_hint)) },
+                            singleLine = true,
+                        )
+                        IconButton(
+                            onClick = {
+                                extraModels = extraModels.toMutableList().also { it.removeAt(index) }
+                            },
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.models_delete_cd))
+                        }
+                    }
+                }
+                TextButton(
+                    onClick = { extraModels = extraModels + "" },
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Text(stringResource(R.string.provider_extra_models_add))
                 }
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
@@ -1245,6 +1324,7 @@ private fun ProviderDialog(
                                 name = name.trim(),
                                 baseUrl = baseUrl.trim().trimEnd('/'),
                                 model = model.trim(),
+                                extraModels = extraModels.filter { it.isNotBlank() },
                                 apiKeyName = current?.apiKeyName ?: id,
                                 extraHeaders = current?.extraHeaders.orEmpty(),
                             ),
@@ -1272,6 +1352,7 @@ private fun ProviderDialog(
                             name = name.trim(),
                             baseUrl = baseUrl.trim().trimEnd('/'),
                             model = model.trim(),
+                            extraModels = extraModels.filter { it.isNotBlank() },
                             apiKeyName = current?.apiKeyName ?: id,
                             extraHeaders = current?.extraHeaders.orEmpty(),
                         ),

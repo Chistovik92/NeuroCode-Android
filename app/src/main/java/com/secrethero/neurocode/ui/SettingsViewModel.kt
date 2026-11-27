@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.secrethero.neurocode.NeuroCodeApplication
 import com.secrethero.neurocode.R
+import com.secrethero.neurocode.ai.AIStarClient
 import com.secrethero.neurocode.ai.ImportedModel
 import com.secrethero.neurocode.ai.LocalDocModelsClient
 import com.secrethero.neurocode.ai.HuggingFaceModel
@@ -494,6 +495,50 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun saveProvider(provider: ProviderConfig, apiKey: String?) = viewModelScope.launch {
         runCatching { container.settings.upsertProvider(provider, apiKey) }
             .onFailure(container.bus::showError)
+    }
+
+    // ==== AI Star (0.9.5.5, порт winOpenCodeMod/aistar.ts) ====
+
+    /** Каталог моделей AI Star: публичная страница, ключ не нужен. */
+    fun loadAIStarModels() = viewModelScope.launch {
+        _providerModels.value = _providerModels.value.copy(loading = true)
+        val existing = settings.value.providers.firstOrNull { it.id == AIStarClient.PROVIDER_ID }
+        runCatching { AIStarClient.fetchBootstrapModels() }
+            .onSuccess { models ->
+                _providerModels.value =
+                    ProviderModelsState(existing?.mergeModels(models) ?: models, null, false)
+            }
+            .onFailure { error ->
+                _providerModels.value = ProviderModelsState(
+                    emptyList(),
+                    error.message ?: error::class.java.simpleName,
+                    false,
+                )
+            }
+    }
+
+    /**
+     * Активация кода доступа AI Star: обмен кода на ключ `sk-star-…`, сохранение
+     * провайдера с ключом (base_url региона из ответа). Диалог закрывается сразу,
+     * поэтому и успех, и ошибка показываются тостом, а не состоянием диалога.
+     */
+    fun activateAIStar(accessCode: String) = viewModelScope.launch {
+        runCatching {
+            require(accessCode.isNotBlank()) { "Введите код доступа AI Star" }
+            AIStarClient.activateAccessCode(accessCode.trim())
+        }.onSuccess { activation ->
+            val existing = settings.value.providers
+                .firstOrNull { it.id == AIStarClient.PROVIDER_ID }
+            val provider = ProviderConfig(
+                id = AIStarClient.PROVIDER_ID,
+                name = "AI Star",
+                baseUrl = activation.baseUrl,
+                model = existing?.model ?: "glm-5.3-flash",
+                extraModels = existing?.extraModels.orEmpty(),
+            )
+            container.settings.upsertProvider(provider, activation.apiKey)
+            container.bus.showNotice(getApplication<Application>().getString(R.string.aistar_activated))
+        }.onFailure(container.bus::showError)
     }
 
     /** Проверка ключа и модели до сохранения формы своего OpenAI-совместимого провайдера. */

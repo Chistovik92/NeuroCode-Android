@@ -86,10 +86,26 @@ data class ProviderConfig(
     val name: String,
     val baseUrl: String,
     val model: String,
+    /**
+     * Дополнительные модели провайдера, добавленные пользователем вручную
+     * (аналог строк «models» в кастомном провайдере winOpenCodeMod).
+     * Показываются в списках выбора вместе с [model] и каталогом из API.
+     */
+    val extraModels: List<String> = emptyList(),
     val apiKeyName: String = id,
     val enabled: Boolean = true,
     val extraHeaders: Map<String, String> = emptyMap(),
-)
+) {
+    /**
+     * Объединяет основную и ручные модели с каталогом API: основная — первой,
+     * далее ручные, затем каталог; без пустых и дублей.
+     */
+    fun mergeModels(apiModels: List<String>): List<String> =
+        (listOf(model) + extraModels + apiModels)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+}
 
 @Serializable
 enum class ThemeMode {
